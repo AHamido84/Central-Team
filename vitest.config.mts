@@ -25,6 +25,8 @@ export default defineConfig({
           environment: 'node',
           testTimeout: 30_000,
           fileParallelism: false,
+          // App modules under test (e.g. the event dispatcher) connect through src/lib/db/client.
+          env: { DATABASE_URL: process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' },
         },
       },
     ],

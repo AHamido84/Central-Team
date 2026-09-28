@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -74,8 +74,12 @@ describe('ungrantablePermissions (mirrors app.assert_can_grant)', () => {
 });
 
 describe('permission catalog', () => {
-  it('matches the keys seeded by the reference-data migration', () => {
-    const sql = readFileSync(path.resolve(__dirname, '../../supabase/migrations/20260928183500_reference_data.sql'), 'utf8');
+  it('matches the keys seeded by the migrations', () => {
+    const dir = path.resolve(__dirname, '../../supabase/migrations');
+    const sql = readdirSync(dir)
+      .filter((f) => f.endsWith('.sql'))
+      .map((f) => readFileSync(path.join(dir, f), 'utf8'))
+      .join('\n');
     const seeded = [...sql.matchAll(/^\s*\('([a-z_]+:[a-z_]+)',\s*'[a-z_]+',\s*'[a-z_]+',\s*'(agency|client)'/gm)].map((m) => ({
       key: m[1],
       side: m[2],

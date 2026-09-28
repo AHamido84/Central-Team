@@ -9,6 +9,7 @@ import { completeOnboarding, linkFrom, login, unique, waitForEmail } from './sup
  */
 test('client portal round trip', async ({ browser }) => {
   const email = `${unique('client')}@najd.test`;
+  const question = `وصلكم الشعار الجديد؟ ${unique('m')}`;
   const since = new Date();
 
   // 1. The account manager invites a client user from the client page.
@@ -50,13 +51,13 @@ test('client portal round trip', async ({ browser }) => {
   // 4. The client writes in the general thread; the agency replies.
   await client.goto('/portal/messages');
   await client.getByTestId('thread-item').filter({ hasText: 'General' }).first().click();
-  await client.getByTestId('composer-input').fill('وصلكم الشعار الجديد؟');
+  await client.getByTestId('composer-input').fill(question);
   await client.getByTestId('composer-send').click();
-  await expect(client.getByTestId('message').filter({ hasText: 'وصلكم الشعار الجديد؟' })).toBeVisible();
+  await expect(client.getByTestId('message').filter({ hasText: question })).toBeVisible();
 
   await agency.goto('/messages');
   await agency.getByTestId('thread-item').filter({ hasText: 'مطاعم نجد الأصيلة' }).filter({ hasText: 'General' }).first().click();
-  await expect(agency.getByTestId('message').filter({ hasText: 'وصلكم الشعار الجديد؟' })).toBeVisible();
+  await expect(agency.getByTestId('message').filter({ hasText: question })).toBeVisible();
   const replySince = new Date();
   await agency.getByTestId('composer-input').fill('نعم وصلنا، شكرًا لك! سنستخدمه في تصاميم هذا الأسبوع.');
   await agency.getByTestId('composer-send').click();
