@@ -174,7 +174,7 @@ connection, listed in CLAUDE.md §6). Messages/mentions, files, invitations, rol
 recipients with in-app disabled are not deduplicated on retry (accepted: rare, and better than dropping them).
 
 ### ADR-029 — Versioned request forms as JSON field definitions
-2026-09-28 · Accepted
+2026-09-28 · Superseded by ADR-032
 `request_form_versions.fields` holds an ordered array of typed fields (8 types, AR/EN labels). Published versions are
 immutable (trigger) and requests keep the `form_version_id` they were answered with. A single Zod builder
 (`buildAnswersSchema`) validates in the portal and in the server action. At most one draft per form; publishing freezes
@@ -182,7 +182,7 @@ it. *Rejected*: JSON Schema + a generic renderer (heavier, weaker bilingual labe
 every form change).
 
 ### ADR-030 — Request lifecycle rules enforced by triggers; SLA counted in working hours
-2026-09-28 · Accepted
+2026-09-28 · Superseded by ADR-033 (triggers kept; SLA now in working days)
 Status transitions, client-restricted columns (clients may only cancel; priority limited to normal/high at submit),
 server-owned timestamps (`first_response_at`, `resolved_at`, SLA due dates), per-org numbering and history rows are
 enforced in Postgres so crafted PostgREST writes can't bypass them. Changes made inside another trigger
@@ -197,6 +197,39 @@ Every request gets exactly one `threads` row (`subject_type = 'request'`, unique
 existing internal comments. General message lists show only `subject_type = 'client'` threads; request notifications
 link to the request page. Attachments added at submission are `files` with `source = 'attachment'`, linked through
 `request_attachments`.
+
+### ADR-032 — Request types carry their brief form; requests keep a snapshot
+2026-09-28 · Accepted
+Revision 2 of Phase 2 replaces versioned `request_forms` with `request_types` (settings + `form_schema` JSON with 12
+field types, AR/EN labels/help, required, `showIf` conditions on an earlier choice/checkbox/platform field). Every form
+change bumps `schema_version` (trigger); a request copies the field list into `form_snapshot` when created and the
+snapshot is frozen at submit, so later edits never break old briefs and the needs-info resubmit validates against what
+the client originally saw. One validator (`validateBrief`) runs in the wizard, the submit/resubmit actions; hidden
+fields are dropped. Long text is light Markdown rather than WYSIWYG. The migrations were rewritten in place because
+Phase 2 had not been released.
+
+### ADR-033 — Lifecycle per side, reasons through a transaction setting, per-client numbering
+2026-09-28 · Accepted
+Allowed transitions live in `app.request_transition_allowed(from, to, side)` and in `requestTransitions` (a unit test
+parses the SQL to keep them identical). Clients: submit drafts, cancel while submitted/under review/needs info,
+resubmit from needs info, close deliveries. Agency: triage moves need `requests:triage`; work moves are open to the
+assignee with `requests:update`. Needs info and reject require a reason, passed by the action as the transaction-local
+setting `app.transition_reason` so the trigger can both enforce it and store it in `request_status_history`.
+References are `<PREFIX>-0001` per client (`clients.request_prefix`, default from the slug), assigned at submit under
+an advisory lock. Due date = submit date + type SLA days on Sunday–Thursday.
+
+### ADR-034 — Package consumption on acceptance, computed "extra" on submit
+2026-09-28 · Accepted
+A request counts against the package when the agency accepts it (not at submit), via one idempotent
+`package_usage_entries` row per request written by `app.request_sync_usage`; rejecting, cancelling or marking it extra
+removes the row. At submit the trigger computes `is_extra` from `app.request_quota` (allowed − used − pending of the
+type's item); the client is warned in the wizard but may still submit. Agency can override extra/billable in triage.
+
+### ADR-035 — Drafts are private to their author
+2026-09-28 · Accepted
+Drafts are saved server-side (resume from any device) but RLS shows them only to their author: not to teammates at the
+client and never to the agency, which sees a request only once it is submitted. Drafts have no number, due date or
+thread; only the author can delete one.
 
 ---
 

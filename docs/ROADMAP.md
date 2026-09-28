@@ -146,57 +146,63 @@ behind feature flags with proper empty states until those phases ship.
 - [x] Playwright: invite client → accept → upload file → agency replies → client notified
 - [ ] AR/EN × light/dark × mobile/desktop pass on every portal screen
 
-## Phase 2 — Requests (done)
+## Phase 2 — Requests (revision 2 — done)
 
-Plan: clients submit structured requests from the portal using agency-defined, versioned forms; the agency triages
-them in one inbox (assign, prioritize, move through the lifecycle) with SLA due dates; every request has its own
-conversation (a `threads` row with `subject_type = 'request'`) and attachments (`files`). The domain-event dispatcher
-arrives with this phase and becomes the only place notifications are fanned out. Converting requests into tasks is
-Phase 3 (the `requests` row is the future task parent).
+Revision 2 (owner brief, 2026-09-28) replaces the first cut's versioned "request forms" with **request types** that carry
+their brief form (`form_schema`), a richer lifecycle with drafts, needs-info and delivery, per-client numbering, package
+consumption and a client dashboard. The domain-event dispatcher, notification consumers, request threads and
+attachments from the first cut are kept.
 
 ### 2.1 Data & security
-- [x] Tables: `request_forms`, `request_form_versions` (JSON field definitions, immutable once published), `requests`, `request_events` (lifecycle history), `request_attachments`
-- [x] Triggers: per-organization request number, SLA due dates (working days, Fri–Sat weekend), status-transition guard, client-restricted columns, lifecycle events, request thread creation, conversation activity (first response, waiting-on-client → in progress)
-- [x] Permissions: `requests:read`, `requests:update`, `requests:triage`, `request_forms:manage` (agency), `portal_requests:create` (client) — seeded, granted to system roles, in the matrix, enforced by RLS
-- [x] RLS: client isolation, Viewer read-only, internal lifecycle events and internal notes never reach the portal, specialists update only requests assigned to them
-- [x] `module.requests` enabled by default; data dark for clients when the flag is off
+- [x] `request_types` (name AR/EN, icon, description, category, default priority, SLA days, package item, active, `form_schema` + `schema_version`)
+- [x] `requests` (per-client number/reference `NAJD-0042`, brief + schema snapshot, references, desired/due date, extra/billable flags, lifecycle timestamps), `request_status_history` (with reasons), `request_events` (internal changes), `request_attachments` (per brief field or general)
+- [x] `clients.request_prefix` (defaults from the slug)
+- [x] Triggers: numbering on submit, due date from SLA days (working days, Fri–Sat off), role-aware transition guard, required reasons, client-editable columns only in Draft / Needs info, server-owned timestamps, history rows, thread on submit, package consumption on accept (and reversal)
+- [x] RLS: drafts private to their author, agency never sees drafts, client isolation, Viewer read-only, internal events/notes hidden
+- [x] Domain-event dispatcher + consumers (first cut, kept)
 
-### 2.2 Domain-event dispatcher
-- [x] `domain_event_deliveries` claim/retry columns (`next_attempt_at`, `locked_until`, `created_at`)
-- [x] Dispatcher: per-consumer delivery rows, `for update skip locked` claiming, exponential backoff, idempotent consumers
-- [x] Triggered after every committed action (`after()`), plus a cron-safe route `/api/cron/dispatch-events` (`CRON_SECRET`)
-- [x] All notification fan-out moved to consumers (messages, mentions, files, invitations, roles, requests); `notify()` idempotent per event
+### 2.2 Agency — request types & form builder
+- [x] Request types admin: list, create, settings, active toggle
+- [x] Builder: short/long (light formatting) text, number, select, multi-select, date, file upload, links, platform picker (7 networks), dimensions/aspect ratio, color, checkbox; AR/EN labels & help, required, conditional visibility, drag & drop reorder (+ keyboard), live preview
+- [x] Seed types: Social post, Carousel, Reel/Video, Story, Ad campaign, Photoshoot, Website change, Branding, Other
 
-### 2.3 Agency — forms & triage
-- [x] Request forms admin: list, create, settings (name AR/EN, description, icon, category, default priority, SLA hours), archive/restore
-- [x] Form builder: field types (short/long text, number, date, single/multi select, checkbox, URL), AR/EN labels & help, required, options, reorder, live preview, draft → publish new version
-- [x] Triage inbox `/requests`: stats (open, unassigned, overdue, due soon), views (open, mine, unassigned, closed, all), filters (status, priority, client, assignee, form), search, bulk assign / prioritize, SLA indicator, mobile cards
-- [x] Request detail: answers (rendered from the version it was submitted with), attachments, conversation with internal notes, status actions, priority, assignee, SLA card, timeline
-- [x] Client page "Requests" tab
+### 2.3 Portal — submission & tracking
+- [x] Wizard: type cards → brief → attachments & references → desired date & priority → review → submit; save draft at any step, resume drafts
+- [x] Package check: remaining quota for the type's item, "extra" warning (still allowed, flagged)
+- [x] Requests list: status tabs, search, type filter, cards on mobile
+- [x] Request page: brief (editable only in Needs info → resubmit), status timeline, thread, attachments, assigned AM, cancel in early statuses, confirm delivery (close)
 
-### 2.4 Portal
-- [x] `/portal/requests`: active / closed lists, status badges, empty states
-- [x] New request: choose a form → dynamic form (validated client + server from the same definition) → attachments with progress → submit
-- [x] Request page: status tracker, "waiting for you" banner, answers, attachments, conversation, client-visible timeline, cancel
-- [x] Home "Active requests" slot live
+### 2.4 Lifecycle
+- [x] Draft → Submitted → Under review → Needs info → Accepted → In progress → In review → Delivered → Closed, + Rejected, Cancelled; transitions per role; reasons for reject / needs info; `request_status_history`; domain event per transition
 
-### 2.5 Notifications
-- [x] New request → account manager + assigned team; assignment → assignee; status change → client users (and agency on client cancel); request conversation → message / mention notifications linking to the request page
-- [x] New `requests` preference category (in-app + email)
+### 2.5 Agency — triage inbox
+- [x] Views (new, pending, active, delivered, closed, mine, all), sort by age / SLA / priority, filters, quick preview drawer
+- [x] Actions: accept, request info, reject, priority, due date, assign AM, extra / billable, internal notes; bulk assign/priority
+- [x] SLA indicator (on track / at risk / overdue) from the type's SLA days
+- [x] "Convert to tasks" behind `module.tasks` (off until Phase 3)
 
-### 2.6 Quality
-- [x] Seed: 7 forms (one with two published versions, one draft), 23 requests across the 5 clients in every status, with conversations, internal notes, attachments and history
-- [x] Unit tests: answers schema builder, transition map, SLA/status helpers, catalog sync across migrations
-- [x] RLS tests: client isolation, Viewer read-only, internal notes/events hidden, restricted client updates, transition guard, forms visibility, published versions immutable
-- [x] DB test: dispatcher delivery, retry with backoff, no double delivery
-- [x] Playwright: client submits request → agency triages and replies → client notified (realtime, bell, email)
-- [x] Docs: ROADMAP, DATA_MODEL, ARCHITECTURE (dispatcher), DECISIONS, HANDOFF, CLAUDE.md
+### 2.6 Client dashboard
+- [x] Stats: open requests, waiting on you, delivered this month, average turnaround
+- [x] Package usage chart per item type (current period)
+- [x] Activity timeline including request updates
 
-### 2.7 Deferred (tracked for later phases)
-- [ ] Convert a request into tasks (Phase 3)
-- [ ] SLA policies per client/package, pause while waiting on the client, holidays, breach alerts (Phase 5)
-- [ ] Per-client form availability; agency UI to log a request on a client's behalf (the action already supports it)
-- [ ] AR/EN × light/dark × mobile/desktop human QA pass on the new screens (automated screenshots done)
+### 2.7 Notifications
+- [x] Submitted → AM (+ assignee); needs info → client (with the question); status changed → client; client resubmit / cancel / close → AM; new comment → both; in-app + email
+
+### 2.8 Quality
+- [x] Seed: the 9 types, requests across the 5 clients in every status (with drafts, needs-info, extras, consumption)
+- [x] Unit: state machine per role (valid/invalid), form-schema definition + answers validation (conditional fields), SLA
+- [x] RLS: isolation, drafts privacy, Viewer read-only, internal hidden, restricted client edits, transitions/reasons, consumption
+- [x] Playwright: client submits with files → AM requests info → client updates → AM accepts (+ package usage)
+- [x] Docs: ROADMAP, DATA_MODEL, ARCHITECTURE, DECISIONS, HANDOFF, CLAUDE.md
+
+### 2.9 Deferred (not in this phase)
+- [ ] True WYSIWYG rich text (long text supports light Markdown: bold, lists, links)
+- [ ] SLA policies: pause while waiting on the client, business-hour calendars, holidays, breach alerts (Phase 5)
+- [ ] "Convert to tasks" behaviour (Phase 3; the button is behind `module.tasks`)
+- [ ] Per-client availability of request types; agency-created requests on behalf of a client (UI)
+- [ ] UI to edit a client's request prefix (column + default exist)
+- [ ] Human QA pass (AR/EN × light/dark × mobile/desktop) on every requests screen
 
 ## Phase 3 — Tasks & Deliverables
 Tasks (list/board/calendar), workflow templates per service, deliverables with versions, client approvals with

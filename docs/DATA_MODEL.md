@@ -450,70 +450,75 @@ append rows with `source_type/source_id`, and `getPackageUsage()` sums them per 
 Triggers force every client-scoped row to carry its client's `organization_id`, and force comments in an internal
 thread to be internal, so a crafted request can't leak data across tenants or visibility levels.
 
-## 3c. Phase 2 — requests
+## 3c. Phase 2 — requests (revision 2)
 
 ```mermaid
 erDiagram
-  request_forms ||--o{ request_form_versions : "versions"
-  request_forms |o--o| request_form_versions : "current (published)"
+  request_types ||--o{ requests : "typed by"
   clients ||--o{ requests : submits
-  request_forms ||--o{ requests : ""
-  request_form_versions ||--o{ requests : "answers conform to"
-  requests ||--o{ request_events : "lifecycle history"
+  requests ||--o{ request_status_history : "transitions"
+  requests ||--o{ request_events : "internal changes"
   requests ||--o{ request_attachments : ""
   files ||--o{ request_attachments : ""
-  requests ||--|| threads : "conversation (subject_type = request)"
-  profiles ||--o{ requests : "assignee / submitter"
+  requests ||--|| threads : "discussion (subject_type = request)"
+  requests ||--o| package_usage_entries : "consumes (source_type = request)"
+  profiles ||--o{ requests : "assignee (AM) / author"
 
-  request_forms {
+  request_types {
     uuid id PK
     text key "unique per org"
     jsonb name "LocalizedText"
     jsonb description "LocalizedText"
-    text icon "lucide name from a fixed list"
-    text category "design | video | content | ads | social | other"
-    text status "draft | published | archived"
-    uuid current_version_id FK "latest published version"
+    text icon "fixed icon list"
+    text category "design | video | content | ads | web | branding | other"
     text default_priority "low | normal | high | urgent"
-    int response_sla_hours "working hours to first response (null = none)"
-    int resolution_sla_hours "working hours to completion (null = none)"
+    int sla_days "working days to deliver (null = no SLA)"
+    text package_item_type "post | reel | story | … (null = not counted)"
+    bool is_active "visible to clients"
+    jsonb form_schema "{ fields: RequestFormField[] }"
+    int schema_version "bumped on every form change"
     int sort_order
-  }
-  request_form_versions {
-    uuid id PK
-    uuid form_id FK
-    int version "1, 2, … unique per form"
-    jsonb fields "RequestFormField[] (see below)"
-    timestamptz published_at "null = the single editable draft"
-    uuid published_by FK
   }
   requests {
     uuid id PK
     uuid client_id FK
-    int number "per organization, REQ-0042"
-    uuid form_id FK
-    uuid form_version_id FK
+    uuid request_type_id FK
+    int number "per client, assigned on submit"
+    text reference "NAJD-0042"
     text title
-    jsonb answers "{ fieldId: value }"
-    text status "submitted | in_review | in_progress | waiting_client | completed | declined | cancelled"
-    text priority "low | normal | high | urgent"
-    uuid assignee_id FK
+    jsonb brief "{ fieldId: value }"
+    jsonb form_snapshot "fields the brief was written against"
+    int schema_version
+    jsonb reference_links "string[]"
+    text status "draft … closed | rejected | cancelled"
+    text priority
+    uuid assignee_id FK "account manager"
+    uuid created_by FK "author (drafts are private to them)"
     uuid submitted_by FK
-    text submitted_side "client | agency"
-    date desired_date
-    timestamptz response_due_at "SLA, computed by trigger"
-    timestamptz resolution_due_at "SLA, computed by trigger"
+    date desired_date "client"
+    date due_date "SLA, agency-editable"
+    bool is_extra "over package quota (computed on submit, agency-editable)"
+    bool is_billable
+    timestamptz submitted_at
     timestamptz first_response_at
-    timestamptz resolved_at "completed or declined"
-    timestamptz cancelled_at
+    timestamptz accepted_at
+    timestamptz delivered_at
+    timestamptz closed_at
     timestamptz last_activity_at
+  }
+  request_status_history {
+    uuid id PK
+    uuid request_id FK
+    text from_status
+    text to_status
+    text reason "required for needs_info / rejected"
+    uuid actor_id
+    text actor_side "agency | client | system"
   }
   request_events {
     uuid id PK
     uuid request_id FK
-    uuid actor_id
-    text actor_side "agency | client | system"
-    text type "submitted | status_changed | assigned | priority_changed"
+    text type "assigned | priority_changed | due_date_changed | flags_changed | brief_updated"
     text from_value
     text to_value
     text visibility "internal | client"
@@ -521,49 +526,56 @@ erDiagram
   request_attachments {
     uuid request_id PK
     uuid file_id PK
+    text field_id "brief file field, or null = general attachment"
   }
 ```
 
-**Form definitions.** `request_form_versions.fields` is an ordered array of
-`{ id, type, label: LocalizedText, help?: LocalizedText, required, options?: [{ value, label }], min?, max?, maxLength? }`
-with `type ∈ short_text | long_text | number | date | single_select | multi_select | checkbox | url`. One Zod builder
-(`buildAnswersSchema`) turns a version into the validator used by the portal form *and* the server action. Each form has at
-most one draft version (partial unique index); publishing freezes it (trigger: published rows are immutable and cannot be
-deleted) and points `current_version_id` at it. Requests keep the `form_version_id` they were submitted with, so old
-requests always render with the fields they were answered against.
+**Form schema.** `request_types.form_schema.fields` is an ordered array of
+`{ id, type, label: LocalizedText, help?, required, options?, min?, max?, maxLength?, maxItems?, showIf? }` with
+`type ∈ short_text | long_text | number | single_select | multi_select | date | file | links | platforms | dimensions |
+color | checkbox`. `showIf = { field, equals }` shows a field only when an **earlier** field has that value (select /
+checkbox / platforms); hidden fields are never required and are dropped from the saved brief. `validateBrief()` is the
+single validator (portal wizard, server actions, builder preview); `draft` mode skips "required". Editing a type bumps
+`schema_version`; each request stores `form_snapshot`, so old briefs always render with the questions they answered.
 
-**Lifecycle.** Allowed transitions (mirrored by `app.request_transition_allowed()` in SQL and `requestTransitions` in TS):
+**Lifecycle** (`requestTransitions` in TS ≡ `app.request_transition_allowed(from, to, side)` in SQL):
 
-| From | Agency may move to | Client may move to |
+| From | Client may move to | Agency may move to |
 |---|---|---|
-| `submitted` | `in_review`, `in_progress`, `declined` | `cancelled` |
-| `in_review` | `in_progress`, `waiting_client`, `declined` | `cancelled` |
-| `in_progress` | `waiting_client`, `completed`, `in_review` | — |
-| `waiting_client` | `in_progress`, `completed`, `declined` | `cancelled` (a client reply moves it back to `in_progress` automatically) |
-| `completed`, `declined`, `cancelled` | `in_progress` / `in_review` (reopen) | — |
+| `draft` | `submitted` (drafts are deleted, not cancelled) | — (agency never sees drafts) |
+| `submitted` | `cancelled` | `under_review`, `needs_info`*, `accepted`, `rejected`* |
+| `under_review` | `cancelled` | `needs_info`*, `accepted`, `rejected`* |
+| `needs_info` | `under_review` (resubmit after editing), `cancelled` | `under_review` |
+| `accepted` | — | `in_progress` |
+| `in_progress` | — | `in_review`, `delivered` |
+| `in_review` | — | `in_progress`, `delivered` |
+| `delivered` | `closed` | `closed`, `in_progress` (rework) |
+| `rejected` | — | `under_review` (reopen) |
+| `closed`, `cancelled` | — | — |
 
-**Triggers** (hand-written migration): per-org `number` (advisory lock), SLA due dates from the form's hours counted on
-working days only (Friday/Saturday skipped, organization time zone) — `app.sla_due()`; `first_response_at` on the first
-agency status change or client-visible agency reply; `resolved_at` / `cancelled_at`; `last_activity_at`. Client users can
-only insert `submitted` requests with `normal`/`high` priority and no assignee, and can only update `status → cancelled`.
-Priority and assignee changes need `requests:triage`; the assignee must be an active agency member. Every insert/update
-writes `request_events` (status → client-visible; assignment and priority → internal). An `after insert` trigger creates
-the request's conversation thread; comments in it bump `last_activity_at`.
+\* reason required (enforced by the history trigger). Accept / reject / needs-info / priority / due date / assignee /
+flags need `requests:triage`; the assignee with `requests:update` may move accepted work through in progress → delivered.
+
+**Triggers.** On submit: per-client `number` + `reference` (`clients.request_prefix`, advisory lock), `submitted_at`,
+`due_date` = submit date + `sla_days` working days (Fri/Sat skipped, org time zone), `is_extra` from the package quota
+(`app.request_quota`), thread creation. Client users may change `title / brief / reference_links / desired_date /
+priority (low–high)` only in `draft` or `needs_info`; everything else is server-owned. Every status change writes
+`request_status_history`; assignment/priority/due date/flags write internal `request_events`, brief edits a client-visible one.
+**Package consumption:** entering `accepted` inserts one `package_usage_entries` row (`source_type = 'request'`) into the
+client package covering today when the type counts against an item the package includes and the request isn't extra;
+`rejected` / `cancelled` or marking it extra removes it (idempotent, one row per request).
 
 **RLS**
 
 | Table | Agency | Client users of that client |
 |---|---|---|
-| `request_forms` | read: members; write: `request_forms:manage` | read: `status = 'published'` |
-| `request_form_versions` | read: members; write drafts: `request_forms:manage` | read: published versions |
-| `requests` | read: `requests:read` + client access; insert/update: `requests:triage`, or `requests:update` on requests assigned to them | read: member; insert/cancel: `portal_requests:create` (Viewer: read only) |
-| `request_events` | read with the request | read `visibility = 'client'` only |
+| `request_types` | read: members; write: `request_types:manage` | read active types |
+| `requests` | read `requests:read` + client access, never drafts; update: `requests:triage`, or `requests:update` when assignee | read non-drafts + own drafts; insert/update: `portal_requests:create` (Viewer read-only); delete own drafts |
+| `request_status_history` | read with the request | read with the request |
+| `request_events` | read with the request | `visibility = 'client'` only |
 | `request_attachments` | read with the request; insert by the file's uploader | same |
 
-Internal notes on a request are `comments.visibility = 'internal'` in the request thread (existing messaging RLS).
-
-**Dispatcher columns.** `domain_event_deliveries` gains `created_at`, `next_attempt_at` (backoff) and `locked_until`
-(claim lease) — see ARCHITECTURE §7.
+Internal notes are internal comments in the request thread (existing messaging RLS).
 
 ## 4. Forward-looking sketch (all phases — not built in Phase 0)
 
@@ -577,10 +589,10 @@ erDiagram
   clients ||--o{ threads : "messages"
   threads ||--o{ messages : ""
 
-  request_forms ||--o{ request_form_versions : ""
+  request_types ||--o{ requests : "brief conforms to (snapshot)"
   clients ||--o{ requests : submits
-  request_form_versions ||--o{ requests : "answers conform to"
-  requests ||--o{ request_events : lifecycle
+  requests ||--o{ request_status_history : lifecycle
+  requests ||--o{ request_events : changes
 
   requests ||--o{ tasks : "spawns"
   workflow_templates ||--o{ workflow_template_steps : ""

@@ -109,7 +109,7 @@ Key properties:
 │   │   ├── clients/               # clients, portal users, packages + usage ledger
 │   │   ├── files/                 # folders, uploads (signed URLs), previews
 │   │   ├── messaging/             # threads, comments, mentions, read receipts
-│   │   ├── requests/              # request forms (versioned), requests, triage, SLA groundwork
+│   │   ├── requests/              # request types + form builder, requests, triage, SLA, dashboard stats
 │   │   ├── notifications/         # notify(), bell, inbox, preferences
 │   │   ├── portal/                # portal home read models
 │   │   ├── dashboard/             # agency dashboard read models
@@ -477,26 +477,32 @@ the agency client page and the portal home.
 sequenceDiagram
   autonumber
   actor C as Client user
-  participant A as submitRequestAction
+  participant W as Wizard (portal)
+  participant A as Server actions
   participant DB as Postgres (RLS + triggers)
   participant D as Dispatcher
-  actor AM as Agency
-  C->>A: form version answers (validated by buildAnswersSchema), attachments
-  A->>DB: insert requests (trigger: number, SLA due, status=submitted, history row, request thread)
-  A->>DB: request_attachments, emitEvent(request.submitted)
-  A-->>C: /portal/requests/<id>
-  A->>D: after() → notifications.requests
+  actor AM as Account manager
+  C->>W: type card → brief → attachments → date & priority → review
+  W->>A: saveRequestDraftAction (any step) / submitRequestAction
+  A->>DB: validateBrief(type.form_schema) → draft row + request_attachments
+  A->>DB: status = submitted (trigger: number/reference, due date, extra flag, assignee, snapshot, history, thread)
+  A->>D: emitEvent(request.submitted) → after() → notifications.requests
   D->>AM: request_submitted (in-app + email)
-  AM->>DB: triage (assign / priority / status) — trigger enforces transitions, writes history
-  AM->>DB: reply in the request thread (comment trigger: first response, activity)
-  D->>C: request_status_changed / message_new → /portal/requests/<id>
+  AM->>A: changeRequestStatusAction(needs_info, reason) — reason via app.transition_reason
+  D->>C: request_needs_info (with the question)
+  C->>A: resubmitRequestAction (brief validated against the snapshot) → under_review
+  AM->>A: accepted → trigger app.request_sync_usage writes package_usage_entries
   DB-->>C: Realtime (requests row, comments) → live page
 ```
 
-- Module: `src/modules/requests` (`form-schema.ts` field definitions + validator builder, `constants.ts` lifecycle,
-  `server/{queries,actions,consumers}.ts`, components for inbox, detail, builder and portal).
-- Routes: agency `/requests`, `/requests/[id]`, `/admin/request-forms`, `/admin/request-forms/[id]`, client tab
-  `/clients/[id]?tab=requests`; portal `/portal/requests`, `/portal/requests/new`, `/portal/requests/new/[formId]`,
-  `/portal/requests/[id]`. All behind `module.requests`.
-- Access: agency `requests:read` + client access; `requests:triage` (assign, priority, any status) or `requests:update`
-  (status of requests assigned to you); `request_forms:manage`. Client `portal_requests:create` (Owner, Member).
+- Module: `src/modules/requests` — `form-schema.ts` (12 field types, `formSchemaSchema` for definitions, `validateBrief`
+  for answers — the same validator in the wizard, the server and the resubmit path), `constants.ts` (statuses,
+  `requestTransitions` per side mirrored by `app.request_transition_allowed`, SLA state, inbox views), `stats.ts`
+  (client dashboard), `server/{queries,actions,consumers}.ts`, components (type builder, wizard, inbox + preview drawer,
+  request detail, portal list, dashboard).
+- Routes: agency `/requests`, `/requests/[id]`, `/admin/request-types`, `/admin/request-types/[id]`, client tab
+  `/clients/[id]?tab=requests`; portal `/portal/requests`, `/portal/requests/new`, `/portal/requests/[id]`,
+  `/portal/requests/[id]/edit` (drafts and needs-info). All behind `module.requests`; "Convert to tasks" behind `module.tasks`.
+- Access: agency `requests:read` + client access; `requests:triage` (accept / needs info / reject, assign, priority,
+  due date, extra/billable) or `requests:update` (work statuses of requests assigned to you); `request_types:manage`.
+  Client `portal_requests:create` (Owner, Member); Viewers read only. Drafts are visible only to their author.

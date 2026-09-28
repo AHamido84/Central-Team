@@ -8,10 +8,10 @@ Last updated: 2026-09-28 · Branch: `claude/stoic-cray-wud1ib` · Read with `CLA
 |---|---|
 | 0 — Foundation | **Built.** Auth (password, magic link, reset, email change), invitations, onboarding, RBAC with permission matrix + overrides, departments, feature flags, audit log, notifications, design system, AR/EN RTL/LTR, light/dark |
 | 1 — Client Portal | **Built.** Agency client management (clients, portal users, packages + usage ledger, files, messages inbox) and the client portal (home, files, messages, company settings, flag-guarded Requests/Approvals/Calendar) |
-| 2 — Requests | **Built.** Versioned request forms + builder, portal submission with attachments, lifecycle & statuses (DB-enforced), triage inbox (views, filters, bulk assign/priority), SLA groundwork (working hours), request conversations, domain-event dispatcher with all notification fan-out moved onto it |
+| 2 — Requests | **Built (revision 2).** Request types with a no-code form builder (12 field types, conditions, drag & drop, live preview), portal wizard with drafts and package quota check, per-client references, DB-enforced lifecycle with reasons, triage inbox + preview drawer with SLA states, package consumption on accept, client dashboard (stats, usage chart, activity), notifications via the event dispatcher |
 | 3 — Tasks & Deliverables | **Next.** Start with "convert request → tasks" (the `requests` row is the parent) |
 
-Verified green on a fresh seed: `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 60 unit tests, 60 DB tests
+Verified green on a fresh seed: `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 66 unit tests, 68 DB tests
 (RLS + dispatcher), 16 Playwright e2e tests, `pnpm build`. The CI workflow (`.github/workflows/ci.yml`) is written but has not run on GitHub yet.
 
 ## Run it
@@ -56,7 +56,9 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
     timestamps, numbering and transition checks. Updates made inside another trigger count as `system`.
 11. **Notifications only come from event consumers** (`src/lib/events/consumers.ts`). In tests/scripts outside a request,
     `scheduleEventDispatch()` runs the dispatcher detached.
-12. Dev-only: the Next.js dev indicator ("N" bubble) overlaps the bottom-left of mobile screenshots; it is not in builds.
+12. **`request_attachments` has no UPDATE grant** — sync attachments with delete + insert, never `ON CONFLICT DO UPDATE`.
+13. **Status reasons** travel as `set_config('app.transition_reason', …, true)` inside the same transaction as the update.
+14. Dev-only: the Next.js dev indicator ("N" bubble) overlaps the bottom-left of mobile screenshots; it is not in builds.
 
 ## Open items (need the owner)
 
@@ -68,6 +70,6 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 ## Suggested Phase 3 scope (from the roadmap)
 
 Tasks (list/board/calendar) with a "convert request to tasks" action on the request page, workflow templates per
-service (form category → template), deliverables with versions and client approvals (turn on `module.approvals` —
+service (request type category → template), deliverables with versions and client approvals (turn on `module.approvals` —
 the portal home slot is ready), comments reusing `threads` (`subject_type = 'deliverable'`), time tracking, and package
 usage entries fed by delivered items (ADR-022). New notifications go in a consumer, not in actions (ADR-028).
