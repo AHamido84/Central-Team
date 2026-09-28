@@ -26,9 +26,9 @@ Built single-agency first, but **multi-tenant ready**: every tenant-scoped row c
 
 | Phase | Scope | Status |
 |---|---|---|
-| 0 — Foundation | Infra, auth, users, roles & permissions, AR/EN (RTL/LTR), design system, notifications infra | **Planning** |
-| 1 — Client Portal | Portal shell, home, files, messages, agency-side client management | — |
-| 2 — Requests | Dynamic request forms, request lifecycle, triage inbox | — |
+| 0 — Foundation | Infra, auth, users, roles & permissions, AR/EN (RTL/LTR), design system, notifications infra | **Done** |
+| 1 — Client Portal | Portal shell, home, files, messages, agency-side client management | **Done** |
+| 2 — Requests | Dynamic request forms, request lifecycle, triage inbox | **Next** |
 | 3 — Tasks & Deliverables | Tasks, workflow templates, deliverables, versions, approvals | — |
 | 4 — Campaigns | Campaigns, KPIs, analytics, reports | — |
 | 5 — Agency Operations | Internal dashboard, Client 360, team, SLA | — |
@@ -51,7 +51,7 @@ UI: `docs/UI.md`. Decisions: `docs/DECISIONS.md` (append-only, numbered).
 | Validation / forms | Zod v4, React Hook Form |
 | Data fetching | Server Components first; TanStack Query for client-side/realtime state; TanStack Table |
 | i18n | next-intl (Arabic default, English), cookie-based locale, no URL prefix |
-| Email | React Email templates, `EmailProvider` interface → Resend (prod), SMTP/Mailpit (local), Console (test) |
+| Email | App emails: React Email + `EmailProvider` → Resend (prod), SMTP/Mailpit (local), Console (test). Auth emails: GoTrue bilingual templates (ADR-017) |
 | Tests | Vitest (unit + DB/RLS integration), Playwright (E2E) |
 | Tooling | pnpm, ESLint (flat config), Prettier, Husky + lint-staged, commitlint (Conventional Commits) |
 | Deploy | Vercel on a **custom domain** + Supabase Cloud. Never rely on `*.pages.dev` / `*.netlify.app` (blocked on the owner's network). |
@@ -59,20 +59,24 @@ UI: `docs/UI.md`. Decisions: `docs/DECISIONS.md` (append-only, numbered).
 ## 4. Commands
 
 ```bash
-pnpm install            # install deps
+pnpm install            # install deps (Node 22, pnpm 10)
+cp .env.example .env.local   # then paste keys from `supabase status -o env`
 pnpm db:start           # start local Supabase (Docker)
-pnpm db:reset           # drop + migrate + seed local DB (1 agency, ~10 team members, all roles, demo client)
-pnpm db:generate        # drizzle-kit: generate SQL migration from schema changes
-pnpm db:types           # regenerate Supabase TS types
+pnpm db:reset           # drop + migrate + seed (1 agency, 10 staff, 5 Saudi clients, files, threads)
 pnpm dev                # Next.js dev server on http://localhost:3000
-pnpm lint               # ESLint
-pnpm typecheck          # tsc --noEmit
+pnpm db:generate        # drizzle-kit: generate SQL migration from schema changes
+pnpm lint               # ESLint (incl. RTL logical-properties rule and no hardcoded JSX text)
+pnpm typecheck          # tsc --noEmit (message keys are type-checked)
+pnpm i18n:check         # ar/en keys + ICU placeholders in sync
 pnpm test               # Vitest unit tests
-pnpm test:db            # Vitest RLS / DB integration tests (needs local Supabase)
-pnpm test:e2e           # Playwright (needs local Supabase + app)
-pnpm check              # lint + typecheck + test (what CI runs first)
+pnpm test:db            # RLS / DB tests against the seeded local DB (run after db:reset)
+pnpm test:e2e           # Playwright (starts `pnpm dev` if not running; reads Mailpit)
+pnpm check              # lint + typecheck + i18n + unit
 pnpm email:dev          # React Email preview server
 ```
+
+Sandbox note: if Playwright's bundled browser is unavailable, set `PW_CHROMIUM_PATH=/path/to/chromium`.
+Seed accounts all use password `Passw0rd!` (see the table in `README.md`).
 
 Local mail (magic links, invites, resets) is caught by Mailpit: http://localhost:54324.
 
@@ -88,13 +92,16 @@ src/modules/<module>/
   schemas.ts       # Zod schemas shared by forms + actions
   permissions.ts   # permission keys this module declares (resource:action)
   events.ts        # domain event types this module emits (typed payloads)
-  messages/ar.json # i18n strings (namespace = module name)
-  messages/en.json
-  index.ts         # public API — other modules import ONLY from here
+  constants.ts     # enums, labels keys, small shared config
 ```
 
+Translations live in `messages/<locale>/<namespace>.json` (one namespace per module or area; Arabic is the key source
+of truth for types). Add a namespace to `src/i18n/messages.ts` and `src/i18n/types.ts`.
+
 Rules:
-- Modules import each other only via `index.ts`. No deep imports across modules (ESLint-enforced).
+- Modules may import each other's `server/*`, `components/*`, `constants`, `types` — never another module's `db/`
+  (tables come from `@/lib/db/schema`; ESLint-enforced).
+- `'use server'` files export only async functions (actions); constants go in `constants.ts`.
 - Shared primitives: `src/components/ui` (shadcn), `src/components/*` (app-level composites),
   `src/lib/*` (auth, db, i18n, email, events, flags, permissions, utils).
 - Server-only code imports `server-only`. Never import `src/lib/db` into a client component.
@@ -112,8 +119,9 @@ Rules:
 - **Mutations** go through `defineAction()` (see ARCHITECTURE §5): Zod-validate → authenticate →
   `can()` check → RLS-scoped transaction → `emitEvent()` → typed `Result`. No raw Server Actions.
 - **Reads** in Server Components go through module `server/queries.ts` using the RLS-scoped DB (`withRls`).
-- **Service-role access** (`supabaseAdmin`, `dbAdmin`) is allowed only in `src/lib/**/admin*` and
-  explicitly listed server paths (invitation acceptance, seed, webhooks). Every use needs a comment why.
+- **Service-role access** (`supabaseAdmin`, `dbAdmin`) is allowed only in these server paths: invitation preview/
+  acceptance, `notify()` fan-out, signed storage URLs issued after an RLS-checked lookup, the rate limiter, and the
+  seed. Every use needs a comment why.
 - **Errors**: actions return `{ ok: true, data } | { ok: false, error: { code, message?, fieldErrors? } }`;
   error `code`s are translated in the UI. Never leak DB error text to users.
 - **Commits**: Conventional Commits (`feat(auth): …`, `fix(rbac): …`, `docs: …`). One logical change per commit.
@@ -155,7 +163,11 @@ Rules:
    important mutations emit a `domain_events` row in the same transaction.
 10. Security headers (CSP, HSTS, frame-ancestors none, referrer policy) set in `next.config`/proxy.
 11. Rate-limit auth-adjacent endpoints (login, magic link, invite accept, reset).
-12. Uploaded files: private buckets, signed URLs, MIME/size validation, storage RLS by organization.
+12. Uploaded files: private `client-files` bucket, server-chosen paths, one-time signed upload URLs, signed download URLs
+    issued only for rows the caller can SELECT, MIME/size validation. Avatars/logos use the public `public-assets`
+    bucket with UUID paths (images only, no SVG) — ADR-020.
+13. Internal agency data never reaches client users: `visibility` columns + agency-only tables, enforced by RLS and
+    covered by `tests/db/rls-portal.test.ts`.
 
 ## 9. Definition of Done (applies to every phase and every PR)
 

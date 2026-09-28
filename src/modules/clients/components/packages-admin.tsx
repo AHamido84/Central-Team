@@ -26,10 +26,18 @@ const schema = z
     nameEn: z.string().trim().max(80),
     descriptionAr: z.string().trim().max(200),
     descriptionEn: z.string().trim().max(200),
-    price: z.string().trim().refine((v) => v === '' || (!Number.isNaN(Number(v)) && Number(v) >= 0), { message: 'positive_number' }),
+    price: z
+      .string()
+      .trim()
+      .refine((v) => v === '' || (!Number.isNaN(Number(v)) && Number(v) >= 0), { message: 'positive_number' }),
     isActive: z.boolean(),
     items: z
-      .array(z.object({ itemType: z.enum(packageItemTypes), quantity: z.string().refine((v) => Number.isInteger(Number(v)) && Number(v) > 0, { message: 'positive_number' }) }))
+      .array(
+        z.object({
+          itemType: z.enum(packageItemTypes),
+          quantity: z.string().refine((v) => Number.isInteger(Number(v)) && Number(v) > 0, { message: 'positive_number' }),
+        }),
+      )
       .min(1, { message: 'min_one' }),
   })
   .refine((v) => v.nameAr || v.nameEn, { message: 'required_one_language', path: ['nameAr'] });
@@ -83,7 +91,12 @@ function PackageDialog({ pkg, open, onOpenChange }: { pkg: PackageWithItems | nu
               <Field label={t('admin.descriptionEn')} optional>
                 {(p) => <Input {...p} dir="ltr" lang="en" {...form.register('descriptionEn')} />}
               </Field>
-              <Field label={t('clients.packages.price')} error={form.formState.errors.price?.message} hint={t('clients.packages.priceHint')} optional>
+              <Field
+                label={t('clients.packages.price')}
+                error={form.formState.errors.price?.message}
+                hint={t('clients.packages.priceHint')}
+                optional
+              >
                 {(p) => <Input {...p} type="number" dir="ltr" min={0} step="0.01" {...form.register('price')} />}
               </Field>
               <Controller
@@ -109,8 +122,22 @@ function PackageDialog({ pkg, open, onOpenChange }: { pkg: PackageWithItems | nu
                         </option>
                       ))}
                     </NativeSelect>
-                    <Input type="number" dir="ltr" min={1} aria-label={t('clients.quantity')} className="w-24" {...form.register(`items.${i}.quantity`)} />
-                    <Button type="button" variant="ghost" size="icon-sm" onClick={() => items.remove(i)} aria-label={t('common.remove')} disabled={items.fields.length === 1}>
+                    <Input
+                      type="number"
+                      dir="ltr"
+                      min={1}
+                      aria-label={t('clients.quantity')}
+                      className="w-24"
+                      {...form.register(`items.${i}.quantity`)}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => items.remove(i)}
+                      aria-label={t('common.remove')}
+                      disabled={items.fields.length === 1}
+                    >
                       <Trash2 />
                     </Button>
                   </div>
@@ -178,15 +205,17 @@ export function PackagesAdmin({ packages }: { packages: PackageWithItems[] }) {
                 </div>
                 {!p.isActive ? <Badge>{t('common.inactive')}</Badge> : null}
               </div>
-              <p className="mt-4 text-h2 font-semibold tabular">
+              <p className="tabular mt-4 text-h2 font-semibold">
                 {p.priceMinor != null ? f.currency(p.priceMinor, p.currency) : '—'}
                 <span className="ms-1 text-sm font-normal text-muted-foreground">{t('clients.packages.perMonth')}</span>
               </p>
               <ul className="mt-4 space-y-1.5 text-sm">
                 {p.items.map((i) => (
                   <li key={i.itemType} className="flex justify-between gap-2">
-                    <span className="text-muted-foreground">{t(`clients.itemTypes.${i.itemType as (typeof packageItemTypes)[number]}`)}</span>
-                    <span className="font-medium tabular">{f.number(i.quantity)}</span>
+                    <span className="text-muted-foreground">
+                      {t(`clients.itemTypes.${i.itemType as (typeof packageItemTypes)[number]}`)}
+                    </span>
+                    <span className="tabular font-medium">{f.number(i.quantity)}</span>
                   </li>
                 ))}
               </ul>

@@ -21,20 +21,10 @@ async function resizeImage(file: File, max = 512): Promise<Blob> {
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('canvas');
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), 'image/webp', 0.88),
-  );
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), 'image/webp', 0.88));
 }
 
-export function AvatarUploader({
-  name,
-  value,
-  onChange,
-}: {
-  name: string;
-  value: string | null;
-  onChange: (path: string | null) => void;
-}) {
+export function AvatarUploader({ name, value, onChange }: { name: string; value: string | null; onChange: (path: string | null) => void }) {
   const t = useTranslations();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -67,7 +57,14 @@ export function AvatarUploader({
     <div className="flex items-center gap-4">
       <Avatar name={name || '?'} src={publicAssetUrl(value)} size="xl" />
       <div className="flex flex-wrap gap-2">
-        <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => void onFile(e.target.files?.[0])} data-testid="avatar-input" />
+        <input
+          ref={input}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="sr-only"
+          onChange={(e) => void onFile(e.target.files?.[0])}
+          data-testid="avatar-input"
+        />
         <Button type="button" variant="outline" size="sm" loading={busy} onClick={() => input.current?.click()}>
           {busy ? null : <Camera />}
           {value ? t('onboarding.changePhoto') : t('onboarding.uploadPhoto')}

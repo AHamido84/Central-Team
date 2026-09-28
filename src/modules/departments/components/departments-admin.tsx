@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Archive, Crown, Network, Pencil, Plus, UsersRound } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -41,10 +41,23 @@ export type DepartmentView = {
 export type PersonView = { userId: string; name: string; avatarPath: string | null; jobTitle: string | null };
 
 const schema = z
-  .object({ nameAr: z.string().trim().max(60), nameEn: z.string().trim().max(60), color: z.enum(departmentColors), isArchived: z.boolean() })
+  .object({
+    nameAr: z.string().trim().max(60),
+    nameEn: z.string().trim().max(60),
+    color: z.enum(departmentColors),
+    isArchived: z.boolean(),
+  })
   .refine((v) => v.nameAr || v.nameEn, { message: 'required_one_language', path: ['nameAr'] });
 
-function DepartmentDialog({ department, open, onOpenChange }: { department: DepartmentView | null; open: boolean; onOpenChange: (o: boolean) => void }) {
+function DepartmentDialog({
+  department,
+  open,
+  onOpenChange,
+}: {
+  department: DepartmentView | null;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
   const t = useTranslations();
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -90,7 +103,11 @@ function DepartmentDialog({ department, open, onOpenChange }: { department: Depa
                         onClick={() => field.onChange(c)}
                         aria-pressed={field.value === c}
                         aria-label={c}
-                        className={cn('size-8 rounded-full ring-offset-2 ring-offset-surface', departmentColorClass[c], field.value === c && 'ring-2 ring-ring')}
+                        className={cn(
+                          'size-8 rounded-full ring-offset-2 ring-offset-surface',
+                          departmentColorClass[c],
+                          field.value === c && 'ring-2 ring-ring',
+                        )}
                       />
                     ))}
                   </div>
@@ -127,14 +144,22 @@ function DepartmentDialog({ department, open, onOpenChange }: { department: Depa
   );
 }
 
-function MembersSheet({ department, people, onOpenChange }: { department: DepartmentView | null; people: PersonView[]; onOpenChange: (o: boolean) => void }) {
+function MembersSheet({
+  department,
+  people,
+  onOpenChange,
+}: {
+  department: DepartmentView | null;
+  people: PersonView[];
+  onOpenChange: (o: boolean) => void;
+}) {
   const t = useTranslations();
   const locale = useLocale() as Locale;
-  const [members, setMembers] = useState<{ userId: string; isLead: boolean }[]>([]);
-  useEffect(() => setMembers(department?.members ?? []), [department]);
+  const [members, setMembers] = useState<{ userId: string; isLead: boolean }[]>(department?.members ?? []);
   const save = useAction(setDepartmentMembersAction, { successMessage: t('common.saved') });
   if (!department) return <Sheet open={false} onOpenChange={onOpenChange} />;
-  const toggle = (userId: string, on: boolean) => setMembers((m) => (on ? [...m, { userId, isLead: false }] : m.filter((x) => x.userId !== userId)));
+  const toggle = (userId: string, on: boolean) =>
+    setMembers((m) => (on ? [...m, { userId, isLead: false }] : m.filter((x) => x.userId !== userId)));
   const setLead = (userId: string, isLead: boolean) => setMembers((m) => m.map((x) => (x.userId === userId ? { ...x, isLead } : x)));
   return (
     <Sheet open onOpenChange={onOpenChange}>
@@ -155,7 +180,13 @@ function MembersSheet({ department, people, onOpenChange }: { department: Depart
                   <span className="block truncate text-xs text-subtle-foreground">{p.jobTitle}</span>
                 </span>
                 {m ? (
-                  <Button type="button" size="sm" variant={m.isLead ? 'soft' : 'ghost'} onClick={() => setLead(p.userId, !m.isLead)} aria-pressed={m.isLead}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={m.isLead ? 'soft' : 'ghost'}
+                    onClick={() => setLead(p.userId, !m.isLead)}
+                    aria-pressed={m.isLead}
+                  >
                     <Crown />
                     {t('dashboard.lead')}
                   </Button>
@@ -211,7 +242,10 @@ export function DepartmentsAdmin({ departments, people }: { departments: Departm
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {departments.map((d) => {
-            const leads = d.members.filter((m) => m.isLead).map((m) => person(m.userId)?.name).filter(Boolean) as string[];
+            const leads = d.members
+              .filter((m) => m.isLead)
+              .map((m) => person(m.userId)?.name)
+              .filter(Boolean) as string[];
             return (
               <Card key={d.id} className={cn('flex flex-col gap-4 p-5', d.isArchived && 'opacity-60')}>
                 <div className="flex items-start gap-3">
@@ -220,7 +254,9 @@ export function DepartmentsAdmin({ departments, people }: { departments: Departm
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold">{localized(d.name, locale)}</p>
-                    <p className="text-xs text-subtle-foreground">{leads.length ? t('admin.departments.ledBy', { names: leads.join(' · ') }) : t('admin.departments.noLead')}</p>
+                    <p className="text-xs text-subtle-foreground">
+                      {leads.length ? t('admin.departments.ledBy', { names: leads.join(' · ') }) : t('admin.departments.noLead')}
+                    </p>
                   </div>
                   {d.isArchived ? (
                     <Badge>
@@ -231,7 +267,11 @@ export function DepartmentsAdmin({ departments, people }: { departments: Departm
                 </div>
                 <AvatarGroup
                   max={6}
-                  people={d.members.map((m) => ({ id: m.userId, name: person(m.userId)?.name ?? '', src: publicAssetUrl(person(m.userId)?.avatarPath) }))}
+                  people={d.members.map((m) => ({
+                    id: m.userId,
+                    name: person(m.userId)?.name ?? '',
+                    src: publicAssetUrl(person(m.userId)?.avatarPath),
+                  }))}
                 />
                 <div className="mt-auto flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => setMembersFor(d)}>
@@ -256,7 +296,12 @@ export function DepartmentsAdmin({ departments, people }: { departments: Departm
         </div>
       )}
       <DepartmentDialog department={editing} open={dialogOpen} onOpenChange={setDialogOpen} />
-      <MembersSheet department={membersFor} people={people} onOpenChange={(o) => !o && setMembersFor(null)} />
+      <MembersSheet
+        key={membersFor?.id ?? 'none'}
+        department={membersFor}
+        people={people}
+        onOpenChange={(o) => !o && setMembersFor(null)}
+      />
     </>
   );
 }

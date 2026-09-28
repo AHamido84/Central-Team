@@ -31,7 +31,12 @@ export function RecentFilesGrid({ files }: { files: FileItem[] }) {
                 <div className="flex aspect-square items-center justify-center overflow-hidden bg-surface-muted">
                   {file.thumbUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element -- signed Storage URL
-                    <img src={file.thumbUrl} alt="" loading="lazy" className="size-full object-cover transition-transform duration-(--duration-slow) group-hover:scale-[1.03]" />
+                    <img
+                      src={file.thumbUrl}
+                      alt=""
+                      loading="lazy"
+                      className="size-full object-cover transition-transform duration-(--duration-slow) group-hover:scale-[1.03]"
+                    />
                   ) : (
                     <FileTypeIcon kind={file.kind} className="size-12" />
                   )}

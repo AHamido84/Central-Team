@@ -39,7 +39,10 @@ function ClientSwitcher({ data }: { data: ShellData }) {
   if (data.clients.length <= 1) return <div className="hidden min-w-0 sm:block">{label}</div>;
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex min-w-0 items-center gap-1 rounded-md px-2 py-1 hover:bg-surface-muted" aria-label={t('switchClient')}>
+      <DropdownMenuTrigger
+        className="flex min-w-0 items-center gap-1 rounded-md px-2 py-1 hover:bg-surface-muted"
+        aria-label={t('switchClient')}
+      >
         {label}
         <ChevronsUpDown className="size-3.5 text-subtle-foreground" aria-hidden />
       </DropdownMenuTrigger>
@@ -98,7 +101,9 @@ export function PortalShell({ data, children }: { data: ShellData; children: Rea
                     aria-current={active ? 'page' : undefined}
                     className={cn(
                       'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                      active ? 'bg-primary-soft text-primary-soft-foreground' : 'text-muted-foreground hover:bg-surface-muted hover:text-foreground',
+                      active
+                        ? 'bg-primary-soft text-primary-soft-foreground'
+                        : 'text-muted-foreground hover:bg-surface-muted hover:text-foreground',
                     )}
                   >
                     {t(`nav.${item.key}` as never)}
@@ -169,7 +174,11 @@ export function PortalShell({ data, children }: { data: ShellData; children: Rea
             <ul className="space-y-1">
               {overflowItems.map((item) => (
                 <li key={item.href}>
-                  <Link href={item.href} onClick={() => setMoreOpen(false)} className="flex items-center gap-3 rounded-md px-3 py-3 hover:bg-surface-muted">
+                  <Link
+                    href={item.href}
+                    onClick={() => setMoreOpen(false)}
+                    className="flex items-center gap-3 rounded-md px-3 py-3 hover:bg-surface-muted"
+                  >
                     <item.icon className="size-5 text-subtle-foreground" aria-hidden />
                     {t(`nav.${item.key}` as never)}
                   </Link>

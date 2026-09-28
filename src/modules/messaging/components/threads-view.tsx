@@ -146,7 +146,10 @@ export function ThreadsView({
   const [query, setQuery] = useState('');
   const [creating, setCreating] = useState(false);
   const shown = threads.filter(
-    (th) => !query || th.title.toLowerCase().includes(query.toLowerCase()) || localized(th.clientName, locale).toLowerCase().includes(query.toLowerCase()),
+    (th) =>
+      !query ||
+      th.title.toLowerCase().includes(query.toLowerCase()) ||
+      localized(th.clientName, locale).toLowerCase().includes(query.toLowerCase()),
   );
   const activeId = params.get('thread');
   const listHref = basePath.replace(/[?&]$/, '') || '?';
@@ -157,7 +160,13 @@ export function ThreadsView({
         <div className="flex items-center gap-2 border-b border-border p-3">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-subtle-foreground" aria-hidden />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchThreads')} className="h-9 ps-8" aria-label={t('searchThreads')} />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t('searchThreads')}
+              className="h-9 ps-8"
+              aria-label={t('searchThreads')}
+            />
           </div>
           {canWrite ? (
             <Button size="icon" variant="soft" onClick={() => setCreating(true)} aria-label={t('newThread')} data-testid="new-thread">
@@ -198,13 +207,16 @@ export function ThreadsView({
                       </span>
                       {showClientName ? <span className="block truncate text-xs text-muted-foreground">{th.title}</span> : null}
                       <span className="mt-0.5 flex items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate text-xs text-subtle-foreground">
+                        <span dir="auto" className="min-w-0 flex-1 truncate text-start text-xs text-subtle-foreground">
                           {th.lastAuthorName ? `${th.lastAuthorName}: ` : ''}
                           {th.preview ? previewText(th.preview, 80) : ''}
                         </span>
                         {th.visibility === 'internal' && showClientName ? <Badge tone="warning">{t('internalThread')}</Badge> : null}
                         {th.unread ? (
-                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[0.6875rem] font-semibold text-primary-foreground tabular" aria-label={t('unreadCount', { count: th.unread })}>
+                          <span
+                            className="tabular flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[0.6875rem] font-semibold text-primary-foreground"
+                            aria-label={t('unreadCount', { count: th.unread })}
+                          >
                             {th.unread}
                           </span>
                         ) : null}

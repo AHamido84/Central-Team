@@ -1,5 +1,7 @@
 'use client';
 
+import { languageNames } from '@/lib/i18n/localized';
+
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslations } from 'next-intl';
 import { Controller, useForm } from 'react-hook-form';
@@ -60,7 +62,14 @@ export function OrganizationForm({ defaults, timezones }: { defaults: Organizati
           <Controller
             control={form.control}
             name="logoPath"
-            render={({ field }) => <LogoUploader name={form.watch('nameEn') || form.watch('nameAr')} value={field.value} onChange={field.onChange} target="organization" />}
+            render={({ field }) => (
+              <LogoUploader
+                name={form.watch('nameEn') || form.watch('nameAr')}
+                value={field.value}
+                onChange={field.onChange}
+                target="organization"
+              />
+            )}
           />
         </FormSection>
         <FormSection title={t('admin.organization.branding')} description={t('admin.organization.brandingHint')}>
@@ -81,7 +90,13 @@ export function OrganizationForm({ defaults, timezones }: { defaults: Organizati
                       style={{ backgroundColor: c }}
                     />
                   ))}
-                  <Input type="color" aria-label={t('admin.organization.customColor')} value={field.value} onChange={(e) => field.onChange(e.target.value)} className="h-8 w-12 cursor-pointer p-1" />
+                  <Input
+                    type="color"
+                    aria-label={t('admin.organization.customColor')}
+                    value={field.value}
+                    onChange={(e) => field.onChange(e.target.value)}
+                    className="h-8 w-12 cursor-pointer p-1"
+                  />
                   <code className="text-xs text-muted-foreground" dir="ltr">
                     {field.value}
                   </code>
@@ -114,8 +129,8 @@ export function OrganizationForm({ defaults, timezones }: { defaults: Organizati
             <Field label={t('common.language')}>
               {(p) => (
                 <NativeSelect {...p} {...form.register('defaultLocale')}>
-                  <option value="ar">العربية</option>
-                  <option value="en">English</option>
+                  <option value="ar">{languageNames.ar}</option>
+                  <option value="en">{languageNames.en}</option>
                 </NativeSelect>
               )}
             </Field>

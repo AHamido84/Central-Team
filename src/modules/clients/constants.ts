@@ -38,7 +38,17 @@ export const socialUrl: Record<SocialNetwork, (handle: string) => string> = {
 };
 
 /** Deliverable types a package can include. Later phases map deliverables to these keys. */
-export const packageItemTypes = ['post', 'reel', 'story', 'video', 'design', 'photo_shoot', 'ad_campaign', 'blog_article', 'revision_round'] as const;
+export const packageItemTypes = [
+  'post',
+  'reel',
+  'story',
+  'video',
+  'design',
+  'photo_shoot',
+  'ad_campaign',
+  'blog_article',
+  'revision_round',
+] as const;
 export type PackageItemType = (typeof packageItemTypes)[number];
 
 export const clientRoleKeys = ['client_owner', 'client_member', 'client_viewer'] as const;

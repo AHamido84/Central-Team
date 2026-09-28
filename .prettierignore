@@ -1,0 +1,8 @@
+.next
+node_modules
+pnpm-lock.yaml
+supabase/migrations/meta
+supabase/templates
+playwright-report
+test-results
+*.md

@@ -31,12 +31,7 @@ export async function listNotificationsAction(input: {
       })
       .from(notifications)
       .leftJoin(profiles, eq(profiles.id, notifications.actorId))
-      .where(
-        and(
-          eq(notifications.userId, session.userId),
-          input.filter === 'unread' ? isNull(notifications.readAt) : undefined,
-        ),
-      )
+      .where(and(eq(notifications.userId, session.userId), input.filter === 'unread' ? isNull(notifications.readAt) : undefined))
       .orderBy(desc(notifications.createdAt))
       .limit(limit);
     const [count] = await tx
@@ -79,9 +74,7 @@ export async function markNotificationsReadAction(input: { ids: string[] | 'all'
 }
 
 const prefsSchema = z.object({
-  preferences: z.array(
-    z.object({ category: z.enum(notificationCategories), inApp: z.boolean(), email: z.boolean() }),
-  ),
+  preferences: z.array(z.object({ category: z.enum(notificationCategories), inApp: z.boolean(), email: z.boolean() })),
 });
 
 export const updateNotificationPreferencesAction = defineAction({

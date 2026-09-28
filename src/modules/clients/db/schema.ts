@@ -1,25 +1,11 @@
 import { sql } from 'drizzle-orm';
-import {
-  boolean,
-  check,
-  date,
-  index,
-  integer,
-  jsonb,
-  pgTable,
-  primaryKey,
-  text,
-  uniqueIndex,
-  uuid,
-} from 'drizzle-orm/pg-core';
+import { boolean, check, date, index, integer, jsonb, pgTable, primaryKey, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { createdAt, id, localized, updatedAt } from '@/lib/db/columns';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
 import { roles } from '@/modules/rbac/db/schema';
 
-export type ClientSocialHandles = Partial<
-  Record<'instagram' | 'x' | 'tiktok' | 'snapchat' | 'linkedin' | 'youtube', string>
->;
+export type ClientSocialHandles = Partial<Record<'instagram' | 'x' | 'tiktok' | 'snapchat' | 'linkedin' | 'youtube', string>>;
 
 export const clients = pgTable(
   'clients',
@@ -47,10 +33,7 @@ export const clients = pgTable(
   (t) => [
     uniqueIndex('clients_org_slug_key').on(t.organizationId, t.slug),
     index('clients_account_manager_idx').on(t.accountManagerId),
-    check(
-      'clients_status_check',
-      sql`${t.status} in ('onboarding','active','paused','archived')`,
-    ),
+    check('clients_status_check', sql`${t.status} in ('onboarding','active','paused','archived')`),
   ],
 );
 
@@ -113,10 +96,7 @@ export const clientAssignments = pgTable(
       .references(() => organizations.id, { onDelete: 'cascade' }),
     createdAt: createdAt(),
   },
-  (t) => [
-    primaryKey({ columns: [t.clientId, t.userId] }),
-    index('client_assignments_user_idx').on(t.userId),
-  ],
+  (t) => [primaryKey({ columns: [t.clientId, t.userId] }), index('client_assignments_user_idx').on(t.userId)],
 );
 
 export const packages = pgTable(

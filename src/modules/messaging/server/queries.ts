@@ -29,9 +29,15 @@ export async function listThreads(opts: { clientId?: string; limit?: number } = 
         t: threads,
         clientName: clients.name,
         clientLogo: clients.logoPath,
-        preview: sql<string | null>`(select c.body from public.comments c where c.thread_id = threads.id and c.deleted_at is null order by c.created_at desc limit 1)`,
-        lastAuthorName: sql<string | null>`(select p.full_name from public.comments c join public.profiles p on p.id = c.author_id where c.thread_id = threads.id and c.deleted_at is null order by c.created_at desc limit 1)`,
-        lastAuthorSide: sql<'agency' | 'client' | null>`(select c.author_side from public.comments c where c.thread_id = threads.id and c.deleted_at is null order by c.created_at desc limit 1)`,
+        preview: sql<
+          string | null
+        >`(select c.body from public.comments c where c.thread_id = threads.id and c.deleted_at is null order by c.created_at desc limit 1)`,
+        lastAuthorName: sql<
+          string | null
+        >`(select p.full_name from public.comments c join public.profiles p on p.id = c.author_id where c.thread_id = threads.id and c.deleted_at is null order by c.created_at desc limit 1)`,
+        lastAuthorSide: sql<
+          'agency' | 'client' | null
+        >`(select c.author_side from public.comments c where c.thread_id = threads.id and c.deleted_at is null order by c.created_at desc limit 1)`,
         unread: sql<number>`(select count(*)::int from public.comments c where c.thread_id = threads.id and c.deleted_at is null and c.author_id is distinct from auth.uid() and c.created_at > coalesce((select r.last_read_at from public.thread_reads r where r.thread_id = threads.id and r.user_id = auth.uid()), 'epoch'))`,
       })
       .from(threads)
@@ -88,7 +94,12 @@ export async function getThread(threadId: string): Promise<ThreadDetail | null> 
     const ids = rows.map((r) => r.c.id);
     const attachments = ids.length
       ? await tx
-          .select({ commentId: commentAttachments.commentId, file: files, uploaderName: profiles.fullName, uploaderAvatar: profiles.avatarPath })
+          .select({
+            commentId: commentAttachments.commentId,
+            file: files,
+            uploaderName: profiles.fullName,
+            uploaderAvatar: profiles.avatarPath,
+          })
           .from(commentAttachments)
           .innerJoin(files, eq(files.id, commentAttachments.fileId))
           .leftJoin(profiles, eq(profiles.id, files.uploadedBy))
@@ -130,7 +141,11 @@ export async function getThread(threadId: string): Promise<ThreadDetail | null> 
         attachments: attachments.filter((a) => a.commentId === c.id).map((a) => toFileItem(a.file, a.uploaderName, a.uploaderAvatar)),
       })),
       reads: reads.map((r) => ({ ...r, side: sideOf.get(r.userId) ?? 'agency', lastReadAt: r.lastReadAt.toISOString() })),
-      participants: [...new Map(participants.map((p) => [p.user_id, { userId: p.user_id, name: p.name, avatarPath: p.avatar_path, side: p.side }])).values()],
+      participants: [
+        ...new Map(
+          participants.map((p) => [p.user_id, { userId: p.user_id, name: p.name, avatarPath: p.avatar_path, side: p.side }]),
+        ).values(),
+      ],
     };
   });
 }

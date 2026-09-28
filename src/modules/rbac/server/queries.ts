@@ -58,13 +58,24 @@ export type PermissionRow = {
 export async function listPermissions(): Promise<PermissionRow[]> {
   return withRls(async (tx) => {
     const rows = await tx.select().from(permissions).orderBy(asc(permissions.sortOrder));
-    return rows.map((p) => ({ key: p.key, resource: p.resource, action: p.action, side: p.side as 'agency' | 'client', module: p.module, label: p.label }));
+    return rows.map((p) => ({
+      key: p.key,
+      resource: p.resource,
+      action: p.action,
+      side: p.side as 'agency' | 'client',
+      module: p.module,
+      label: p.label,
+    }));
   });
 }
 
 export async function listRoles(ctx: AgencyContext): Promise<RoleSummary[]> {
   return withRls(async (tx) => {
-    const roleRows = await tx.select().from(roles).where(eq(roles.organizationId, ctx.organization.id)).orderBy(asc(roles.sortOrder), asc(roles.createdAt));
+    const roleRows = await tx
+      .select()
+      .from(roles)
+      .where(eq(roles.organizationId, ctx.organization.id))
+      .orderBy(asc(roles.sortOrder), asc(roles.createdAt));
     const grants = await tx.select().from(rolePermissions).where(eq(rolePermissions.organizationId, ctx.organization.id));
     const counts = await tx
       .select({ roleId: userRoles.roleId, n: sql<number>`count(*)::int` })
@@ -106,7 +117,10 @@ export async function listTeam(ctx: AgencyContext): Promise<TeamMember[]> {
       .innerJoin(profiles, eq(profiles.id, organizationMembers.userId))
       .where(and(eq(organizationMembers.organizationId, ctx.organization.id), eq(organizationMembers.userType, 'agency')))
       .orderBy(asc(profiles.fullName));
-    const ur = await tx.select({ userId: userRoles.userId, roleId: userRoles.roleId }).from(userRoles).where(eq(userRoles.organizationId, ctx.organization.id));
+    const ur = await tx
+      .select({ userId: userRoles.userId, roleId: userRoles.roleId })
+      .from(userRoles)
+      .where(eq(userRoles.organizationId, ctx.organization.id));
     const dm = await tx
       .select({ userId: departmentMembers.userId, departmentId: departmentMembers.departmentId, isLead: departmentMembers.isLead })
       .from(departmentMembers)
@@ -173,6 +187,10 @@ export async function listTeamInvitations(ctx: AgencyContext): Promise<Invitatio
 
 export async function listDepartments(ctx: AgencyContext) {
   return withRls((tx) =>
-    tx.select().from(departments).where(eq(departments.organizationId, ctx.organization.id)).orderBy(asc(departments.sortOrder), asc(departments.createdAt)),
+    tx
+      .select()
+      .from(departments)
+      .where(eq(departments.organizationId, ctx.organization.id))
+      .orderBy(asc(departments.sortOrder), asc(departments.createdAt)),
   );
 }

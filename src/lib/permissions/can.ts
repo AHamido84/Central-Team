@@ -44,11 +44,7 @@ export function computeEffectivePermissions(
 }
 
 /** Mirrors `app.assert_can_grant`: a non-super-admin can only grant permissions they hold. */
-export function ungrantablePermissions(
-  granter: PermissionSet,
-  granterIsSuperAdmin: boolean,
-  requested: readonly string[],
-): string[] {
+export function ungrantablePermissions(granter: PermissionSet, granterIsSuperAdmin: boolean, requested: readonly string[]): string[] {
   if (granterIsSuperAdmin) return [];
   return requested.filter((k) => !granter.has(k));
 }

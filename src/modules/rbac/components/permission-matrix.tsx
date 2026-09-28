@@ -92,7 +92,10 @@ export function PermissionMatrix({
                     {t('admin.roles.permission')}
                   </th>
                   {section.roles.map((r) => (
-                    <th key={r.id} className="sticky top-0 z-10 min-w-28 border-b border-border bg-surface px-2 py-3 text-center text-xs font-medium">
+                    <th
+                      key={r.id}
+                      className="sticky top-0 z-10 min-w-28 border-b border-border bg-surface px-2 py-3 text-center text-xs font-medium"
+                    >
                       <span className="inline-flex items-center gap-1">
                         {localized(r.name, locale)}
                         {r.isLocked ? <Lock className="size-3 text-subtle-foreground" aria-label={t('common.locked')} /> : null}
@@ -105,7 +108,9 @@ export function PermissionMatrix({
                 {section.modules.map(({ mod, perms }) => (
                   <Fragment key={mod}>
                     <tr className="bg-surface-muted/60">
-                      <th className="sticky start-0 z-10 bg-surface-muted px-4 py-2 text-start text-xs font-semibold">{t(`admin.modules.${mod}` as never)}</th>
+                      <th className="sticky start-0 z-10 bg-surface-muted px-4 py-2 text-start text-xs font-semibold">
+                        {t(`admin.modules.${mod}` as never)}
+                      </th>
                       {section.roles.map((r) => {
                         const keys = perms.map((p) => p.key);
                         const held = keys.filter((k) => grants[r.id]?.has(k)).length;
@@ -123,7 +128,10 @@ export function PermissionMatrix({
                     </tr>
                     {perms.map((p) => (
                       <tr key={p.key} className="hover:bg-surface-muted/40">
-                        <th scope="row" className="sticky start-0 z-10 border-b border-border bg-surface px-4 py-2.5 text-start font-normal">
+                        <th
+                          scope="row"
+                          className="sticky start-0 z-10 border-b border-border bg-surface px-4 py-2.5 text-start font-normal"
+                        >
                           <span className="block">{localized(p.label, locale)}</span>
                           <code className="text-[0.6875rem] text-subtle-foreground" dir="ltr">
                             {p.key}
@@ -146,7 +154,11 @@ export function PermissionMatrix({
                           );
                           return (
                             <td key={r.id} className="border-b border-border px-2 py-2 text-center">
-                              {disabled && me.canEdit && !r.isLocked ? <Tooltip content={t('admin.roles.cannotGrant')}>{cell}</Tooltip> : cell}
+                              {disabled && me.canEdit && !r.isLocked ? (
+                                <Tooltip content={t('admin.roles.cannotGrant')}>{cell}</Tooltip>
+                              ) : (
+                                cell
+                              )}
                             </td>
                           );
                         })}
@@ -161,7 +173,7 @@ export function PermissionMatrix({
       ))}
 
       {changeCount > 0 ? (
-        <div className="sticky bottom-4 z-20 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface-raised p-3 shadow-lg animate-fade-in">
+        <div className="sticky bottom-4 z-20 flex animate-fade-in flex-wrap items-center gap-3 rounded-xl border border-border bg-surface-raised p-3 shadow-lg">
           <Badge tone="warning">{t('admin.roles.pendingChanges', { count: changeCount })}</Badge>
           <div className="ms-auto flex gap-2">
             <Button variant="ghost" onClick={() => setGrants(toGrants(roles))}>

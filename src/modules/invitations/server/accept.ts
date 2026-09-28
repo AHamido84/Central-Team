@@ -66,7 +66,10 @@ export async function getInvitationPreview(token: string): Promise<InvitationPre
   const invitation = await findPending(token);
   if (!invitation || invitation.status !== 'pending') return { status: 'invalid' };
   if (invitation.expiresAt.getTime() < Date.now()) return { status: 'expired' };
-  const [org] = await dbAdmin.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, invitation.organizationId));
+  const [org] = await dbAdmin
+    .select({ name: organizations.name })
+    .from(organizations)
+    .where(eq(organizations.id, invitation.organizationId));
   const [client] = invitation.clientId
     ? await dbAdmin.select({ name: clients.name }).from(clients).where(eq(clients.id, invitation.clientId))
     : [];
@@ -99,9 +102,7 @@ const acceptSchema = z
  * Runs with the service role because the invitee has no membership yet; the hashed, single-use,
  * expiring token is the authorization (ADR-005).
  */
-export async function acceptInvitationAction(
-  input: z.input<typeof acceptSchema>,
-): Promise<ActionResult<{ redirectTo: string }>> {
+export async function acceptInvitationAction(input: z.input<typeof acceptSchema>): Promise<ActionResult<{ redirectTo: string }>> {
   const parsed = acceptSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: { code: 'validation', fieldErrors: z.flattenError(parsed.error).fieldErrors as Record<string, string[]> } };
@@ -142,10 +143,7 @@ export async function acceptInvitationAction(
       .for('update');
     if (locked?.status !== 'pending') throw new Error('invitation_invalid');
 
-    await tx
-      .update(profiles)
-      .set({ fullName, locale: invitation.locale })
-      .where(eq(profiles.id, acceptedUserId));
+    await tx.update(profiles).set({ fullName, locale: invitation.locale }).where(eq(profiles.id, acceptedUserId));
     await tx
       .insert(organizationMembers)
       .values({

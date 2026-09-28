@@ -52,7 +52,9 @@ export function NotificationsInbox({ userId }: { userId: string }) {
           <TabsTrigger value="all">{t('filterAll')}</TabsTrigger>
           <TabsTrigger value="unread">
             {t('filterUnread')}
-            {data?.unread ? <span className="rounded-full bg-primary px-1.5 text-[0.6875rem] text-primary-foreground tabular">{data.unread}</span> : null}
+            {data?.unread ? (
+              <span className="tabular rounded-full bg-primary px-1.5 text-[0.6875rem] text-primary-foreground">{data.unread}</span>
+            ) : null}
           </TabsTrigger>
         </TabsList>
       </Tabs>

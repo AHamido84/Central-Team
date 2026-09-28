@@ -1,6 +1,6 @@
 # Architecture
 
-Status: **Phase 0 design** · Owner: platform team · Related: `DATA_MODEL.md`, `UI.md`, `DECISIONS.md`
+Status: **Phases 0–1 built** · Owner: platform team · Related: `DATA_MODEL.md`, `UI.md`, `DECISIONS.md`
 
 ## 1. System overview
 
@@ -15,7 +15,7 @@ flowchart LR
     PX[proxy.ts<br/>session refresh · side routing · locale · headers]
     RSC[Server Components<br/>module queries]
     SA["Server Actions<br/>defineAction()"]
-    API["Route handlers<br/>/api/hooks/*"]
+    API["Route handlers<br/>/auth/confirm, /auth/signout, /api/health"]
   end
 
   subgraph Supabase
@@ -32,7 +32,7 @@ flowchart LR
   RSC -- "withRls (role authenticated + JWT claims)" --> PG
   SA -- "withRls + emitEvent" --> PG
   A & P -- "supabase-js (anon key + session)" --> AUTH & RT & ST
-  AUTH -- "Send Email Hook" --> API --> MAIL
+  AUTH -- "SMTP · bilingual templates" --> MAIL
   SA --> MAIL
   PG -- "domain_events" --> EF
 ```
@@ -76,16 +76,15 @@ Key properties:
 │   │   │   ├── notifications/
 │   │   │   ├── settings/          # profile, preferences, notification prefs
 │   │   │   └── admin/             # users, invitations, roles, permissions matrix, departments,
-│   │   │                          # features, audit log, organization
+│   │   │                          # features, audit log, organization, packages
+│   │   │   ├── clients/ messages/ # Phase 1: client management + agency inbox
+│   │   │   └── dev/design-system/ # component showcase (design_system:view)
 │   │   ├── (portal)/portal/       # client layout — URLs under /portal
 │   │   │   ├── page.tsx           # portal home (Phase 0: welcome + profile; Phase 1 fills it)
-│   │   │   ├── notifications/
-│   │   │   ├── settings/
-│   │   │   └── team/              # Client Owner manages client users (invite/revoke)
-│   │   ├── dev/design-system/     # component showcase (dev + staff only)
-│   │   └── api/
-│   │       ├── hooks/send-email/  # Supabase Auth Send Email Hook → React Email → provider
-│   │       └── health/
+│   │   │   ├── files/ messages/ company/ notifications/ settings/
+│   │   │   └── requests/ approvals/ calendar/  # flag-guarded, upcoming phases
+│   │   ├── auth/confirm, auth/signout   # email-link verification, sign out
+│   │   └── api/health/
 │   ├── components/
 │   │   ├── ui/                    # shadcn/ui primitives (owned, themed)
 │   │   ├── shell/                 # AppShell, Sidebar, TopBar, Breadcrumbs, CommandPalette
@@ -102,15 +101,19 @@ Key properties:
 │   │   ├── supabase/              # browser/server clients, admin client
 │   │   └── utils/
 │   ├── modules/
-│   │   ├── organizations/
-│   │   ├── identity/              # profiles, onboarding, avatars, language/theme prefs
-│   │   ├── invitations/
-│   │   ├── rbac/                  # roles, permissions, matrix, overrides, assignments
+│   │   ├── organizations/         # org settings, feature flags, logo upload
+│   │   ├── identity/              # auth actions, profiles, onboarding, avatars, preferences
+│   │   ├── invitations/           # tokens, team/client invites, acceptance
+│   │   ├── rbac/                  # roles, permission matrix, overrides, team admin
 │   │   ├── departments/
-│   │   ├── clients/               # minimal client record (Phase 0), extended in Phase 1
-│   │   ├── notifications/
+│   │   ├── clients/               # clients, portal users, packages + usage ledger
+│   │   ├── files/                 # folders, uploads (signed URLs), previews
+│   │   ├── messaging/             # threads, comments, mentions, read receipts
+│   │   ├── notifications/         # notify(), bell, inbox, preferences
+│   │   ├── portal/                # portal home read models
+│   │   ├── dashboard/             # agency dashboard read models
 │   │   ├── audit/                 # activity_log viewer
-│   │   └── feature-flags/
+│   │   └── design-system/         # /dev/design-system showcase
 │   └── styles/globals.css         # design tokens (CSS variables), Tailwind v4 @theme
 └── tests/
     ├── unit/                      # permission helper, formatters, schemas
@@ -179,9 +182,10 @@ Supabase Auth handles identities and sessions (`@supabase/ssr`, HTTP-only cookie
 | Invitations | Our own `invitations` table (not Supabase's invite) for full control: hashed token, expiry (7 days), resend (rotates token), revoke, role(s) + department/client pre-assigned. |
 | Onboarding | First login when `profiles.onboarded_at is null`: name, avatar, phone (E.164, SA default), language. |
 
-**Auth emails** (magic link, reset, email change) go through the Supabase **Send Email Hook** →
-`/api/hooks/send-email` (signature-verified) → React Email template in the user's language →
-`EmailProvider`. One template system, bilingual, branded, for all mail.
+**Auth emails** (magic link, reset, email change) use GoTrue's own bilingual templates in `supabase/templates/`
+(language from `user_metadata.locale`, kept in sync when the user switches language). Links land on
+`/auth/confirm?token_hash=…&type=…`, which calls `verifyOtp` server-side — no PKCE state, works across devices.
+Invitation and notification emails are rendered with React Email and sent through `EmailProvider` (ADR-017).
 
 **Custom access token hook** (Postgres function `app.custom_access_token_hook`) adds claims:
 `org_id`, `user_type` (`agency` | `client`), `client_id` (clients only), `onboarded` (bool).
@@ -295,7 +299,8 @@ handler → commit → `revalidatePath` → `Result<T>` with translatable error 
 emitEvent(tx, { type, aggregate: { type, id }, payload, clientId? })
 ```
 
-- Inserted into `domain_events` **in the same transaction** as the mutation (transactional outbox).
+- Inserted into `domain_events` **in the same transaction** as the mutation (transactional outbox) by the
+  `emitEvent()` TS helper; RLS only lets a member insert events whose `actor_id` is themselves.
 - Event types are a typed registry (`src/lib/events/registry.ts`); payloads are Zod-validated in dev/test.
 - Phase 0 events: `user.invited`, `invitation.resent`, `invitation.revoked`, `invitation.accepted`,
   `user.onboarded`, `user.profile_updated`, `user.deactivated`, `user.reactivated`, `role.created`,
@@ -400,3 +405,59 @@ Migrations are applied to staging/prod by CI (`supabase db push`) on merge, neve
 | Client-scoped data | `client_id` column + `app.client_access(client_id)` in RLS |
 | Integrations (Phase 7) | `integration_connections` per org/client, secrets in Supabase Vault, webhooks under `/api/hooks/<provider>` |
 | AI (Phase 8) | Consumes `domain_events` + read models; pgvector for embeddings; provider behind an interface |
+
+## 16. Phase 1 — client portal flows
+
+### Client access model
+
+```mermaid
+flowchart TB
+  subgraph Agency
+    RA[clients:read_all] --> ACC
+    RS[clients:read_assigned] -->|account manager or client_assignments| ACC
+  end
+  subgraph Client
+    CU[client_users active + org membership active] --> ACC2
+  end
+  ACC[app.agency_can_access_client] --> V1[sees internal + client items]
+  ACC2[app.is_client_member] --> V2[sees visibility = client only]
+```
+
+Write rights are separate permissions: agency `files:upload`, `files:manage`, `messages:send`, `client_users:manage`,
+`packages:assign`; client `portal_files:upload`, `portal_messages:send`, `portal_users:manage`, `portal_company:update`.
+A Client Viewer holds only `portal:access` + `portal_users:read`.
+
+### Upload flow (ADR-020)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant B as Browser
+  participant A as Server actions
+  participant DB as Postgres (RLS)
+  participant S as Storage (client-files, private)
+  B->>A: requestFileUpload(client, folder|thread, name, mime, size, visibility)
+  A->>A: rights + classifyUpload (type & size limits)
+  A->>DB: folder/thread visible to caller? (RLS)
+  A->>S: createSignedUploadUrl(org/<org>/clients/<client>/<folder|root>/<fileId>-<slug>)
+  A-->>B: signed URL
+  B->>S: PUT file (XHR, progress events)
+  B->>A: finalizeFileUpload(fileId, …)
+  A->>S: object exists at the expected path? size ok?
+  A->>DB: insert files (RLS) + emitEvent(file.uploaded)
+  A-->>B: ok → notify client users / agency team (after commit)
+```
+
+### Messaging
+
+`threads` (polymorphic `subject_type/subject_id`, `visibility`) → `comments` (`visibility`, `mentions uuid[]`) →
+`comment_attachments` (files with `source = 'attachment'`) and `thread_reads` (read receipts). The conversation view
+subscribes to Realtime `comments` and `thread_reads` for its thread (after `ensureRealtimeAuth()`, ADR-024); RLS decides
+which rows each subscriber receives, so internal notes never reach client sockets. After commit, `postComment` fans out
+`message_new` / `mention` notifications (in-app + email per preferences) to the correct side with side-specific links.
+
+### Package usage
+
+`getPackageUsage(tx, clientPackageId)` → allowed per item (from `package_items`) vs used (sum of
+`package_usage_entries`), plus period progress. Runs inside the caller's RLS transaction, so the same service powers
+the agency client page and the portal home.

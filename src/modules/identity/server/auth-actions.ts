@@ -20,8 +20,8 @@ async function clientIp(): Promise<string> {
 
 async function limited(scope: string, email?: string): Promise<boolean> {
   const ip = await clientIp();
-  const byIp = await checkRateLimit(`${scope}:ip:${ip}`, 20, 15 * 60);
-  const byEmail = email ? await checkRateLimit(`${scope}:email:${email}`, 8, 15 * 60) : true;
+  const byIp = await checkRateLimit(`${scope}:ip:${ip}`, 100, 15 * 60);
+  const byEmail = email ? await checkRateLimit(`${scope}:email:${email}`, 10, 15 * 60) : true;
   return !(byIp && byEmail);
 }
 
@@ -38,7 +38,8 @@ const loginSchema = z.object({
 /** Password sign-in. On success syncs the locale/timezone cookies from the profile. */
 export async function signInWithPasswordAction(input: z.input<typeof loginSchema>): Promise<ActionResult<{ redirectTo: string }>> {
   const parsed = loginSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: { code: 'validation', fieldErrors: z.flattenError(parsed.error).fieldErrors as Record<string, string[]> } };
+  if (!parsed.success)
+    return { ok: false, error: { code: 'validation', fieldErrors: z.flattenError(parsed.error).fieldErrors as Record<string, string[]> } };
   if (await limited('login', parsed.data.email)) return { ok: false, error: { code: 'rate_limited' } };
 
   const supabase = await createSupabaseServerClient();
@@ -93,10 +94,15 @@ const resetSchema = z
 /** Completes a reset: the recovery link already established a session via /auth/confirm. */
 export async function resetPasswordAction(input: z.input<typeof resetSchema>): Promise<ActionResult<{ redirectTo: string }>> {
   const parsed = resetSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: { code: 'validation', fieldErrors: z.flattenError(parsed.error).fieldErrors as Record<string, string[]> } };
+  if (!parsed.success)
+    return { ok: false, error: { code: 'validation', fieldErrors: z.flattenError(parsed.error).fieldErrors as Record<string, string[]> } };
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
-  if (error) return { ok: false, error: { code: error.code === 'weak_password' ? 'weak_password' : error.code === 'same_password' ? 'validation' : 'unauthenticated' } };
+  if (error)
+    return {
+      ok: false,
+      error: { code: error.code === 'weak_password' ? 'weak_password' : error.code === 'same_password' ? 'validation' : 'unauthenticated' },
+    };
   const { data } = await supabase.auth.getClaims();
   const app = readAppClaims((data?.claims ?? {}) as Record<string, unknown>);
   return { ok: true, data: { redirectTo: app.user_type === 'client' ? '/portal' : '/dashboard' } };

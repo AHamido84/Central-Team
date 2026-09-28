@@ -55,9 +55,7 @@ async function sendInvitationEmail(invitation: InvitationRow, token: string, ctx
     subject: heading,
     content: {
       heading,
-      paragraphs: [
-        clientName ? t('invitePortalBody', { inviter, org: orgName }) : t('inviteTeamBody', { inviter }),
-      ],
+      paragraphs: [clientName ? t('invitePortalBody', { inviter, org: orgName }) : t('inviteTeamBody', { inviter })],
       cta: { label: t('inviteCta'), href: `${process.env.NEXT_PUBLIC_APP_URL}/invite/${token}` },
       note: t('inviteNote', { days: 7 }),
     },

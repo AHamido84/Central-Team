@@ -33,7 +33,8 @@ export function PackageUsageCard({
       </Card>
     );
   }
-  const label = (type: string) => ((packageItemTypes as readonly string[]).includes(type) ? t(`itemTypes.${type as PackageItemType}`) : type);
+  const label = (type: string) =>
+    (packageItemTypes as readonly string[]).includes(type) ? t(`itemTypes.${type as PackageItemType}`) : type;
   const pace = usage.totals.ratio - usage.elapsed;
   return (
     <Card className="p-5" data-testid="package-usage">

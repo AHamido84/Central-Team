@@ -29,9 +29,7 @@ type ActionConfig<S extends z.ZodType, T, Side extends keyof SideContext> = {
  * The only way to write a mutation (CLAUDE.md §6): validate → authenticate → side check →
  * can() → RLS transaction → commit → after hooks → revalidate → typed Result.
  */
-export function defineAction<S extends z.ZodType, T, Side extends keyof SideContext>(
-  config: ActionConfig<S, T, Side>,
-) {
+export function defineAction<S extends z.ZodType, T, Side extends keyof SideContext>(config: ActionConfig<S, T, Side>) {
   return async (raw: z.input<S>): Promise<ActionResult<T>> => {
     const parsed = config.input.safeParse(raw);
     if (!parsed.success) {

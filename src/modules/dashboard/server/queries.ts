@@ -52,27 +52,56 @@ export async function getAgencyDashboard(ctx: AgencyContext) {
       .innerJoin(profiles, eq(profiles.id, departmentMembers.userId))
       .innerJoin(
         organizationMembers,
-        and(eq(organizationMembers.userId, profiles.id), eq(organizationMembers.organizationId, orgId), eq(organizationMembers.status, 'active')),
+        and(
+          eq(organizationMembers.userId, profiles.id),
+          eq(organizationMembers.organizationId, orgId),
+          eq(organizationMembers.status, 'active'),
+        ),
       );
     const team = deptRows.map((d) => ({ ...d, members: deptMembers.filter((m) => m.departmentId === d.id) }));
 
     const [teamCount] = await tx
       .select({ n: sql<number>`count(*)::int` })
       .from(organizationMembers)
-      .where(and(eq(organizationMembers.organizationId, orgId), eq(organizationMembers.userType, 'agency'), eq(organizationMembers.status, 'active')));
+      .where(
+        and(
+          eq(organizationMembers.organizationId, orgId),
+          eq(organizationMembers.userType, 'agency'),
+          eq(organizationMembers.status, 'active'),
+        ),
+      );
 
     // RLS already limits clients to the ones this user can access.
     const clientRows = await tx
-      .select({ id: clients.id, name: clients.name, status: clients.status, logoPath: clients.logoPath, accountManagerId: clients.accountManagerId })
+      .select({
+        id: clients.id,
+        name: clients.name,
+        status: clients.status,
+        logoPath: clients.logoPath,
+        accountManagerId: clients.accountManagerId,
+      })
       .from(clients)
       .where(eq(clients.organizationId, orgId))
       .orderBy(asc(sql`${clients.name}->>'en'`));
 
     const pendingInvitations = can(ctx.permissions, 'invitations:read')
       ? await tx
-          .select({ id: invitations.id, email: invitations.email, fullName: invitations.fullName, expiresAt: invitations.expiresAt, createdAt: invitations.createdAt })
+          .select({
+            id: invitations.id,
+            email: invitations.email,
+            fullName: invitations.fullName,
+            expiresAt: invitations.expiresAt,
+            createdAt: invitations.createdAt,
+          })
           .from(invitations)
-          .where(and(eq(invitations.organizationId, orgId), eq(invitations.userType, 'agency'), eq(invitations.status, 'pending'), gt(invitations.expiresAt, new Date())))
+          .where(
+            and(
+              eq(invitations.organizationId, orgId),
+              eq(invitations.userType, 'agency'),
+              eq(invitations.status, 'pending'),
+              gt(invitations.expiresAt, new Date()),
+            ),
+          )
           .orderBy(desc(invitations.createdAt))
           .limit(5)
       : null;
@@ -86,9 +115,15 @@ export async function getAgencyDashboard(ctx: AgencyContext) {
             clientId: threads.clientId,
             lastCommentAt: threads.lastCommentAt,
             visibility: threads.visibility,
-            preview: sql<string | null>`(select c.body from public.comments c where c.thread_id = threads.id order by c.created_at desc limit 1)`,
-            lastAuthor: sql<string | null>`(select p.full_name from public.comments c join public.profiles p on p.id = c.author_id where c.thread_id = threads.id order by c.created_at desc limit 1)`,
-            lastAuthorSide: sql<string | null>`(select c.author_side from public.comments c where c.thread_id = threads.id order by c.created_at desc limit 1)`,
+            preview: sql<
+              string | null
+            >`(select c.body from public.comments c where c.thread_id = threads.id order by c.created_at desc limit 1)`,
+            lastAuthor: sql<
+              string | null
+            >`(select p.full_name from public.comments c join public.profiles p on p.id = c.author_id where c.thread_id = threads.id order by c.created_at desc limit 1)`,
+            lastAuthorSide: sql<
+              string | null
+            >`(select c.author_side from public.comments c where c.thread_id = threads.id order by c.created_at desc limit 1)`,
           })
           .from(threads)
           .where(inArray(threads.clientId, clientIds))

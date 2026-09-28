@@ -38,7 +38,10 @@ export async function withThumbnails(items: FileItem[], paths: Map<string, strin
   if (images.length === 0) return items;
   const { data } = await supabaseAdmin()
     .storage.from(CLIENT_FILES_BUCKET)
-    .createSignedUrls(images.map((i) => paths.get(i.id)!), 60 * 60);
+    .createSignedUrls(
+      images.map((i) => paths.get(i.id)!),
+      60 * 60,
+    );
   const byPath = new Map((data ?? []).map((d) => [d.path, d.signedUrl]));
   return items.map((i) => (paths.has(i.id) && i.kind === 'image' ? { ...i, thumbUrl: byPath.get(paths.get(i.id)!) ?? null } : i));
 }
@@ -53,7 +56,10 @@ export async function listClientLibrary(clientId: string) {
       })
       .from(fileFolders)
       .where(eq(fileFolders.clientId, clientId))
-      .orderBy(sql`case ${fileFolders.kind} when 'brand' then 0 when 'month' then 1 when 'project' then 2 when 'type' then 3 else 4 end`, desc(fileFolders.createdAt));
+      .orderBy(
+        sql`case ${fileFolders.kind} when 'brand' then 0 when 'month' then 1 when 'project' then 2 when 'type' then 3 else 4 end`,
+        desc(fileFolders.createdAt),
+      );
     const rows = await tx
       .select({ file: files, uploaderName: profiles.fullName, uploaderAvatar: profiles.avatarPath })
       .from(files)

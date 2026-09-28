@@ -3,7 +3,7 @@ import 'server-only';
 import { render } from '@react-email/components';
 import { createTranslator } from 'next-intl';
 
-import ActionEmail, { type ActionEmailProps } from '../../../emails/action-email';
+import ActionEmail, { type ActionEmailProps } from '@emails/action-email';
 import { emailProvider } from '@/lib/email/provider';
 import { localized, type Locale, type LocalizedText } from '@/lib/i18n/localized';
 import { loadMessages } from '@/i18n/messages';

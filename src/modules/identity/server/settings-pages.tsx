@@ -12,7 +12,18 @@ import { SettingsNav } from '@/modules/identity/components/settings-nav';
 import { NotificationSettings, PreferencesSettings, ProfileSettings } from '@/modules/identity/components/settings-forms';
 import { notificationCategories } from '@/modules/notifications/types';
 
-const TIMEZONES = ['Asia/Riyadh', 'Asia/Dubai', 'Asia/Kuwait', 'Asia/Qatar', 'Asia/Bahrain', 'Asia/Muscat', 'Africa/Cairo', 'Europe/London', 'Europe/Istanbul', 'UTC'];
+const TIMEZONES = [
+  'Asia/Riyadh',
+  'Asia/Dubai',
+  'Asia/Kuwait',
+  'Asia/Qatar',
+  'Asia/Bahrain',
+  'Asia/Muscat',
+  'Africa/Cairo',
+  'Europe/London',
+  'Europe/Istanbul',
+  'UTC',
+];
 
 /** Settings pages are shared by both sides; only the base path differs. */
 type Base = '/settings' | '/portal/settings';
@@ -34,7 +45,12 @@ export async function ProfileSettingsPage({ base }: { base: Base }) {
     <Shell base={base}>
       <ProfileSettings
         email={ctx.profile.email}
-        defaults={{ fullName: ctx.profile.fullName, phone: ctx.profile.phone ?? '', whatsapp: ctx.profile.whatsapp ?? '', avatarPath: ctx.profile.avatarPath }}
+        defaults={{
+          fullName: ctx.profile.fullName,
+          phone: ctx.profile.phone ?? '',
+          whatsapp: ctx.profile.whatsapp ?? '',
+          avatarPath: ctx.profile.avatarPath,
+        }}
       />
     </Shell>
   );

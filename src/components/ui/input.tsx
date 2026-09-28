@@ -11,10 +11,6 @@ export function Input({ className, type = 'text', ...props }: ComponentProps<'in
 
 export function Textarea({ className, ...props }: ComponentProps<'textarea'>) {
   return (
-    <textarea
-      data-slot="textarea"
-      className={cn(inputClass, 'field-sizing-content min-h-20 py-2 leading-relaxed', className)}
-      {...props}
-    />
+    <textarea data-slot="textarea" className={cn(inputClass, 'field-sizing-content min-h-20 py-2 leading-relaxed', className)} {...props} />
   );
 }

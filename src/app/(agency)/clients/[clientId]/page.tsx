@@ -121,7 +121,13 @@ export default async function ClientPage({
             <PackageUsageCard usage={detail.usage} compact />
             <section>
               <SectionTitle title={t('clients.company')} />
-              <CompanyInfoCard industry={c.industry} city={c.city} website={c.website} social={c.social as Record<string, string>} startDate={c.startDate} />
+              <CompanyInfoCard
+                industry={c.industry}
+                city={c.city}
+                website={c.website}
+                social={c.social as Record<string, string>}
+                startDate={c.startDate}
+              />
             </section>
           </div>
           <aside className="space-y-6">
@@ -156,30 +162,69 @@ export default async function ClientPage({
         </div>
       ) : null}
 
-      {tab === 'users' ? <UsersTab clientId={clientId} clientName={name} canManage={can(ctx.permissions, 'client_users:manage')} meUserId={ctx.session.userId} /> : null}
+      {tab === 'users' ? (
+        <UsersTab
+          clientId={clientId}
+          clientName={name}
+          canManage={can(ctx.permissions, 'client_users:manage')}
+          meUserId={ctx.session.userId}
+        />
+      ) : null}
 
       {tab === 'package' ? (
         <PackageTab
           clientId={clientId}
           canAssign={can(ctx.permissions, 'packages:assign')}
           usage={detail.usage}
-          history={detail.packageHistory.map((h) => ({ ...h, label: localized(h.packageName, locale), range: `${f.date(h.periodStart)} – ${f.date(h.periodEnd)}` }))}
+          history={detail.packageHistory.map((h) => ({
+            ...h,
+            label: localized(h.packageName, locale),
+            range: `${f.date(h.periodStart)} – ${f.date(h.periodEnd)}`,
+          }))}
           ctx={ctx}
         />
       ) : null}
 
-      {tab === 'files' ? <FilesTab clientId={clientId} canUpload={can(ctx.permissions, 'files:upload')} canManage={can(ctx.permissions, 'files:manage')} /> : null}
+      {tab === 'files' ? (
+        <FilesTab clientId={clientId} canUpload={can(ctx.permissions, 'files:upload')} canManage={can(ctx.permissions, 'files:manage')} />
+      ) : null}
 
       {tab === 'messages' ? (
-        <MessagesTab clientId={clientId} clientName={name} threadId={sp.thread} meUserId={ctx.session.userId} canWrite={can(ctx.permissions, 'messages:send')} />
+        <MessagesTab
+          clientId={clientId}
+          clientName={name}
+          threadId={sp.thread}
+          meUserId={ctx.session.userId}
+          canWrite={can(ctx.permissions, 'messages:send')}
+        />
       ) : null}
     </div>
   );
 }
 
-async function UsersTab({ clientId, clientName, canManage, meUserId }: { clientId: string; clientName: string; canManage: boolean; meUserId: string }) {
+async function UsersTab({
+  clientId,
+  clientName,
+  canManage,
+  meUserId,
+}: {
+  clientId: string;
+  clientName: string;
+  canManage: boolean;
+  meUserId: string;
+}) {
   const data = await listClientUsers(clientId);
-  return <ClientUsersManager clientId={clientId} clientName={clientName} users={data.users} invitations={data.invitations} roles={data.roles} canManage={canManage} meUserId={meUserId} />;
+  return (
+    <ClientUsersManager
+      clientId={clientId}
+      clientName={clientName}
+      users={data.users}
+      invitations={data.invitations}
+      roles={data.roles}
+      canManage={canManage}
+      meUserId={meUserId}
+    />
+  );
 }
 
 async function PackageTab({
@@ -209,13 +254,16 @@ async function PackageTab({
         emptyAction={canAssign ? <AssignPackageDialog clientId={clientId} packages={packages} /> : null}
       />
       <section>
-        <SectionTitle title={t('packageHistory')} action={canAssign ? <AssignPackageDialog clientId={clientId} packages={packages} /> : null} />
+        <SectionTitle
+          title={t('packageHistory')}
+          action={canAssign ? <AssignPackageDialog clientId={clientId} packages={packages} /> : null}
+        />
         <Card className="divide-y divide-border">
           {history.length ? (
             history.map((h) => (
               <div key={h.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
                 <span className="font-medium">{h.label}</span>
-                <span className="text-muted-foreground tabular">{h.range}</span>
+                <span className="tabular text-muted-foreground">{h.range}</span>
               </div>
             ))
           ) : (
@@ -229,7 +277,16 @@ async function PackageTab({
 
 async function FilesTab({ clientId, canUpload, canManage }: { clientId: string; canUpload: boolean; canManage: boolean }) {
   const library = await listClientLibrary(clientId);
-  return <FileBrowser clientId={clientId} folders={library.folders} files={library.files} side="agency" canUpload={canUpload} canManage={canManage} />;
+  return (
+    <FileBrowser
+      clientId={clientId}
+      folders={library.folders}
+      files={library.files}
+      side="agency"
+      canUpload={canUpload}
+      canManage={canManage}
+    />
+  );
 }
 
 async function MessagesTab({

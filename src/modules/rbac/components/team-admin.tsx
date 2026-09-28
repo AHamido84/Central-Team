@@ -52,7 +52,13 @@ function InvitationActions({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label={t('common.moreActions')} onClick={(e) => e.stopPropagation()} data-testid="invitation-actions">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t('common.moreActions')}
+            onClick={(e) => e.stopPropagation()}
+            data-testid="invitation-actions"
+          >
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
@@ -147,11 +153,14 @@ export function TeamAdmin(props: TeamAdminProps) {
         header: t('admin.users.departments'),
         accessorFn: (m) => m.departmentIds,
         enableSorting: false,
-        cell: ({ row }) => (
-          <span className="text-muted-foreground">{f.list(row.original.departmentIds.map(deptName)) || '—'}</span>
-        ),
+        cell: ({ row }) => <span className="text-muted-foreground">{f.list(row.original.departmentIds.map(deptName)) || '—'}</span>,
       },
-      { id: 'jobTitle', header: t('admin.users.jobTitle'), accessorFn: (m) => m.jobTitle ?? '', cell: ({ getValue }) => <span className="text-muted-foreground">{String(getValue() || '—')}</span> },
+      {
+        id: 'jobTitle',
+        header: t('admin.users.jobTitle'),
+        accessorFn: (m) => m.jobTitle ?? '',
+        cell: ({ getValue }) => <span className="text-muted-foreground">{String(getValue() || '—')}</span>,
+      },
       {
         id: 'status',
         header: t('common.status'),
@@ -173,7 +182,12 @@ export function TeamAdmin(props: TeamAdminProps) {
             </Badge>
           ),
       },
-      { id: 'joinedAt', header: t('admin.users.joined'), accessorFn: (m) => m.joinedAt, cell: ({ row }) => <span className="text-muted-foreground tabular">{f.date(row.original.joinedAt)}</span> },
+      {
+        id: 'joinedAt',
+        header: t('admin.users.joined'),
+        accessorFn: (m) => m.joinedAt,
+        cell: ({ row }) => <span className="tabular text-muted-foreground">{f.date(row.original.joinedAt)}</span>,
+      },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [locale],
@@ -218,7 +232,12 @@ export function TeamAdmin(props: TeamAdminProps) {
           </Badge>
         ),
       },
-      { id: 'invitedBy', header: t('admin.users.invitedBy'), accessorFn: (i) => i.invitedByName ?? '', cell: ({ getValue }) => <span className="text-muted-foreground">{String(getValue() || '—')}</span> },
+      {
+        id: 'invitedBy',
+        header: t('admin.users.invitedBy'),
+        accessorFn: (i) => i.invitedByName ?? '',
+        cell: ({ getValue }) => <span className="text-muted-foreground">{String(getValue() || '—')}</span>,
+      },
       {
         id: 'sent',
         header: t('admin.users.lastSent'),
@@ -234,7 +253,11 @@ export function TeamAdmin(props: TeamAdminProps) {
         id: 'expires',
         header: t('admin.users.expires'),
         accessorFn: (i) => i.expiresAt,
-        cell: ({ row }) => <span className="text-muted-foreground">{row.original.status === 'pending' || row.original.status === 'expired' ? f.relative(row.original.expiresAt) : '—'}</span>,
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">
+            {row.original.status === 'pending' || row.original.status === 'expired' ? f.relative(row.original.expiresAt) : '—'}
+          </span>
+        ),
       },
       {
         id: 'actions',
@@ -291,9 +314,24 @@ export function TeamAdmin(props: TeamAdminProps) {
             onRowClick={(m) => setOpenUserId(m.userId)}
             searchFn={(m, q) => m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q)}
             filters={[
-              { id: 'roles', label: t('common.role'), options: agencyRoles.map((r) => ({ value: r.id, label: localized(r.name, locale) })) },
-              { id: 'departments', label: t('common.department'), options: props.departments.map((d) => ({ value: d.id, label: localized(d.name, locale) })) },
-              { id: 'status', label: t('common.status'), options: [{ value: 'active', label: t('common.active') }, { value: 'deactivated', label: t('common.deactivated') }] },
+              {
+                id: 'roles',
+                label: t('common.role'),
+                options: agencyRoles.map((r) => ({ value: r.id, label: localized(r.name, locale) })),
+              },
+              {
+                id: 'departments',
+                label: t('common.department'),
+                options: props.departments.map((d) => ({ value: d.id, label: localized(d.name, locale) })),
+              },
+              {
+                id: 'status',
+                label: t('common.status'),
+                options: [
+                  { value: 'active', label: t('common.active') },
+                  { value: 'deactivated', label: t('common.deactivated') },
+                ],
+              },
             ]}
             mobileCard={(m) => (
               <div className="flex items-center gap-3 px-4 py-3">
@@ -322,7 +360,9 @@ export function TeamAdmin(props: TeamAdminProps) {
                   options: (['pending', 'expired', 'accepted', 'revoked'] as const).map((s) => ({ value: s, label: t(`common.${s}`) })),
                 },
               ]}
-              emptyState={<EmptyState icon={MailX} title={t('admin.users.noInvitations')} description={t('admin.users.noInvitationsBody')} compact />}
+              emptyState={
+                <EmptyState icon={MailX} title={t('admin.users.noInvitations')} description={t('admin.users.noInvitationsBody')} compact />
+              }
               mobileCard={(i) => (
                 <div className="flex items-center gap-3 px-4 py-3">
                   <div className="min-w-0 flex-1">
@@ -346,6 +386,7 @@ export function TeamAdmin(props: TeamAdminProps) {
         ) : null}
       </Tabs>
       <MemberSheet
+        key={openMember ? `${openMember.userId}:${openMember.roleIds.join()}:${openMember.jobTitle}` : 'none'}
         member={openMember}
         onOpenChange={(o) => !o && setOpenUserId(null)}
         roles={agencyRoles}

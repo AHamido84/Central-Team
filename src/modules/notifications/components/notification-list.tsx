@@ -67,7 +67,12 @@ export function NotificationRow({
       {content}
     </Link>
   ) : (
-    <button type="button" onClick={() => onOpen?.(item)} className="block w-full text-start hover:bg-surface-muted" data-testid="notification-item">
+    <button
+      type="button"
+      onClick={() => onOpen?.(item)}
+      className="block w-full text-start hover:bg-surface-muted"
+      data-testid="notification-item"
+    >
       {content}
     </button>
   );

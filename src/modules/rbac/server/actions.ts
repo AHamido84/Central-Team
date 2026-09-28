@@ -5,13 +5,7 @@ import { z } from 'zod';
 
 import { defineAction } from '@/lib/actions/define-action';
 import { ActionFailure } from '@/lib/actions/errors';
-import {
-  organizationMembers,
-  rolePermissions,
-  roles,
-  userPermissionOverrides,
-  userRoles,
-} from '@/lib/db/schema';
+import { organizationMembers, rolePermissions, roles, userPermissionOverrides, userRoles } from '@/lib/db/schema';
 import { emitEvent } from '@/lib/events/emit';
 import { localizedText, optionalText } from '@/lib/validation';
 import { notify } from '@/modules/notifications/server/notify';
@@ -35,7 +29,9 @@ export const setMemberRolesAction = defineAction({
     const removed = currentIds.filter((id) => !input.roleIds.includes(id));
     // Add first so removing the last Super Admin role is caught by the trigger with a clear error.
     for (const roleId of added) {
-      await tx.insert(userRoles).values({ organizationId: ctx.organization.id, userId: input.userId, roleId, assignedBy: ctx.session.userId });
+      await tx
+        .insert(userRoles)
+        .values({ organizationId: ctx.organization.id, userId: input.userId, roleId, assignedBy: ctx.session.userId });
     }
     if (removed.length) {
       await tx.delete(userRoles).where(and(eq(userRoles.userId, input.userId), inArray(userRoles.roleId, removed)));
@@ -165,10 +161,15 @@ export const createRoleAction = defineAction({
       .returning({ id: roles.id });
     if (!role) throw new ActionFailure('forbidden');
     if (input.copyFromRoleId) {
-      const source = await tx.select({ key: rolePermissions.permissionKey }).from(rolePermissions).where(eq(rolePermissions.roleId, input.copyFromRoleId));
+      const source = await tx
+        .select({ key: rolePermissions.permissionKey })
+        .from(rolePermissions)
+        .where(eq(rolePermissions.roleId, input.copyFromRoleId));
       const keys = source.map((s) => s.key);
       if (keys.length) {
-        await tx.insert(rolePermissions).values(keys.map((permissionKey) => ({ roleId: role.id, permissionKey, organizationId: ctx.organization.id })));
+        await tx
+          .insert(rolePermissions)
+          .values(keys.map((permissionKey) => ({ roleId: role.id, permissionKey, organizationId: ctx.organization.id })));
       }
     }
     await emitEvent(tx, {
@@ -233,9 +234,7 @@ export const deleteRoleAction = defineAction({
 /** Saves a set of matrix changes atomically; triggers enforce locked roles and anti-escalation. */
 export const saveRolePermissionsAction = defineAction({
   input: z.object({
-    changes: z
-      .array(z.object({ roleId: z.uuid(), add: z.array(z.string().max(64)), remove: z.array(z.string().max(64)) }))
-      .max(50),
+    changes: z.array(z.object({ roleId: z.uuid(), add: z.array(z.string().max(64)), remove: z.array(z.string().max(64)) })).max(50),
   }),
   side: 'agency',
   permission: 'roles:update',

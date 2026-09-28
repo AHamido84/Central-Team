@@ -33,10 +33,20 @@ const handle = z
   .string()
   .trim()
   .max(80)
-  .transform((v) => v.replace(/^@/, '').replace(/^https?:\/\/[^/]+\//, '').replace(/\/$/, ''))
+  .transform((v) =>
+    v
+      .replace(/^@/, '')
+      .replace(/^https?:\/\/[^/]+\//, '')
+      .replace(/\/$/, ''),
+  )
   .refine((v) => v === '' || /^[\w.-]{1,60}$/.test(v), { message: 'too_long' });
 
-const social = z.object(Object.fromEntries(socialNetworks.map((n) => [n, handle.optional()])) as Record<(typeof socialNetworks)[number], z.ZodOptional<typeof handle>>);
+const social = z.object(
+  Object.fromEntries(socialNetworks.map((n) => [n, handle.optional()])) as Record<
+    (typeof socialNetworks)[number],
+    z.ZodOptional<typeof handle>
+  >,
+);
 
 const clientFields = z.object({
   name: localizedText(120),
@@ -107,7 +117,10 @@ export const createClientAction = defineAction({
       startDate: input.startDate,
       createdBy: ctx.session.userId,
     });
-    if (input.notes) await tx.insert(clientNotes).values({ clientId, organizationId: ctx.organization.id, body: input.notes, updatedBy: ctx.session.userId });
+    if (input.notes)
+      await tx
+        .insert(clientNotes)
+        .values({ clientId, organizationId: ctx.organization.id, body: input.notes, updatedBy: ctx.session.userId });
     if (input.teamIds.length) {
       await tx.insert(clientAssignments).values(input.teamIds.map((userId) => ({ clientId, userId, organizationId: ctx.organization.id })));
     }
@@ -158,12 +171,21 @@ export const updateClientAction = defineAction({
       .insert(clientNotes)
       .values({ clientId: input.clientId, organizationId: ctx.organization.id, body: input.notes ?? '', updatedBy: ctx.session.userId })
       .onConflictDoUpdate({ target: clientNotes.clientId, set: { body: input.notes ?? '', updatedBy: ctx.session.userId } });
-    const current = await tx.select({ userId: clientAssignments.userId }).from(clientAssignments).where(eq(clientAssignments.clientId, input.clientId));
+    const current = await tx
+      .select({ userId: clientAssignments.userId })
+      .from(clientAssignments)
+      .where(eq(clientAssignments.clientId, input.clientId));
     const currentIds = current.map((c) => c.userId);
     const toRemove = currentIds.filter((id) => !input.teamIds.includes(id));
     const toAdd = input.teamIds.filter((id) => !currentIds.includes(id));
-    if (toRemove.length) await tx.delete(clientAssignments).where(and(eq(clientAssignments.clientId, input.clientId), inArray(clientAssignments.userId, toRemove)));
-    if (toAdd.length) await tx.insert(clientAssignments).values(toAdd.map((userId) => ({ clientId: input.clientId, userId, organizationId: ctx.organization.id })));
+    if (toRemove.length)
+      await tx
+        .delete(clientAssignments)
+        .where(and(eq(clientAssignments.clientId, input.clientId), inArray(clientAssignments.userId, toRemove)));
+    if (toAdd.length)
+      await tx
+        .insert(clientAssignments)
+        .values(toAdd.map((userId) => ({ clientId: input.clientId, userId, organizationId: ctx.organization.id })));
     await emitEvent(tx, {
       type: 'client.updated',
       organizationId: ctx.organization.id,
@@ -186,7 +208,14 @@ export const updateCompanyProfileAction = defineAction({
     if (input.logoPath && !input.logoPath.includes(`/clients/${ctx.client.id}/`)) throw new ActionFailure('forbidden');
     const [row] = await tx
       .update(clients)
-      .set({ name: input.name, industry: input.industry, city: input.city, website: input.website, social: cleanSocial(input.social), logoPath: input.logoPath })
+      .set({
+        name: input.name,
+        industry: input.industry,
+        city: input.city,
+        website: input.website,
+        social: cleanSocial(input.social),
+        logoPath: input.logoPath,
+      })
       .where(eq(clients.id, ctx.client.id))
       .returning({ id: clients.id });
     if (!row) throw new ActionFailure('forbidden');
@@ -224,7 +253,10 @@ export const updateClientUserAction = defineAction({
   side: 'any',
   async handler({ input, tx, ctx }) {
     assertManagesClient(ctx, input.clientId);
-    const [role] = await tx.select({ id: roles.id }).from(roles).where(and(eq(roles.organizationId, ctx.organization.id), eq(roles.key, input.roleKey)));
+    const [role] = await tx
+      .select({ id: roles.id })
+      .from(roles)
+      .where(and(eq(roles.organizationId, ctx.organization.id), eq(roles.key, input.roleKey)));
     if (!role) throw new ActionFailure('not_found');
     const [row] = await tx
       .update(clientUsers)
@@ -282,11 +314,20 @@ export const savePackageAction = defineAction({
       if (!row) throw new ActionFailure('not_found');
       await tx.delete(packageItems).where(eq(packageItems.packageId, packageId));
     } else {
-      const [row] = await tx.insert(packages).values({ ...values, organizationId: ctx.organization.id }).returning({ id: packages.id });
+      const [row] = await tx
+        .insert(packages)
+        .values({ ...values, organizationId: ctx.organization.id })
+        .returning({ id: packages.id });
       packageId = row!.id;
     }
     await tx.insert(packageItems).values(
-      input.items.map((item, i) => ({ organizationId: ctx.organization.id, packageId: packageId!, itemType: item.itemType, quantity: item.quantity, sortOrder: i })),
+      input.items.map((item, i) => ({
+        organizationId: ctx.organization.id,
+        packageId: packageId!,
+        itemType: item.itemType,
+        quantity: item.quantity,
+        sortOrder: i,
+      })),
     );
     await emitEvent(tx, {
       type: input.packageId ? 'package.updated' : 'package.created',
@@ -309,7 +350,14 @@ export const assignClientPackageAction = defineAction({
   async handler({ input, tx, ctx }) {
     const [row] = await tx
       .insert(clientPackages)
-      .values({ organizationId: ctx.organization.id, clientId: input.clientId, packageId: input.packageId, periodStart: input.periodStart, periodEnd: input.periodEnd, createdBy: ctx.session.userId })
+      .values({
+        organizationId: ctx.organization.id,
+        clientId: input.clientId,
+        packageId: input.packageId,
+        periodStart: input.periodStart,
+        periodEnd: input.periodEnd,
+        createdBy: ctx.session.userId,
+      })
       .returning({ id: clientPackages.id });
     if (!row) throw new ActionFailure('forbidden');
     await emitEvent(tx, {
@@ -331,7 +379,12 @@ export const recordPackageUsageAction = defineAction({
     clientId: z.uuid(),
     clientPackageId: z.uuid(),
     itemType: z.enum(packageItemTypes),
-    quantity: z.number().int().min(-100).max(100).refine((n) => n !== 0),
+    quantity: z
+      .number()
+      .int()
+      .min(-100)
+      .max(100)
+      .refine((n) => n !== 0),
     note: optionalText(200),
   }),
   side: 'agency',

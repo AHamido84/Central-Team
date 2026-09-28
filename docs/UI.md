@@ -1,6 +1,7 @@
 # UI & Design System
 
-Status: **Phase 0 design — brand choice pending approval** (see §3).
+Status: **Built (Phases 0–1)** — brand A "Najd Indigo" applied as the product default; each agency's brand color
+(Agency settings) re-themes the client portal.
 
 ## 1. Design direction
 
@@ -177,7 +178,8 @@ Breakpoints: `sm` 640 · `md` 768 · `lg` 1024 · `xl` 1280 · `2xl` 1536. Minim
   • Tasks                           /tasks              [3]
   • Approvals                       /approvals          [3]
 ─ Clients
-  • Clients / Client 360            /clients            [1 → 5]
+  • Clients / Client 360            /clients            [1 → 5]  (tabs: overview, portal users, package, files, messages)
+  • Messages (all client threads)   /messages           [1]
   • Campaigns                       /campaigns          [4]
   • Reports                         /reports            [4]
 ─ Growth
@@ -190,6 +192,7 @@ Breakpoints: `sm` 640 · `md` 768 · `lg` 1024 · `xl` 1280 · `2xl` 1536. Minim
   • Users & invitations             /admin/users        [0]
   • Roles & permissions             /admin/roles        [0]
   • Departments                     /admin/departments  [0]
+  • Packages                        /admin/packages     [1]
   • Feature flags                   /admin/features     [0]
   • Audit log                       /admin/audit        [0]
   • Organization                    /admin/organization [0]
@@ -211,7 +214,7 @@ Phase 0 Dashboard is a real, useful page (not a placeholder): welcome, your role
 • Files                     /portal/files             [1]
 • Messages                  /portal/messages          [1]
 • Campaigns & reports       /portal/campaigns         [4]
-• Team (Client Owner)       /portal/team              [0]
+• Company (profile + team)  /portal/company           [1]  (team tab: invite, roles, approval right, deactivate)
 (avatar menu) Profile · Notification settings · Language · Theme · Sign out
 ```
 

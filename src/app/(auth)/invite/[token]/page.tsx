@@ -49,7 +49,9 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
       <p className="mt-2 text-sm text-muted-foreground">
         {preview.inviterName ? t('invitedBy', { name: preview.inviterName, org }) : t('invitedByOrg', { org })}
       </p>
-      {preview.existingAccount ? <p className="mt-3 rounded-md bg-info-soft px-3 py-2 text-sm text-info">{t('inviteExistingAccount')}</p> : null}
+      {preview.existingAccount ? (
+        <p className="mt-3 rounded-md bg-info-soft px-3 py-2 text-sm text-info">{t('inviteExistingAccount')}</p>
+      ) : null}
       <AcceptInvitationForm token={token} email={preview.email} defaultName={preview.fullName ?? ''} />
     </div>
   );

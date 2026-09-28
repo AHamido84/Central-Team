@@ -1,5 +1,6 @@
 'use client';
 
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CheckCheck, Lock, MessagesSquare } from 'lucide-react';
 import Link from 'next/link';
@@ -13,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarGroup, Badge, Tooltip } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
 import { publicAssetUrl } from '@/lib/storage';
-import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { ensureRealtimeAuth, getSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { cn } from '@/lib/utils/cn';
 import { FilePreviewDialog } from '@/modules/files/components/file-preview';
 import type { FileItem } from '@/modules/files/server/queries';
@@ -24,7 +25,7 @@ import type { CommentView, ThreadDetail } from '@/modules/messaging/server/queri
 
 function Body({ body, mine }: { body: string; mine: boolean }) {
   return (
-    <p className="text-[0.9375rem] leading-relaxed break-words whitespace-pre-wrap">
+    <p dir="auto" className="text-start text-[0.9375rem] leading-relaxed break-words whitespace-pre-wrap">
       {parseBody(body).map((seg, i) =>
         seg.type === 'text' ? (
           <Fragment key={i}>{seg.text}</Fragment>
@@ -97,18 +98,23 @@ export function Conversation({
 
   // Realtime: new comments / read receipts in this thread (RLS filters what each user receives).
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
-    const channel = supabase
-      .channel(`thread:${threadId}:${crypto.randomUUID()}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments', filter: `thread_id=eq.${threadId}` }, () => {
-        void queryClient.invalidateQueries({ queryKey: key });
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'thread_reads', filter: `thread_id=eq.${threadId}` }, () => {
-        void queryClient.invalidateQueries({ queryKey: key });
-      })
-      .subscribe();
+    let channel: RealtimeChannel | null = null;
+    let cancelled = false;
+    void ensureRealtimeAuth().then((supabase) => {
+      if (cancelled) return;
+      channel = supabase
+        .channel(`thread:${threadId}:${crypto.randomUUID()}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments', filter: `thread_id=eq.${threadId}` }, () => {
+          void queryClient.invalidateQueries({ queryKey: key });
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'thread_reads', filter: `thread_id=eq.${threadId}` }, () => {
+          void queryClient.invalidateQueries({ queryKey: key });
+        })
+        .subscribe();
+    });
     return () => {
-      void supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) void getSupabaseBrowserClient().removeChannel(channel);
     };
   }, [threadId, key, queryClient]);
 
@@ -171,14 +177,21 @@ export function Conversation({
           groups.map((g) => (
             <section key={g.day} className="mb-4">
               <div className="sticky top-0 z-10 my-3 flex justify-center">
-                <span className="rounded-full bg-surface-muted px-3 py-0.5 text-xs text-muted-foreground">{g.day}</span>
+                <span className="rounded-full border border-border bg-surface px-3 py-0.5 text-xs text-muted-foreground shadow-xs">
+                  {g.day}
+                </span>
               </div>
               <ol className="space-y-3">
                 {g.items.map((c) => {
                   const mine = c.authorId === me.userId;
                   const internal = c.visibility === 'internal';
                   return (
-                    <li key={c.id} className={cn('flex items-end gap-2', mine && 'flex-row-reverse')} data-testid="message" data-internal={internal || undefined}>
+                    <li
+                      key={c.id}
+                      className={cn('flex items-end gap-2', mine && 'flex-row-reverse')}
+                      data-testid="message"
+                      data-internal={internal || undefined}
+                    >
                       {!mine ? <Avatar name={c.authorName} src={publicAssetUrl(c.authorAvatar)} size="sm" /> : null}
                       <div className={cn('max-w-[85%] sm:max-w-[70%]', mine && 'items-end text-end')}>
                         {!mine ? (

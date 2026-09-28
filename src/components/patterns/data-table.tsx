@@ -20,13 +20,7 @@ import { useState, type ReactNode } from 'react';
 import { DirIcon, EmptyState } from '@/components/patterns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '@/components/ui/overlays';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/overlays';
 import { Card, Checkbox, NativeSelect } from '@/components/ui/primitives';
 import { cn } from '@/lib/utils/cn';
 
@@ -95,7 +89,12 @@ export function DataTable<T>({
       />
     ),
     cell: ({ row }) => (
-      <Checkbox aria-label={row.id} checked={row.getIsSelected()} onCheckedChange={(v) => row.toggleSelected(Boolean(v))} onClick={(e) => e.stopPropagation()} />
+      <Checkbox
+        aria-label={row.id}
+        checked={row.getIsSelected()}
+        onCheckedChange={(v) => row.toggleSelected(Boolean(v))}
+        onClick={(e) => e.stopPropagation()}
+      />
     ),
   };
 
@@ -174,7 +173,14 @@ export function DataTable<T>({
         ) : null}
         <div className="flex items-center gap-2 sm:ms-auto">
           {toolbar}
-          <Button variant="ghost" size="icon-sm" className="hidden md:inline-flex" onClick={() => setCompact((c) => !c)} aria-label={t('density')} aria-pressed={compact}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="hidden md:inline-flex"
+            onClick={() => setCompact((c) => !c)}
+            aria-label={t('density')}
+            aria-pressed={compact}
+          >
             <Rows3 />
           </Button>
           <DropdownMenu>
@@ -189,7 +195,13 @@ export function DataTable<T>({
                 .getAllLeafColumns()
                 .filter((c) => c.getCanHide())
                 .map((c) => (
-                  <DropdownMenuItem key={c.id} onSelect={(e) => { e.preventDefault(); c.toggleVisibility(); }}>
+                  <DropdownMenuItem
+                    key={c.id}
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      c.toggleVisibility();
+                    }}
+                  >
                     <Checkbox checked={c.getIsVisible()} className="pointer-events-none" />
                     {typeof c.columnDef.header === 'string' ? c.columnDef.header : c.id}
                   </DropdownMenuItem>
@@ -200,7 +212,7 @@ export function DataTable<T>({
       </div>
 
       {bulkActions && selected.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary-soft px-4 py-2 text-sm animate-fade-in">
+        <div className="flex animate-fade-in flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary-soft px-4 py-2 text-sm">
           <span className="font-medium text-primary-soft-foreground">{t('rowsSelected', { count: selected.length })}</span>
           <span className="ms-auto flex flex-wrap gap-2">{bulkActions(selected, () => setRowSelection({}))}</span>
         </div>
@@ -218,7 +230,11 @@ export function DataTable<T>({
             {mobileCard ? (
               <ul className="divide-y divide-border md:hidden">
                 {rows.map((row) => (
-                  <li key={row.id} className={cn(onRowClick && 'cursor-pointer active:bg-surface-muted')} onClick={() => onRowClick?.(row.original)}>
+                  <li
+                    key={row.id}
+                    className={cn(onRowClick && 'cursor-pointer active:bg-surface-muted')}
+                    onClick={() => onRowClick?.(row.original)}
+                  >
                     {mobileCard(row.original)}
                   </li>
                 ))}
@@ -232,11 +248,24 @@ export function DataTable<T>({
                       {hg.headers.map((header) => {
                         const sort = header.column.getIsSorted();
                         return (
-                          <th key={header.id} className={cn('h-10 px-4 text-start font-medium whitespace-nowrap', header.id === '__select' && 'w-10')}>
+                          <th
+                            key={header.id}
+                            className={cn('h-10 px-4 text-start font-medium whitespace-nowrap', header.id === '__select' && 'w-10')}
+                          >
                             {header.isPlaceholder ? null : header.column.getCanSort() ? (
-                              <button type="button" onClick={header.column.getToggleSortingHandler()} className="inline-flex items-center gap-1 hover:text-foreground">
+                              <button
+                                type="button"
+                                onClick={header.column.getToggleSortingHandler()}
+                                className="inline-flex items-center gap-1 hover:text-foreground"
+                              >
                                 {flexRender(header.column.columnDef.header, header.getContext())}
-                                {sort === 'asc' ? <ArrowUp className="size-3.5" /> : sort === 'desc' ? <ArrowDown className="size-3.5" /> : <ChevronsUpDown className="size-3.5 opacity-50" />}
+                                {sort === 'asc' ? (
+                                  <ArrowUp className="size-3.5" />
+                                ) : sort === 'desc' ? (
+                                  <ArrowDown className="size-3.5" />
+                                ) : (
+                                  <ChevronsUpDown className="size-3.5 opacity-50" />
+                                )}
                               </button>
                             ) : (
                               flexRender(header.column.columnDef.header, header.getContext())
@@ -253,7 +282,10 @@ export function DataTable<T>({
                       key={row.id}
                       data-state={row.getIsSelected() ? 'selected' : undefined}
                       onClick={() => onRowClick?.(row.original)}
-                      className={cn('transition-colors hover:bg-surface-muted/60 data-[state=selected]:bg-primary-soft/50', onRowClick && 'cursor-pointer')}
+                      className={cn(
+                        'transition-colors hover:bg-surface-muted/60 data-[state=selected]:bg-primary-soft/50',
+                        onRowClick && 'cursor-pointer',
+                      )}
                     >
                       {row.getVisibleCells().map((cell) => (
                         <td key={cell.id} className={cn('px-4 align-middle', compact ? 'h-9' : 'h-(--row-h) py-2')}>
@@ -273,10 +305,22 @@ export function DataTable<T>({
         <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
           <span>{t('pageOf', { page: table.getState().pagination.pageIndex + 1, pages: pageCount })}</span>
           <div className="flex gap-1">
-            <Button variant="outline" size="icon-sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} aria-label={t('previousPage')}>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+              aria-label={t('previousPage')}
+            >
               <DirIcon icon={ChevronLeft} />
             </Button>
-            <Button variant="outline" size="icon-sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} aria-label={t('nextPage')}>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+              aria-label={t('nextPage')}
+            >
               <DirIcon icon={ChevronRight} />
             </Button>
           </div>

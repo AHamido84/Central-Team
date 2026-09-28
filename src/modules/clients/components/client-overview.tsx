@@ -46,7 +46,9 @@ export function CompanyInfoCard({
   return (
     <Card className="px-5 py-2">
       <Row icon={Building2} label={t('industry')}>
-        {industry && (industries as readonly string[]).includes(industry) ? t(`industries.${industry as (typeof industries)[number]}`) : '—'}
+        {industry && (industries as readonly string[]).includes(industry)
+          ? t(`industries.${industry as (typeof industries)[number]}`)
+          : '—'}
       </Row>
       <Row icon={MapPin} label={t('city')}>
         {city && (cities as readonly string[]).includes(city) ? t(`cities.${city as (typeof cities)[number]}`) : '—'}
@@ -116,7 +118,12 @@ export function AccountManagerCard({
       </div>
       <div className="mt-4 grid grid-cols-2 gap-2">
         {wa ? (
-          <Button asChild variant="outline" size="sm" className="border-[#25D366]/40 text-[#128C7E] hover:bg-[#25D366]/10 dark:text-[#4ade80]">
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="border-[#25D366]/40 text-[#128C7E] hover:bg-[#25D366]/10 dark:text-[#4ade80]"
+          >
             <a href={whatsappLink(wa)} target="_blank" rel="noreferrer noopener" data-testid="am-whatsapp">
               <MessageCircle />
               {t('whatsapp')}

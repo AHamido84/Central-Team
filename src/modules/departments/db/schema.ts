@@ -37,8 +37,5 @@ export const departmentMembers = pgTable(
     isLead: boolean('is_lead').notNull().default(false),
     createdAt: createdAt(),
   },
-  (t) => [
-    primaryKey({ columns: [t.departmentId, t.userId] }),
-    index('department_members_user_idx').on(t.userId),
-  ],
+  (t) => [primaryKey({ columns: [t.departmentId, t.userId] }), index('department_members_user_idx').on(t.userId)],
 );

@@ -1,15 +1,4 @@
-import {
-  bigserial,
-  boolean,
-  index,
-  integer,
-  jsonb,
-  pgTable,
-  primaryKey,
-  text,
-  timestamp,
-  uuid,
-} from 'drizzle-orm/pg-core';
+import { bigserial, boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { createdAt, id } from '@/lib/db/columns';
 import { organizations, profiles } from '@/modules/organizations/db/schema';

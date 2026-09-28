@@ -24,15 +24,28 @@ const monthBounds = () => {
 };
 
 const assignSchema = z
-  .object({ packageId: z.string().min(1, { message: 'required' }), periodStart: z.string().min(1, { message: 'invalid_date' }), periodEnd: z.string().min(1, { message: 'invalid_date' }) })
+  .object({
+    packageId: z.string().min(1, { message: 'required' }),
+    periodStart: z.string().min(1, { message: 'invalid_date' }),
+    periodEnd: z.string().min(1, { message: 'invalid_date' }),
+  })
   .refine((v) => v.periodEnd >= v.periodStart, { message: 'period_end_before_start', path: ['periodEnd'] });
 
-export function AssignPackageDialog({ clientId, packages }: { clientId: string; packages: { id: string; name: LocalizedText; isActive: boolean }[] }) {
+export function AssignPackageDialog({
+  clientId,
+  packages,
+}: {
+  clientId: string;
+  packages: { id: string; name: LocalizedText; isActive: boolean }[];
+}) {
   const t = useTranslations();
   const locale = useLocale() as Locale;
   const [open, setOpen] = useState(false);
   const bounds = monthBounds();
-  const form = useForm<z.infer<typeof assignSchema>>({ resolver: zodResolver(assignSchema), defaultValues: { packageId: '', periodStart: bounds.start, periodEnd: bounds.end } });
+  const form = useForm<z.infer<typeof assignSchema>>({
+    resolver: zodResolver(assignSchema),
+    defaultValues: { packageId: '', periodStart: bounds.start, periodEnd: bounds.end },
+  });
   const assign = useAction(assignClientPackageAction, { successMessage: t('clients.packageAssigned') });
   const submit = form.handleSubmit(async (v) => {
     const res = await assign.run({ clientId, ...v });
@@ -89,11 +102,22 @@ export function AssignPackageDialog({ clientId, packages }: { clientId: string; 
 
 const usageSchema = z.object({
   itemType: z.enum(packageItemTypes),
-  quantity: z.coerce.number<string>().int().refine((n) => n !== 0 && Math.abs(n) <= 100, { message: 'positive_number' }),
+  quantity: z.coerce
+    .number<string>()
+    .int()
+    .refine((n) => n !== 0 && Math.abs(n) <= 100, { message: 'positive_number' }),
   note: z.string().max(200),
 });
 
-export function RecordUsageDialog({ clientId, clientPackageId, itemTypes }: { clientId: string; clientPackageId: string; itemTypes: string[] }) {
+export function RecordUsageDialog({
+  clientId,
+  clientPackageId,
+  itemTypes,
+}: {
+  clientId: string;
+  clientPackageId: string;
+  itemTypes: string[];
+}) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
   const form = useForm<z.input<typeof usageSchema>, unknown, z.output<typeof usageSchema>>({

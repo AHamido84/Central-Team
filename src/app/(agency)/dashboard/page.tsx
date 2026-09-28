@@ -30,7 +30,9 @@ export default async function DashboardPage() {
   const f = await getFormatters();
   const data = await getAgencyDashboard(ctx);
   const firstName = ctx.profile.fullName.split(' ')[0] ?? '';
-  const hour = Number(new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: ctx.profile.timezone }).format(new Date()));
+  const hour = Number(
+    new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: ctx.profile.timezone }).format(new Date()),
+  );
   const canSeeClients = can(ctx.permissions, 'clients:read_all') || can(ctx.permissions, 'clients:read_assigned');
 
   return (
@@ -73,7 +75,12 @@ export default async function DashboardPage() {
             footer={t('dashboard.statClientsFooter', { count: data.myClients.length })}
           />
         ) : null}
-        <StatCard label={t('dashboard.statTeam')} value={f.number(data.teamCount)} icon={Users} footer={t('dashboard.statTeamFooter', { count: data.team.length })} />
+        <StatCard
+          label={t('dashboard.statTeam')}
+          value={f.number(data.teamCount)}
+          icon={Users}
+          footer={t('dashboard.statTeamFooter', { count: data.team.length })}
+        />
         {canSeeClients ? (
           <StatCard
             label={t('dashboard.statWaiting')}
@@ -83,7 +90,12 @@ export default async function DashboardPage() {
           />
         ) : null}
         {data.pendingInvitations ? (
-          <StatCard label={t('dashboard.statInvitations')} value={f.number(data.pendingInvitations.length)} icon={MailPlus} footer={t('dashboard.statInvitationsFooter')} />
+          <StatCard
+            label={t('dashboard.statInvitations')}
+            value={f.number(data.pendingInvitations.length)}
+            icon={MailPlus}
+            footer={t('dashboard.statInvitationsFooter')}
+          />
         ) : null}
       </div>
 
@@ -101,13 +113,27 @@ export default async function DashboardPage() {
               />
               <Card className="divide-y divide-border">
                 {data.recentThreads.length === 0 ? (
-                  <EmptyState compact icon={MessagesSquare} title={t('dashboard.noConversations')} description={t('dashboard.noConversationsBody')} />
+                  <EmptyState
+                    compact
+                    icon={MessagesSquare}
+                    title={t('dashboard.noConversations')}
+                    description={t('dashboard.noConversationsBody')}
+                  />
                 ) : (
                   data.recentThreads.map((th) => {
                     const client = data.clients.find((c) => c.id === th.clientId);
                     return (
-                      <Link key={th.id} href={`/messages?thread=${th.id}`} className="flex items-start gap-3 px-5 py-4 transition-colors hover:bg-surface-muted">
-                        <Avatar name={client ? localized(client.name, f.locale) : '?'} src={publicAssetUrl(client?.logoPath)} size="sm" square />
+                      <Link
+                        key={th.id}
+                        href={`/messages?thread=${th.id}`}
+                        className="flex items-start gap-3 px-5 py-4 transition-colors hover:bg-surface-muted"
+                      >
+                        <Avatar
+                          name={client ? localized(client.name, f.locale) : '?'}
+                          src={publicAssetUrl(client?.logoPath)}
+                          size="sm"
+                          square
+                        />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <p className="truncate text-sm font-medium">{client ? localized(client.name, f.locale) : ''}</p>
@@ -122,7 +148,11 @@ export default async function DashboardPage() {
                         </div>
                         <div className="flex shrink-0 flex-col items-end gap-1">
                           <span className="text-xs text-subtle-foreground">{f.relative(th.lastCommentAt)}</span>
-                          {th.lastAuthorSide === 'client' ? <Badge tone="info" dot>{t('dashboard.awaitingReply')}</Badge> : null}
+                          {th.lastAuthorSide === 'client' ? (
+                            <Badge tone="info" dot>
+                              {t('dashboard.awaitingReply')}
+                            </Badge>
+                          ) : null}
                         </div>
                       </Link>
                     );
@@ -158,7 +188,11 @@ export default async function DashboardPage() {
               <SectionTitle title={t('dashboard.myClients')} />
               <Card className="divide-y divide-border">
                 {data.myClients.map((c) => (
-                  <Link key={c.id} href={`/clients/${c.id}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted">
+                  <Link
+                    key={c.id}
+                    href={`/clients/${c.id}`}
+                    className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted"
+                  >
                     <Avatar name={localized(c.name, f.locale)} src={publicAssetUrl(c.logoPath)} size="sm" square />
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">{localized(c.name, f.locale)}</span>
                     <DirIcon icon={ArrowUpRight} className="size-4 text-subtle-foreground" />
@@ -221,7 +255,9 @@ export default async function DashboardPage() {
                           <span className="font-medium">{a.actorName}</span>{' '}
                           <span className="text-muted-foreground">
                             {t(`admin.audit.actions.${a.action as 'insert' | 'update' | 'delete'}`)}{' '}
-                            {t.has(`admin.audit.tables.${a.tableName}` as never) ? t(`admin.audit.tables.${a.tableName}` as never) : a.tableName}
+                            {t.has(`admin.audit.tables.${a.tableName}` as never)
+                              ? t(`admin.audit.tables.${a.tableName}` as never)
+                              : a.tableName}
                           </span>
                           <span className="block text-xs text-subtle-foreground">{f.relative(a.createdAt)}</span>
                         </p>

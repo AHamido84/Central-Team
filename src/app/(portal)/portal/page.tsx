@@ -34,7 +34,9 @@ export default async function PortalHomePage() {
   const t = await getTranslations();
   const f = await getFormatters();
   const [home, recentFiles] = await Promise.all([getPortalHome(ctx), listRecentFiles(ctx.client.id, 4)]);
-  const hour = Number(new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: ctx.profile.timezone }).format(new Date()));
+  const hour = Number(
+    new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: ctx.profile.timezone }).format(new Date()),
+  );
   const firstName = ctx.profile.fullName.split(' ')[0] ?? '';
   const clientName = localized(home.client.name, f.locale);
   const requestsLive = Boolean(ctx.flags['module.requests']);
@@ -47,15 +49,22 @@ export default async function PortalHomePage() {
         <div
           aria-hidden
           className="absolute inset-0 opacity-30"
-          style={{ backgroundImage: 'radial-gradient(circle at 85% 20%, rgb(255 255 255 / 0.35) 0, transparent 35%), radial-gradient(circle at 10% 110%, rgb(255 255 255 / 0.25) 0, transparent 40%)' }}
+          style={{
+            backgroundImage:
+              'radial-gradient(circle at 85% 20%, rgb(255 255 255 / 0.35) 0, transparent 35%), radial-gradient(circle at 10% 110%, rgb(255 255 255 / 0.25) 0, transparent 40%)',
+          }}
         />
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm text-primary-foreground/80">{t('dashboard.todayLine', { weekday: f.weekday(new Date()), date: f.date(new Date(), 'long') })}</p>
+            <p className="text-sm text-primary-foreground/80">
+              {t('dashboard.todayLine', { weekday: f.weekday(new Date()), date: f.date(new Date(), 'long') })}
+            </p>
             <h1 className="mt-1 text-h1 font-semibold text-balance sm:text-display" data-testid="portal-greeting">
               {t(`dashboard.${greetingKey(hour)}`, { name: firstName })}
             </h1>
-            <p className="mt-2 max-w-xl text-primary-foreground/85">{t('portal.heroBody', { client: clientName, agency: localized(ctx.organization.name, f.locale) })}</p>
+            <p className="mt-2 max-w-xl text-primary-foreground/85">
+              {t('portal.heroBody', { client: clientName, agency: localized(ctx.organization.name, f.locale) })}
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             {can(ctx.permissions, 'portal_messages:send') ? (
@@ -79,17 +88,23 @@ export default async function PortalHomePage() {
         </div>
       </section>
 
+      <div className="lg:hidden">
+        <AccountManagerCard manager={home.accountManager} title={t('portal.yourAccountManager')} />
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-8">
           {/* Phase 3 slot: approvals */}
           <section data-testid="slot-approvals">
             <SectionTitle
               title={t('portal.waitingApproval')}
-              action={approvalsLive ? (
-                <Button asChild variant="link" size="sm">
-                  <Link href="/portal/approvals">{t('common.viewAll')}</Link>
-                </Button>
-              ) : null}
+              action={
+                approvalsLive ? (
+                  <Button asChild variant="link" size="sm">
+                    <Link href="/portal/approvals">{t('common.viewAll')}</Link>
+                  </Button>
+                ) : null
+              }
             />
             <Card>
               <EmptyState
@@ -105,11 +120,13 @@ export default async function PortalHomePage() {
           <section data-testid="slot-requests">
             <SectionTitle
               title={t('portal.activeRequests')}
-              action={requestsLive ? (
-                <Button asChild variant="link" size="sm">
-                  <Link href="/portal/requests">{t('common.viewAll')}</Link>
-                </Button>
-              ) : null}
+              action={
+                requestsLive ? (
+                  <Button asChild variant="link" size="sm">
+                    <Link href="/portal/requests">{t('common.viewAll')}</Link>
+                  </Button>
+                ) : null
+              }
             />
             <Card>
               <EmptyState
@@ -150,7 +167,9 @@ export default async function PortalHomePage() {
         </div>
 
         <aside className="space-y-6">
-          <AccountManagerCard manager={home.accountManager} title={t('portal.yourAccountManager')} />
+          <div className="hidden lg:block">
+            <AccountManagerCard manager={home.accountManager} title={t('portal.yourAccountManager')} />
+          </div>
           <section>
             <SectionTitle title={t('portal.recentActivity')} />
             <Card className="p-2" data-testid="portal-activity">
@@ -161,23 +180,39 @@ export default async function PortalHomePage() {
                   {home.activity.map((a) => (
                     <li key={`${a.kind}-${a.id}`}>
                       <Link
-                        href={a.kind === 'file' ? `/portal/files${a.folderId ? `?folder=${a.folderId}` : ''}` : `/portal/messages?thread=${a.threadId}`}
+                        href={
+                          a.kind === 'file'
+                            ? `/portal/files${a.folderId ? `?folder=${a.folderId}` : ''}`
+                            : `/portal/messages?thread=${a.threadId}`
+                        }
                         className="flex items-start gap-3 rounded-md px-2 py-2.5 transition-colors hover:bg-surface-muted"
                       >
                         <span className="relative">
                           <Avatar name={a.actorName ?? '?'} src={publicAssetUrl(a.actorAvatar)} size="sm" />
                           <span className="absolute -end-1 -bottom-1 flex size-4 items-center justify-center rounded-full bg-surface text-primary ring-2 ring-surface">
-                            {a.kind === 'file' ? <FileUp className="size-3" aria-hidden /> : <MessageSquare className="size-3" aria-hidden />}
+                            {a.kind === 'file' ? (
+                              <FileUp className="size-3" aria-hidden />
+                            ) : (
+                              <MessageSquare className="size-3" aria-hidden />
+                            )}
                           </span>
                         </span>
                         <span className="min-w-0 flex-1 text-sm">
                           <span className="font-medium">{a.actorName}</span>{' '}
                           <span className="text-muted-foreground">
                             {a.kind === 'file'
-                              ? t.rich('portal.activityFile', { file: a.fileName, b: (c) => <bdi className="font-medium text-foreground">{c}</bdi> })
-                              : t.rich('portal.activityMessage', { thread: a.threadTitle, b: (c) => <bdi className="font-medium text-foreground">{c}</bdi> })}
+                              ? t.rich('portal.activityFile', {
+                                  file: a.fileName,
+                                  b: (c) => <bdi className="font-medium text-foreground">{c}</bdi>,
+                                })
+                              : t.rich('portal.activityMessage', {
+                                  thread: a.threadTitle,
+                                  b: (c) => <bdi className="font-medium text-foreground">{c}</bdi>,
+                                })}
                           </span>
-                          {a.kind === 'message' ? <span className="mt-0.5 line-clamp-1 block text-xs text-subtle-foreground">{preview(a.body, 70)}</span> : null}
+                          {a.kind === 'message' ? (
+                            <span className="mt-0.5 line-clamp-1 block text-xs text-subtle-foreground">{preview(a.body, 70)}</span>
+                          ) : null}
                           <span className="block text-xs text-subtle-foreground">{f.relative(a.at)}</span>
                         </span>
                         <DirIcon icon={ArrowUpRight} className="mt-1 size-3.5 text-subtle-foreground" />

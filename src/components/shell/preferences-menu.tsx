@@ -7,13 +7,7 @@ import { useTheme } from 'next-themes';
 import { useTransition } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '@/components/ui/overlays';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/overlays';
 import { Tooltip } from '@/components/ui/primitives';
 import { setLocaleAction, setThemeAction } from '@/modules/identity/server/actions';
 

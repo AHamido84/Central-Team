@@ -49,13 +49,13 @@ export function CommandPalette({ items }: { items: NavItem[] }) {
         data-testid="command-palette-trigger"
       >
         <Search className="size-4" aria-hidden />
-        <span className="flex-1 text-start">{t('common.commandPlaceholder')}</span>
+        <span className="flex-1 truncate text-start">{t('common.commandPlaceholder')}</span>
         <Kbd>⌘K</Kbd>
       </button>
       <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay className="fixed inset-0 z-[90] bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-          <DialogPrimitive.Content className="fixed start-1/2 top-[12vh] z-[90] w-[calc(100%-2rem)] max-w-xl overflow-hidden rounded-xl border border-border bg-surface-raised shadow-lg ltr:-translate-x-1/2 rtl:translate-x-1/2 data-[state=open]:animate-in data-[state=open]:zoom-in-95">
+          <DialogPrimitive.Content className="fixed start-1/2 top-[12vh] z-[90] w-[calc(100%-2rem)] max-w-xl overflow-hidden rounded-xl border border-border bg-surface-raised shadow-lg data-[state=open]:animate-in data-[state=open]:zoom-in-95 ltr:-translate-x-1/2 rtl:translate-x-1/2">
             <DialogPrimitive.Title className="sr-only">{t('common.commandPalette')}</DialogPrimitive.Title>
             <Command label={t('common.commandPalette')} className="flex flex-col">
               <div className="flex items-center gap-2 border-b border-border px-4">
@@ -67,18 +67,27 @@ export function CommandPalette({ items }: { items: NavItem[] }) {
                 />
               </div>
               <Command.List className="max-h-[50vh] overflow-y-auto p-2">
-                <Command.Empty className="px-3 py-8 text-center text-sm text-muted-foreground">
-                  {t('common.commandEmpty')}
-                </Command.Empty>
-                <Command.Group heading={t('common.commandNavigation')} className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-subtle-foreground">
+                <Command.Empty className="px-3 py-8 text-center text-sm text-muted-foreground">{t('common.commandEmpty')}</Command.Empty>
+                <Command.Group
+                  heading={t('common.commandNavigation')}
+                  className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-subtle-foreground"
+                >
                   {items.map((item) => (
-                    <Command.Item key={item.href} value={`${t(`nav.${item.key}` as never)} ${item.href}`} onSelect={() => run(() => router.push(item.href))} className={itemClass}>
+                    <Command.Item
+                      key={item.href}
+                      value={`${t(`nav.${item.key}` as never)} ${item.href}`}
+                      onSelect={() => run(() => router.push(item.href))}
+                      className={itemClass}
+                    >
                       <item.icon aria-hidden />
                       {t(`nav.${item.key}` as never)}
                     </Command.Item>
                   ))}
                 </Command.Group>
-                <Command.Group heading={t('common.commandActions')} className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-subtle-foreground">
+                <Command.Group
+                  heading={t('common.commandActions')}
+                  className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-subtle-foreground"
+                >
                   <Command.Item onSelect={() => run(() => switchLocale('ar'))} className={itemClass}>
                     <Languages aria-hidden />
                     {t('common.switchToArabic')}

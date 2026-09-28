@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/overlays';
 import { Avatar, Badge, Card, NativeSelect, Switch } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
-import { localized, type Locale, type LocalizedText } from '@/lib/i18n/localized';
+import { languageNames, localized, type Locale, type LocalizedText } from '@/lib/i18n/localized';
 import { publicAssetUrl } from '@/lib/storage';
 import { clientRoleKeys, type ClientRoleKey } from '@/modules/clients/constants';
 import { updateClientUserAction } from '@/modules/clients/server/actions';
@@ -94,7 +94,10 @@ function InviteClientUserDialog({ clientId, roles, clientName }: { clientId: str
                 <fieldset className="grid gap-2">
                   <legend className="mb-1 text-sm font-medium">{t('common.role')}</legend>
                   {roles.map((r) => (
-                    <label key={r.id} className={`flex cursor-pointer gap-3 rounded-lg border p-3 ${field.value === r.key ? 'border-primary bg-primary-soft/40' : 'border-border hover:bg-surface-muted'}`}>
+                    <label
+                      key={r.id}
+                      className={`flex cursor-pointer gap-3 rounded-lg border p-3 ${field.value === r.key ? 'border-primary bg-primary-soft/40' : 'border-border hover:bg-surface-muted'}`}
+                    >
                       <input
                         type="radio"
                         name="clientRoleKey"
@@ -132,8 +135,8 @@ function InviteClientUserDialog({ clientId, roles, clientName }: { clientId: str
             <Field label={t('admin.users.emailLanguage')}>
               {(p) => (
                 <NativeSelect {...p} {...form.register('locale')}>
-                  <option value="ar">العربية</option>
-                  <option value="en">English</option>
+                  <option value="ar">{languageNames.ar}</option>
+                  <option value="en">{languageNames.en}</option>
                 </NativeSelect>
               )}
             </Field>
@@ -204,7 +207,12 @@ export function ClientUsersManager({
 
       <Card className="divide-y divide-border">
         {users.length === 0 ? (
-          <EmptyState compact icon={Users} title={t('clients.users.empty')} description={canManage ? t('clients.users.emptyBody') : undefined} />
+          <EmptyState
+            compact
+            icon={Users}
+            title={t('clients.users.empty')}
+            description={canManage ? t('clients.users.emptyBody') : undefined}
+          />
         ) : (
           users.map((u) => {
             const self = u.userId === meUserId;

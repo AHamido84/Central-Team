@@ -2,6 +2,9 @@ export const locales = ['ar', 'en'] as const;
 export type Locale = (typeof locales)[number];
 export const defaultLocale: Locale = 'ar';
 
+/** Language names are shown in their own script (endonyms) and are intentionally not translated. */
+export const languageNames: Record<Locale, string> = { ar: 'العربية', en: 'English' };
+
 export type LocalizedText = Partial<Record<Locale, string>>;
 
 export function isLocale(value: unknown): value is Locale {

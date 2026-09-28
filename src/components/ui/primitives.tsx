@@ -27,10 +27,7 @@ export function Label({ className, ...props }: ComponentProps<typeof LabelPrimit
   return (
     <LabelPrimitive.Root
       data-slot="label"
-      className={cn(
-        'text-sm leading-none font-medium text-foreground select-none peer-disabled:opacity-50',
-        className,
-      )}
+      className={cn('text-sm leading-none font-medium text-foreground select-none peer-disabled:opacity-50', className)}
       {...props}
     />
   );
@@ -59,12 +56,7 @@ export const badgeVariants = cva(
   },
 );
 
-export function Badge({
-  className,
-  tone,
-  dot,
-  ...props
-}: ComponentProps<'span'> & VariantProps<typeof badgeVariants> & { dot?: boolean }) {
+export function Badge({ className, tone, dot, ...props }: ComponentProps<'span'> & VariantProps<typeof badgeVariants> & { dot?: boolean }) {
   return (
     <span data-slot="badge" className={cn(badgeVariants({ tone }), className)} {...props}>
       {dot ? <span className="size-1.5 rounded-full bg-current" aria-hidden /> : null}
@@ -78,13 +70,7 @@ export function Badge({
 /* -------------------------------------------------------------------------- */
 
 export function Card({ className, ...props }: ComponentProps<'div'>) {
-  return (
-    <div
-      data-slot="card"
-      className={cn('rounded-lg border border-border bg-surface shadow-sm', className)}
-      {...props}
-    />
-  );
+  return <div data-slot="card" className={cn('rounded-lg border border-border bg-surface shadow-sm', className)} {...props} />;
 }
 
 export function CardHeader({ className, ...props }: ComponentProps<'div'>) {
@@ -104,12 +90,7 @@ export function CardContent({ className, ...props }: ComponentProps<'div'>) {
 }
 
 export function CardFooter({ className, ...props }: ComponentProps<'div'>) {
-  return (
-    <div
-      className={cn('flex items-center justify-end gap-2 border-t border-border px-5 py-3', className)}
-      {...props}
-    />
-  );
+  return <div className={cn('flex items-center justify-end gap-2 border-t border-border px-5 py-3', className)} {...props} />;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -127,14 +108,7 @@ export function Separator({ className, orientation = 'horizontal', ...props }: C
 }
 
 export function Skeleton({ className, ...props }: ComponentProps<'div'>) {
-  return (
-    <div
-      data-slot="skeleton"
-      aria-hidden
-      className={cn('animate-pulse rounded-md bg-surface-muted', className)}
-      {...props}
-    />
-  );
+  return <div data-slot="skeleton" aria-hidden className={cn('animate-pulse rounded-md bg-surface-muted', className)} {...props} />;
 }
 
 export function Kbd({ className, ...props }: ComponentProps<'kbd'>) {
@@ -150,7 +124,12 @@ export function Kbd({ className, ...props }: ComponentProps<'kbd'>) {
   );
 }
 
-export function Progress({ className, value, tone = 'brand', ...props }: ComponentProps<typeof ProgressPrimitive.Root> & { tone?: 'brand' | 'success' | 'warning' | 'danger' }) {
+export function Progress({
+  className,
+  value,
+  tone = 'brand',
+  ...props
+}: ComponentProps<typeof ProgressPrimitive.Root> & { tone?: 'brand' | 'success' | 'warning' | 'danger' }) {
   const bar = { brand: 'bg-primary', success: 'bg-success', warning: 'bg-warning', danger: 'bg-danger' }[tone];
   const pct = Math.max(0, Math.min(100, value ?? 0));
   return (
@@ -281,7 +260,7 @@ export function Tooltip({
         <TooltipPrimitive.Content
           side={side}
           sideOffset={6}
-          className="z-[90] max-w-xs rounded-md bg-foreground px-2 py-1 text-xs text-background shadow-md animate-in fade-in-0 zoom-in-95"
+          className="z-[90] max-w-xs animate-in rounded-md bg-foreground px-2 py-1 text-xs text-background shadow-md fade-in-0 zoom-in-95"
         >
           {content}
         </TooltipPrimitive.Content>
@@ -301,7 +280,7 @@ export function PopoverContent({ className, align = 'center', sideOffset = 6, ..
         align={align}
         sideOffset={sideOffset}
         className={cn(
-          'z-40 w-72 rounded-lg border border-border bg-surface-raised p-4 shadow-md outline-none animate-in fade-in-0 zoom-in-95',
+          'z-40 w-72 animate-in rounded-lg border border-border bg-surface-raised p-4 shadow-md fade-in-0 outline-none zoom-in-95',
           className,
         )}
         {...props}
@@ -317,19 +296,14 @@ export function PopoverContent({ className, align = 'center', sideOffset = 6, ..
 export const Tabs = TabsPrimitive.Root;
 
 export function TabsList({ className, ...props }: ComponentProps<typeof TabsPrimitive.List>) {
-  return (
-    <TabsPrimitive.List
-      className={cn('inline-flex items-center gap-1 border-b border-border', className)}
-      {...props}
-    />
-  );
+  return <TabsPrimitive.List className={cn('inline-flex items-center gap-1 border-b border-border', className)} {...props} />;
 }
 
 export function TabsTrigger({ className, ...props }: ComponentProps<typeof TabsPrimitive.Trigger>) {
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        '-mb-px inline-flex h-10 items-center gap-2 border-b-2 border-transparent px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=active]:border-primary data-[state=active]:text-foreground [&_svg]:size-4',
+        '-mb-px inline-flex h-10 items-center gap-2 border-b-2 border-transparent px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=active]:border-primary data-[state=active]:text-foreground [&_svg]:size-4',
         className,
       )}
       {...props}
@@ -349,7 +323,7 @@ export function Checkbox({ className, ...props }: ComponentProps<typeof Checkbox
   return (
     <CheckboxPrimitive.Root
       className={cn(
-        'peer inline-flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-border-strong bg-surface shadow-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground data-[state=indeterminate]:border-primary data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground',
+        'peer inline-flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-border-strong bg-surface shadow-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground data-[state=indeterminate]:border-primary data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground',
         className,
       )}
       {...props}

@@ -39,7 +39,9 @@ export function LogoUploader({
     try {
       const res = await requestLogoUploadAction({ target, clientId, contentType: type, size: file.size });
       if (!res.ok) throw new Error(res.error.code);
-      const { error } = await getSupabaseBrowserClient().storage.from(PUBLIC_ASSETS_BUCKET).uploadToSignedUrl(res.data.path, res.data.token, file, { contentType: type });
+      const { error } = await getSupabaseBrowserClient()
+        .storage.from(PUBLIC_ASSETS_BUCKET)
+        .uploadToSignedUrl(res.data.path, res.data.token, file, { contentType: type });
       if (error) throw error;
       onChange(res.data.path);
     } catch {
@@ -53,7 +55,13 @@ export function LogoUploader({
     <div className="flex items-center gap-4">
       <Avatar name={name || '?'} src={publicAssetUrl(value)} size="xl" square />
       <div className="flex flex-wrap items-center gap-2">
-        <input ref={input} type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(e) => void onFile(e.target.files?.[0])} />
+        <input
+          ref={input}
+          type="file"
+          className="sr-only"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={(e) => void onFile(e.target.files?.[0])}
+        />
         <Button type="button" variant="outline" size="sm" loading={busy} disabled={disabled} onClick={() => input.current?.click()}>
           {busy ? null : <ImageUp />}
           {value ? t('admin.organization.changeLogo') : t('admin.organization.uploadLogo')}

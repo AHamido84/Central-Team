@@ -1,5 +1,7 @@
 'use client';
 
+import { languageNames } from '@/lib/i18n/localized';
+
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Bell, FileUp, KeyRound, Mail, MessageSquare, UserRound } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
@@ -29,8 +31,14 @@ import type { NotificationCategory } from '@/modules/notifications/types';
 const phonePattern = /^(\+?[1-9]\d{7,14}|0?5\d{8})$/;
 const profileSchema = z.object({
   fullName: z.string().trim().min(1, { message: 'required' }).max(120),
-  phone: z.string().trim().refine((v) => !v || phonePattern.test(v.replace(/[\s()-]/g, '')), { message: 'invalid_phone' }),
-  whatsapp: z.string().trim().refine((v) => !v || phonePattern.test(v.replace(/[\s()-]/g, '')), { message: 'invalid_phone' }),
+  phone: z
+    .string()
+    .trim()
+    .refine((v) => !v || phonePattern.test(v.replace(/[\s()-]/g, '')), { message: 'invalid_phone' }),
+  whatsapp: z
+    .string()
+    .trim()
+    .refine((v) => !v || phonePattern.test(v.replace(/[\s()-]/g, '')), { message: 'invalid_phone' }),
   avatarPath: z.string().nullable(),
 });
 
@@ -49,7 +57,12 @@ export function ProfileSettings({ defaults, email }: { defaults: z.infer<typeof 
   }, [params, t]);
 
   const submit = form.handleSubmit(async (v) => {
-    const res = await save.run({ fullName: v.fullName, phone: v.phone || undefined, whatsapp: v.whatsapp || undefined, avatarPath: v.avatarPath });
+    const res = await save.run({
+      fullName: v.fullName,
+      phone: v.phone || undefined,
+      whatsapp: v.whatsapp || undefined,
+      avatarPath: v.avatarPath,
+    });
     if (res.ok) form.reset(v);
   });
 
@@ -90,10 +103,16 @@ export function ProfileSettings({ defaults, email }: { defaults: z.infer<typeof 
             {(p) => <Input {...p} type="email" dir="ltr" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />}
           </Field>
           <div className="flex justify-end">
-            <Button type="button" variant="outline" loading={emailChange.pending} disabled={!newEmail} onClick={async () => {
-              const res = await emailChange.run({ email: newEmail });
-              if (res.ok) setNewEmail('');
-            }}>
+            <Button
+              type="button"
+              variant="outline"
+              loading={emailChange.pending}
+              disabled={!newEmail}
+              onClick={async () => {
+                const res = await emailChange.run({ email: newEmail });
+                if (res.ok) setNewEmail('');
+              }}
+            >
               <Mail />
               {t('settings.sendConfirmation')}
             </Button>
@@ -151,8 +170,8 @@ export function PreferencesSettings({ defaults, timezones }: { defaults: z.infer
             <Field label={t('common.language')}>
               {(p) => (
                 <NativeSelect {...p} {...form.register('locale')} data-testid="prefs-locale">
-                  <option value="ar">العربية</option>
-                  <option value="en">English</option>
+                  <option value="ar">{languageNames.ar}</option>
+                  <option value="en">{languageNames.en}</option>
                 </NativeSelect>
               )}
             </Field>
@@ -232,11 +251,19 @@ export function NotificationSettings({ defaults }: { defaults: { category: Notif
               </div>
             </div>
             <div className="flex flex-col items-center gap-1">
-              <Switch checked={p.inApp} onCheckedChange={(v) => update(p.category, 'inApp', v)} aria-label={`${t(`settings.categories.${p.category}.title`)} · ${t('settings.inApp')}`} />
+              <Switch
+                checked={p.inApp}
+                onCheckedChange={(v) => update(p.category, 'inApp', v)}
+                aria-label={`${t(`settings.categories.${p.category}.title`)} · ${t('settings.inApp')}`}
+              />
               <span className="text-[0.6875rem] text-subtle-foreground sm:hidden">{t('settings.inApp')}</span>
             </div>
             <div className="flex flex-col items-center gap-1">
-              <Switch checked={p.email} onCheckedChange={(v) => update(p.category, 'email', v)} aria-label={`${t(`settings.categories.${p.category}.title`)} · ${t('settings.emailChannel')}`} />
+              <Switch
+                checked={p.email}
+                onCheckedChange={(v) => update(p.category, 'email', v)}
+                aria-label={`${t(`settings.categories.${p.category}.title`)} · ${t('settings.emailChannel')}`}
+              />
               <span className="text-[0.6875rem] text-subtle-foreground sm:hidden">{t('settings.emailChannel')}</span>
             </div>
           </div>

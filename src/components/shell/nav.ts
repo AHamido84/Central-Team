@@ -48,7 +48,13 @@ export const agencyNav: NavSection[] = [
     key: 'sectionClients',
     items: [
       { key: 'clients', href: '/clients', icon: Briefcase, anyOf: ['clients:read_all', 'clients:read_assigned'], flag: 'module.clients' },
-      { key: 'messages', href: '/messages', icon: MessagesSquare, anyOf: ['clients:read_all', 'clients:read_assigned'], flag: 'module.messages' },
+      {
+        key: 'messages',
+        href: '/messages',
+        icon: MessagesSquare,
+        anyOf: ['clients:read_all', 'clients:read_assigned'],
+        flag: 'module.messages',
+      },
     ],
   },
   {

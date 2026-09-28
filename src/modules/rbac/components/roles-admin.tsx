@@ -32,13 +32,15 @@ import { PermissionMatrix } from '@/modules/rbac/components/permission-matrix';
 import { createRoleAction, deleteRoleAction, updateRoleAction } from '@/modules/rbac/server/actions';
 import type { PermissionRow, RoleSummary } from '@/modules/rbac/server/queries';
 
-const roleSchema = z.object({
-  nameAr: z.string().trim().max(60),
-  nameEn: z.string().trim().max(60),
-  descriptionAr: z.string().trim().max(200),
-  descriptionEn: z.string().trim().max(200),
-  copyFrom: z.string(),
-}).refine((v) => v.nameAr || v.nameEn, { message: 'required_one_language', path: ['nameAr'] });
+const roleSchema = z
+  .object({
+    nameAr: z.string().trim().max(60),
+    nameEn: z.string().trim().max(60),
+    descriptionAr: z.string().trim().max(200),
+    descriptionEn: z.string().trim().max(200),
+    copyFrom: z.string(),
+  })
+  .refine((v) => v.nameAr || v.nameEn, { message: 'required_one_language', path: ['nameAr'] });
 
 function RoleDialog({
   role,
@@ -67,7 +69,9 @@ function RoleDialog({
   const update = useAction(updateRoleAction, { successMessage: t('common.saved') });
   const submit = form.handleSubmit(async (v) => {
     const payload = { name: { ar: v.nameAr, en: v.nameEn }, description: { ar: v.descriptionAr, en: v.descriptionEn } };
-    const res = role ? await update.run({ ...payload, roleId: role.id }) : await create.run({ ...payload, copyFromRoleId: v.copyFrom || null });
+    const res = role
+      ? await update.run({ ...payload, roleId: role.id })
+      : await create.run({ ...payload, copyFromRoleId: v.copyFrom || null });
     if (res.ok) onOpenChange(false);
   });
   return (
@@ -82,7 +86,9 @@ function RoleDialog({
               <Field label={t('admin.nameAr')} error={form.formState.errors.nameAr?.message}>
                 {(p) => <Input {...p} dir="rtl" lang="ar" {...form.register('nameAr')} data-testid="role-name-ar" />}
               </Field>
-              <Field label={t('admin.nameEn')}>{(p) => <Input {...p} dir="ltr" lang="en" {...form.register('nameEn')} data-testid="role-name-en" />}</Field>
+              <Field label={t('admin.nameEn')}>
+                {(p) => <Input {...p} dir="ltr" lang="en" {...form.register('nameEn')} data-testid="role-name-en" />}
+              </Field>
             </div>
             <Field label={t('admin.descriptionAr')} optional>
               {(p) => <Textarea {...p} dir="rtl" lang="ar" rows={2} {...form.register('descriptionAr')} />}
@@ -153,7 +159,7 @@ export function RolesAdmin({
             </p>
             <p className="mt-1 text-sm text-muted-foreground">{localized(r.description, locale) || '—'}</p>
           </div>
-          {(can('roles:update') || (can('roles:delete') && !r.isSystem)) ? (
+          {can('roles:update') || (can('roles:delete') && !r.isSystem) ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon-sm" aria-label={t('common.moreActions')}>

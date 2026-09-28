@@ -51,11 +51,18 @@ export function Composer({
       key: u.key,
       id: u.fileId!,
       name: u.name,
-      kind: (u.mimeType.startsWith('image/') ? 'image' : u.mimeType.startsWith('video/') ? 'video' : u.mimeType === 'application/pdf' ? 'pdf' : 'document') as 'image' | 'video' | 'pdf' | 'document',
+      kind: (u.mimeType.startsWith('image/')
+        ? 'image'
+        : u.mimeType.startsWith('video/')
+          ? 'video'
+          : u.mimeType === 'application/pdf'
+            ? 'pdf'
+            : 'document') as 'image' | 'video' | 'pdf' | 'document',
     }));
   const isInternal = forceInternal || internal;
 
-  const matches = mentionQuery === null ? [] : participants.filter((p) => p.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6);
+  const matches =
+    mentionQuery === null ? [] : participants.filter((p) => p.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6);
 
   const onChange = (value: string) => {
     setText(value);
@@ -136,9 +143,18 @@ export function Composer({
   };
 
   return (
-    <div className={cn('relative rounded-xl border bg-surface shadow-xs transition-colors', isInternal ? 'border-warning/50 bg-warning-soft/40' : 'border-border')}>
+    <div
+      className={cn(
+        'relative rounded-xl border bg-surface shadow-xs transition-colors',
+        isInternal ? 'border-warning/50 bg-warning-soft/40' : 'border-border',
+      )}
+    >
       {matches.length ? (
-        <ul className="absolute inset-x-2 bottom-full mb-2 overflow-hidden rounded-lg border border-border bg-surface-raised p-1 shadow-md" role="listbox" aria-label={t('mentionSomeone')}>
+        <ul
+          className="absolute inset-x-2 bottom-full mb-2 overflow-hidden rounded-lg border border-border bg-surface-raised p-1 shadow-md"
+          role="listbox"
+          aria-label={t('mentionSomeone')}
+        >
           {matches.map((p, i) => (
             <li key={p.userId} role="option" aria-selected={i === mentionIndex}>
               <button
@@ -147,7 +163,10 @@ export function Composer({
                   e.preventDefault();
                   insertMention(p);
                 }}
-                className={cn('flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-sm', i === mentionIndex && 'bg-surface-muted')}
+                className={cn(
+                  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-sm',
+                  i === mentionIndex && 'bg-surface-muted',
+                )}
               >
                 <Avatar name={p.name} src={publicAssetUrl(p.avatarPath)} size="xs" />
                 <span className="flex-1 truncate">{p.name}</span>
@@ -163,14 +182,24 @@ export function Composer({
           {uploads.items
             .filter((u) => u.status !== 'done')
             .map((u) => (
-              <span key={u.key} className={cn('inline-flex max-w-56 items-center gap-2 rounded-md border px-2 py-1 text-xs', u.status === 'error' ? 'border-danger/40 text-danger' : 'border-border')}>
+              <span
+                key={u.key}
+                className={cn(
+                  'inline-flex max-w-56 items-center gap-2 rounded-md border px-2 py-1 text-xs',
+                  u.status === 'error' ? 'border-danger/40 text-danger' : 'border-border',
+                )}
+              >
                 {u.status === 'uploading' ? <Loader2 className="size-3.5 animate-spin" /> : <X className="size-3.5" />}
                 <bdi className="truncate">{u.name}</bdi>
                 {u.status === 'uploading' ? <span className="tabular text-subtle-foreground">{Math.round(u.progress * 100)}%</span> : null}
               </span>
             ))}
           {attachments.map((a) => (
-            <span key={a.id} className="inline-flex max-w-56 items-center gap-2 rounded-md border border-border bg-surface px-2 py-1 text-xs" data-testid="composer-attachment">
+            <span
+              key={a.id}
+              className="inline-flex max-w-56 items-center gap-2 rounded-md border border-border bg-surface px-2 py-1 text-xs"
+              data-testid="composer-attachment"
+            >
               <FileTypeIcon kind={a.kind} className="size-5 rounded" />
               <bdi className="truncate">{a.name}</bdi>
               <button type="button" onClick={() => uploads.remove(a.key)} aria-label={t('removeAttachment')}>
@@ -190,13 +219,27 @@ export function Composer({
         disabled={disabled}
         placeholder={isInternal ? t('internalPlaceholder') : t('placeholder')}
         aria-label={t('placeholder')}
-        className="field-sizing-content block max-h-60 min-h-16 w-full resize-none bg-transparent px-3 pt-3 text-[0.9375rem] outline-none placeholder:text-subtle-foreground"
+        className="block field-sizing-content max-h-60 min-h-16 w-full resize-none bg-transparent px-3 pt-3 text-[0.9375rem] outline-none placeholder:text-subtle-foreground"
         data-testid="composer-input"
       />
       <div className="flex items-center gap-1 p-2">
-        <input ref={fileInput} type="file" multiple accept={acceptAttribute} className="sr-only" onChange={(e) => void attach(e.target.files)} />
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          accept={acceptAttribute}
+          className="sr-only"
+          onChange={(e) => void attach(e.target.files)}
+        />
         <Tooltip content={t('attach')}>
-          <Button type="button" variant="ghost" size="icon-sm" onClick={() => fileInput.current?.click()} aria-label={t('attach')} disabled={disabled}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => fileInput.current?.click()}
+            aria-label={t('attach')}
+            disabled={disabled}
+          >
             <Paperclip />
           </Button>
         </Tooltip>
@@ -216,14 +259,32 @@ export function Composer({
           </Button>
         </Tooltip>
         {canInternal ? (
-          <label className={cn('ms-1 inline-flex items-center gap-2 rounded-md px-2 py-1 text-xs font-medium', isInternal ? 'text-warning' : 'text-muted-foreground')}>
-            <Switch checked={isInternal} onCheckedChange={setInternal} disabled={forceInternal || attachments.length > 0} aria-label={t('internalNote')} data-testid="composer-internal" />
+          <label
+            className={cn(
+              'ms-1 inline-flex items-center gap-2 rounded-md px-2 py-1 text-xs font-medium',
+              isInternal ? 'text-warning' : 'text-muted-foreground',
+            )}
+          >
+            <Switch
+              checked={isInternal}
+              onCheckedChange={setInternal}
+              disabled={forceInternal || attachments.length > 0}
+              aria-label={t('internalNote')}
+              data-testid="composer-internal"
+            />
             <Lock className="size-3.5" aria-hidden />
             {t('internalNote')}
           </label>
         ) : null}
         <span className="ms-auto hidden text-xs text-subtle-foreground sm:inline">{t('sendHint')}</span>
-        <Button type="button" size="sm" onClick={() => void send()} loading={sending} disabled={!text.trim() || uploads.busy || disabled} data-testid="composer-send">
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => void send()}
+          loading={sending}
+          disabled={!text.trim() || uploads.busy || disabled}
+          data-testid="composer-send"
+        >
           {sending ? null : <DirIcon icon={SendHorizontal} />}
           {t('send')}
         </Button>

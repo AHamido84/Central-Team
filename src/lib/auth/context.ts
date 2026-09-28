@@ -7,15 +7,7 @@ import { cache } from 'react';
 
 import { getSession, type Session, type UserType } from '@/lib/auth/session';
 import { withRls } from '@/lib/db/rls';
-import {
-  clientUsers,
-  clients,
-  featureFlags,
-  organizationMembers,
-  organizations,
-  profiles,
-  roles,
-} from '@/lib/db/schema';
+import { clientUsers, clients, featureFlags, organizationMembers, organizations, profiles, roles } from '@/lib/db/schema';
 import type { LocalizedText } from '@/lib/i18n/localized';
 import { can, type PermissionSet } from '@/lib/permissions/can';
 import type { Permission } from '@/lib/permissions/catalog';
@@ -67,17 +59,12 @@ export const getAppContext = cache(async (): Promise<AppContext | null> => {
     const memberships = await tx
       .select()
       .from(organizationMembers)
-      .where(
-        and(eq(organizationMembers.userId, session.userId), eq(organizationMembers.status, 'active')),
-      )
+      .where(and(eq(organizationMembers.userId, session.userId), eq(organizationMembers.status, 'active')))
       .orderBy(sql`${organizationMembers.userType} = 'agency' desc`, asc(organizationMembers.createdAt));
     const membership = memberships[0];
     if (!membership) return null;
 
-    const [organization] = await tx
-      .select()
-      .from(organizations)
-      .where(eq(organizations.id, membership.organizationId));
+    const [organization] = await tx.select().from(organizations).where(eq(organizations.id, membership.organizationId));
     if (!organization) return null;
 
     const flagRows = await tx
@@ -89,12 +76,8 @@ export const getAppContext = cache(async (): Promise<AppContext | null> => {
     const flags = Object.fromEntries(flagRows.map((f) => [f.key, f.enabled]));
 
     if (membership.userType === 'agency') {
-      const perms = await tx.execute<{ key: string }>(
-        sql`select app.effective_permissions(${organization.id}) as key`,
-      );
-      const [superAdmin] = await tx.execute<{ is: boolean }>(
-        sql`select app.is_super_admin(${organization.id}) as is`,
-      );
+      const perms = await tx.execute<{ key: string }>(sql`select app.effective_permissions(${organization.id}) as key`);
+      const [superAdmin] = await tx.execute<{ is: boolean }>(sql`select app.is_super_admin(${organization.id}) as is`);
       return {
         side: 'agency',
         session,
@@ -122,9 +105,7 @@ export const getAppContext = cache(async (): Promise<AppContext | null> => {
       .orderBy(asc(clientUsers.createdAt));
     if (clientRows.length === 0) return null;
     const client = clientRows.find((c) => c.id === preferredClient) ?? clientRows[0]!;
-    const perms = await tx.execute<{ key: string }>(
-      sql`select app.client_effective_permissions(${client.id}) as key`,
-    );
+    const perms = await tx.execute<{ key: string }>(sql`select app.client_effective_permissions(${client.id}) as key`);
     return {
       side: 'client',
       session,

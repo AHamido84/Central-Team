@@ -22,8 +22,14 @@ import { completeOnboardingAction } from '@/modules/identity/server/actions';
 const phonePattern = /^(\+?[1-9]\d{7,14}|0?5\d{8})$/;
 const schema = z.object({
   fullName: z.string().trim().min(1, { message: 'required' }).max(120, { message: 'too_long' }),
-  phone: z.string().trim().refine((v) => v === '' || phonePattern.test(v.replace(/[\s()-]/g, '')), { message: 'invalid_phone' }),
-  whatsapp: z.string().trim().refine((v) => v === '' || phonePattern.test(v.replace(/[\s()-]/g, '')), { message: 'invalid_phone' }),
+  phone: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || phonePattern.test(v.replace(/[\s()-]/g, '')), { message: 'invalid_phone' }),
+  whatsapp: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || phonePattern.test(v.replace(/[\s()-]/g, '')), { message: 'invalid_phone' }),
   avatarPath: z.string().nullable(),
   locale: z.enum(['ar', 'en']),
   theme: z.enum(['system', 'light', 'dark']),
@@ -104,9 +110,25 @@ export function OnboardingWizard({ defaults }: { defaults: Values }) {
               {(p) => <Input {...p} autoComplete="name" {...form.register('fullName')} data-testid="onboarding-name" />}
             </Field>
             <Field label={t('onboarding.phone')} error={form.formState.errors.phone?.message} hint={t('onboarding.phoneHint')} optional>
-              {(p) => <Input {...p} type="tel" dir="ltr" inputMode="tel" placeholder="05XXXXXXXX" autoComplete="tel" {...form.register('phone')} data-testid="onboarding-phone" />}
+              {(p) => (
+                <Input
+                  {...p}
+                  type="tel"
+                  dir="ltr"
+                  inputMode="tel"
+                  placeholder="05XXXXXXXX"
+                  autoComplete="tel"
+                  {...form.register('phone')}
+                  data-testid="onboarding-phone"
+                />
+              )}
             </Field>
-            <Field label={t('onboarding.whatsapp')} error={form.formState.errors.whatsapp?.message} hint={t('onboarding.whatsappHint')} optional>
+            <Field
+              label={t('onboarding.whatsapp')}
+              error={form.formState.errors.whatsapp?.message}
+              hint={t('onboarding.whatsappHint')}
+              optional
+            >
               {(p) => <Input {...p} type="tel" dir="ltr" inputMode="tel" placeholder="05XXXXXXXX" {...form.register('whatsapp')} />}
             </Field>
           </>
@@ -140,7 +162,9 @@ export function OnboardingWizard({ defaults }: { defaults: Values }) {
                         }}
                         className={cn(
                           'rounded-lg border px-4 py-3 text-start text-sm font-medium transition-colors',
-                          field.value === l ? 'border-primary bg-primary-soft text-primary-soft-foreground' : 'border-border hover:bg-surface-muted',
+                          field.value === l
+                            ? 'border-primary bg-primary-soft text-primary-soft-foreground'
+                            : 'border-border hover:bg-surface-muted',
                         )}
                         aria-pressed={field.value === l}
                         data-testid={`onboarding-locale-${l}`}
@@ -159,11 +183,13 @@ export function OnboardingWizard({ defaults }: { defaults: Values }) {
                 name="theme"
                 render={({ field }) => (
                   <div className="grid grid-cols-3 gap-2">
-                    {([
-                      ['light', Sun],
-                      ['dark', Moon],
-                      ['system', Monitor],
-                    ] as const).map(([value, Icon]) => (
+                    {(
+                      [
+                        ['light', Sun],
+                        ['dark', Moon],
+                        ['system', Monitor],
+                      ] as const
+                    ).map(([value, Icon]) => (
                       <button
                         key={value}
                         type="button"
@@ -173,7 +199,9 @@ export function OnboardingWizard({ defaults }: { defaults: Values }) {
                         }}
                         className={cn(
                           'flex flex-col items-center gap-2 rounded-lg border px-3 py-3 text-sm font-medium transition-colors',
-                          field.value === value ? 'border-primary bg-primary-soft text-primary-soft-foreground' : 'border-border hover:bg-surface-muted',
+                          field.value === value
+                            ? 'border-primary bg-primary-soft text-primary-soft-foreground'
+                            : 'border-border hover:bg-surface-muted',
                         )}
                         aria-pressed={field.value === value}
                       >

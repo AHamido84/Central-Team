@@ -14,10 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function OnboardingPage() {
   const session = await getSession();
   if (!session) redirect('/login');
-  const profile = await withRls(
-    (tx) => tx.query.profiles.findFirst({ where: (p, { eq }) => eq(p.id, session.userId) }),
-    session,
-  );
+  const profile = await withRls((tx) => tx.query.profiles.findFirst({ where: (p, { eq }) => eq(p.id, session.userId) }), session);
   if (!profile) redirect('/auth/signout?reason=no_access');
   if (profile.onboardedAt) redirect(session.app.user_type === 'client' ? '/portal' : '/dashboard');
   const locale = await getLocale();

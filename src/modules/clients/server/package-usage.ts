@@ -48,7 +48,13 @@ export async function getPackageUsage(tx: Tx, clientPackageId: string): Promise<
     .groupBy(packageUsageEntries.itemType);
   const items = allowed.map((a) => {
     const u = used.find((x) => x.itemType === a.itemType)?.total ?? 0;
-    return { itemType: a.itemType, allowed: a.quantity, used: u, remaining: Math.max(0, a.quantity - u), ratio: a.quantity ? Math.min(1, u / a.quantity) : 0 };
+    return {
+      itemType: a.itemType,
+      allowed: a.quantity,
+      used: u,
+      remaining: Math.max(0, a.quantity - u),
+      ratio: a.quantity ? Math.min(1, u / a.quantity) : 0,
+    };
   });
   const totalAllowed = items.reduce((n, i) => n + i.allowed, 0);
   const totalUsed = items.reduce((n, i) => n + Math.min(i.used, i.allowed), 0);

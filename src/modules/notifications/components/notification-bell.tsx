@@ -1,5 +1,6 @@
 'use client';
 
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell, BellOff } from 'lucide-react';
 import Link from 'next/link';
@@ -10,7 +11,7 @@ import { toast } from 'sonner';
 import { EmptyState } from '@/components/patterns';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger, Skeleton, Tooltip } from '@/components/ui/primitives';
-import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { ensureRealtimeAuth, getSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { listNotificationsAction, markNotificationsReadAction } from '@/modules/notifications/server/actions';
 import { NotificationRow } from '@/modules/notifications/components/notification-list';
 
@@ -26,22 +27,25 @@ async function fetchLatest() {
 export function useNotificationsRealtime(userId: string, onInsert?: () => void) {
   const queryClient = useQueryClient();
   const onInsertRef = useRef(onInsert);
-  onInsertRef.current = onInsert;
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
-    const channel = supabase
-      .channel(`notifications:${userId}:${crypto.randomUUID()}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
-        () => {
+    onInsertRef.current = onInsert;
+  });
+  useEffect(() => {
+    let channel: RealtimeChannel | null = null;
+    let cancelled = false;
+    void ensureRealtimeAuth().then((supabase) => {
+      if (cancelled) return;
+      channel = supabase
+        .channel(`notifications:${userId}:${crypto.randomUUID()}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, () => {
           void queryClient.invalidateQueries({ queryKey: ['notifications'] });
           onInsertRef.current?.();
-        },
-      )
-      .subscribe();
+        })
+        .subscribe();
+    });
     return () => {
-      void supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) void getSupabaseBrowserClient().removeChannel(channel);
     };
   }, [userId, queryClient]);
 }
@@ -78,7 +82,7 @@ export function NotificationBell({ userId, inboxHref }: { userId: string; inboxH
             <Bell />
             {unread > 0 ? (
               <span
-                className="absolute end-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[0.625rem] leading-none font-semibold text-white tabular"
+                className="tabular absolute end-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[0.625rem] leading-none font-semibold text-white"
                 data-testid="notification-count"
               >
                 {unread > 99 ? '99+' : unread}

@@ -57,20 +57,16 @@ export async function proxy(request: NextRequest) {
   requestHeaders.set('Content-Security-Policy', csp);
 
   let response = NextResponse.next({ request: { headers: requestHeaders } });
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    {
-      cookies: {
-        getAll: () => request.cookies.getAll(),
-        setAll: (toSet) => {
-          for (const { name, value } of toSet) request.cookies.set(name, value);
-          response = NextResponse.next({ request: { headers: requestHeaders } });
-          for (const { name, value, options } of toSet) response.cookies.set(name, value, options);
-        },
+  const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
+    cookies: {
+      getAll: () => request.cookies.getAll(),
+      setAll: (toSet) => {
+        for (const { name, value } of toSet) request.cookies.set(name, value);
+        response = NextResponse.next({ request: { headers: requestHeaders } });
+        for (const { name, value, options } of toSet) response.cookies.set(name, value, options);
       },
     },
-  );
+  });
 
   const { data } = await supabase.auth.getClaims();
   const claims = data?.claims as Record<string, unknown> | undefined;

@@ -103,10 +103,21 @@ export function ResetPasswordForm() {
       <p className="mt-2 text-sm text-muted-foreground">{t('auth.resetSubtitle')}</p>
       <form onSubmit={onSubmit} className="mt-6 grid gap-4" noValidate>
         <Field label={t('auth.newPassword')} error={form.formState.errors.password?.message} hint={t('auth.passwordRules')} required>
-          {(p) => <Input {...p} type="password" dir="ltr" autoComplete="new-password" {...form.register('password')} data-testid="reset-password" />}
+          {(p) => (
+            <Input
+              {...p}
+              type="password"
+              dir="ltr"
+              autoComplete="new-password"
+              {...form.register('password')}
+              data-testid="reset-password"
+            />
+          )}
         </Field>
         <Field label={t('auth.confirmPassword')} error={form.formState.errors.confirm?.message} required>
-          {(p) => <Input {...p} type="password" dir="ltr" autoComplete="new-password" {...form.register('confirm')} data-testid="reset-confirm" />}
+          {(p) => (
+            <Input {...p} type="password" dir="ltr" autoComplete="new-password" {...form.register('confirm')} data-testid="reset-confirm" />
+          )}
         </Field>
         <Button type="submit" size="lg" loading={form.formState.isSubmitting} data-testid="reset-submit">
           {t('auth.updatePassword')}

@@ -10,10 +10,19 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/overlays';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/overlays';
 import { Checkbox, Label, NativeSelect } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
-import { localized, type LocalizedText } from '@/lib/i18n/localized';
+import { languageNames, localized, type LocalizedText } from '@/lib/i18n/localized';
 import { inviteTeamMemberAction } from '@/modules/invitations/server/actions';
 
 const schema = z.object({
@@ -88,7 +97,10 @@ export function InviteTeamDialog({
                       const disabled = !grantable.includes(r.id);
                       const checked = field.value.includes(r.id);
                       return (
-                        <label key={r.id} className={`flex gap-3 rounded-lg border border-border p-3 ${disabled ? 'opacity-50' : 'cursor-pointer hover:bg-surface-muted'} ${checked ? 'border-primary bg-primary-soft/40' : ''}`}>
+                        <label
+                          key={r.id}
+                          className={`flex gap-3 rounded-lg border border-border p-3 ${disabled ? 'opacity-50' : 'cursor-pointer hover:bg-surface-muted'} ${checked ? 'border-primary bg-primary-soft/40' : ''}`}
+                        >
                           <Checkbox
                             checked={checked}
                             disabled={disabled}
@@ -122,8 +134,8 @@ export function InviteTeamDialog({
               <div className="grid gap-1.5">
                 <Label htmlFor="invite-locale">{t('admin.users.emailLanguage')}</Label>
                 <NativeSelect id="invite-locale" {...form.register('locale')}>
-                  <option value="ar">العربية</option>
-                  <option value="en">English</option>
+                  <option value="ar">{languageNames.ar}</option>
+                  <option value="en">{languageNames.en}</option>
                 </NativeSelect>
               </div>
             </div>

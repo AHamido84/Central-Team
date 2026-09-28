@@ -73,12 +73,19 @@ export function ClientsTable({ clients, canCreate }: { clients: ClientListItem[]
         accessorFn: (c) => (c.packageName ? localized(c.packageName, locale) : ''),
         cell: ({ getValue }) => <span className="text-muted-foreground">{String(getValue() || '—')}</span>,
       },
-      { id: 'users', header: t('clients.portalUsers'), accessorFn: (c) => c.portalUsers, cell: ({ getValue }) => <span className="tabular">{f.number(Number(getValue()))}</span> },
+      {
+        id: 'users',
+        header: t('clients.portalUsers'),
+        accessorFn: (c) => c.portalUsers,
+        cell: ({ getValue }) => <span className="tabular">{f.number(Number(getValue()))}</span>,
+      },
       {
         id: 'lastMessage',
         header: t('clients.lastMessage'),
         accessorFn: (c) => c.lastMessageAt ?? '',
-        cell: ({ row }) => <span className="text-muted-foreground">{row.original.lastMessageAt ? f.relative(row.original.lastMessageAt) : '—'}</span>,
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">{row.original.lastMessageAt ? f.relative(row.original.lastMessageAt) : '—'}</span>
+        ),
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps

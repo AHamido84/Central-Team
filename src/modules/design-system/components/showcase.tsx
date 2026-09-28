@@ -63,7 +63,10 @@ import { cn } from '@/lib/utils/cn';
 
 export type PanelStrings = { title: string; body: string; primary: string; secondary: string; input: string; badge: string; stat: string };
 
-const people = ['سارة القحطاني', 'Faisal Al-Harbi', 'نورة العتيبي', 'Reem Al-Dosari', 'خالد المطيري', 'Omar Al-Ghamdi'].map((name, i) => ({ id: String(i), name }));
+const people = ['سارة القحطاني', 'Faisal Al-Harbi', 'نورة العتيبي', 'Reem Al-Dosari', 'خالد المطيري', 'Omar Al-Ghamdi'].map((name, i) => ({
+  id: String(i),
+  name,
+}));
 
 function Swatch({ name, varName }: { name: string; varName: string }) {
   return (
@@ -82,7 +85,12 @@ function Swatch({ name, varName }: { name: string; varName: string }) {
 /** Compact sample rendered in each locale × theme panel of the matrix. */
 function Panel({ strings, dir, lang, theme }: { strings: PanelStrings; dir: 'rtl' | 'ltr'; lang: string; theme: 'light' | 'dark' }) {
   return (
-    <div dir={dir} lang={lang} className={cn(theme, 'rounded-xl border border-border bg-background p-4 text-foreground')} data-testid={`panel-${lang}-${theme}`}>
+    <div
+      dir={dir}
+      lang={lang}
+      className={cn(theme, 'rounded-xl border border-border bg-background p-4 text-foreground')}
+      data-testid={`panel-${lang}-${theme}`}
+    >
       <p className="mb-3 text-xs font-medium text-subtle-foreground">
         {lang.toUpperCase()} · {theme}
       </p>
@@ -110,7 +118,7 @@ function Panel({ strings, dir, lang, theme }: { strings: PanelStrings; dir: 'rtl
         <div className="mt-4">
           <div className="mb-1 flex justify-between text-xs text-subtle-foreground">
             <span>{strings.stat}</span>
-            <span className="tabular">65%</span>
+            <span className="tabular">{new Intl.NumberFormat(lang, { style: 'percent' }).format(0.65)}</span>
           </div>
           <Progress value={65} />
         </div>
@@ -129,11 +137,35 @@ export function DesignSystemShowcase({ panels }: { panels: { ar: PanelStrings; e
   const [switched, setSwitched] = useState(true);
   const [confirm, setConfirm] = useState(false);
 
-  const rows: Row[] = people.map((p, i) => ({ id: p.id, name: p.name, role: t(i % 2 ? 'sampleRoleDesigner' : 'sampleRoleManager'), status: i % 3 ? 'active' : 'pending' }));
+  const rows: Row[] = people.map((p, i) => ({
+    id: p.id,
+    name: p.name,
+    role: t(i % 2 ? 'sampleRoleDesigner' : 'sampleRoleManager'),
+    status: i % 3 ? 'active' : 'pending',
+  }));
   const columns: ColumnDef<Row, unknown>[] = [
-    { id: 'name', header: tc('name'), accessorFn: (r) => r.name, cell: ({ row }) => <span className="flex items-center gap-2"><Avatar name={row.original.name} size="xs" />{row.original.name}</span> },
+    {
+      id: 'name',
+      header: tc('name'),
+      accessorFn: (r) => r.name,
+      cell: ({ row }) => (
+        <span className="flex items-center gap-2">
+          <Avatar name={row.original.name} size="xs" />
+          {row.original.name}
+        </span>
+      ),
+    },
     { id: 'role', header: tc('role'), accessorFn: (r) => r.role },
-    { id: 'status', header: tc('status'), accessorFn: (r) => r.status, cell: ({ row }) => <Badge tone={row.original.status === 'active' ? 'success' : 'info'} dot>{tc(row.original.status)}</Badge> },
+    {
+      id: 'status',
+      header: tc('status'),
+      accessorFn: (r) => r.status,
+      cell: ({ row }) => (
+        <Badge tone={row.original.status === 'active' ? 'success' : 'info'} dot>
+          {tc(row.original.status)}
+        </Badge>
+      ),
+    },
   ];
 
   return (
@@ -182,7 +214,11 @@ export function DesignSystemShowcase({ panels }: { panels: { ar: PanelStrings; e
         </Card>
         <div className="mt-4 flex flex-wrap gap-1.5">
           {[50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((step) => (
-            <span key={step} className="flex h-10 w-14 items-end rounded-md p-1 text-[0.625rem] font-medium" style={{ backgroundColor: `var(--indigo-${step})`, color: step >= 500 ? 'white' : 'var(--indigo-950)' }}>
+            <span
+              key={step}
+              className="flex h-10 w-14 items-end rounded-md p-1 text-[0.625rem] font-medium"
+              style={{ backgroundColor: `var(--indigo-${step})`, color: step >= 500 ? 'white' : 'var(--indigo-950)' }}
+            >
               {step}
             </span>
           ))}
@@ -199,7 +235,9 @@ export function DesignSystemShowcase({ panels }: { panels: { ar: PanelStrings; e
           <p>{t('sampleBody')}</p>
           <p className="text-sm text-muted-foreground">{t('sampleBody')}</p>
           <p className="text-xs text-subtle-foreground">{t('sampleBody')}</p>
-          <p className="tabular text-h3">{f.currency(1450000)} · {f.number(1234567.89)} · {f.date(new Date(), 'long')} · {f.percent(0.72)}</p>
+          <p className="tabular text-h3">
+            {f.currency(1450000)} · {f.number(1234567.89)} · {f.date(new Date(), 'long')} · {f.percent(0.72)}
+          </p>
         </Card>
       </section>
 
@@ -277,7 +315,14 @@ export function DesignSystemShowcase({ panels }: { panels: { ar: PanelStrings; e
       <section>
         <SectionTitle title={t('dataDisplay')} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label={t('statClients')} value={f.number(24)} delta={12} deltaLabel={f.percent(0.12)} icon={Briefcase} footer={t('statFooter')} />
+          <StatCard
+            label={t('statClients')}
+            value={f.number(24)}
+            delta={12}
+            deltaLabel={f.percent(0.12)}
+            icon={Briefcase}
+            footer={t('statFooter')}
+          />
           <StatCard label={t('statMessages')} value={f.number(8)} delta={-3} deltaLabel={f.percent(0.03)} icon={MessageSquare} />
           <StatCard label={t('statFiles')} value={f.number(312)} delta={0} deltaLabel={f.percent(0)} icon={FolderOpen} />
           <Card className="p-5">
@@ -343,7 +388,18 @@ export function DesignSystemShowcase({ panels }: { panels: { ar: PanelStrings; e
       <section>
         <SectionTitle title={t('emptyStates')} />
         <Card>
-          <EmptyState icon={Inbox} title={t('emptyTitle')} description={t('emptyBody')} action={<Button><Plus />{tc('create')}</Button>} secondaryAction={<Button variant="ghost">{t('learnMore')}</Button>} />
+          <EmptyState
+            icon={Inbox}
+            title={t('emptyTitle')}
+            description={t('emptyBody')}
+            action={
+              <Button>
+                <Plus />
+                {tc('create')}
+              </Button>
+            }
+            secondaryAction={<Button variant="ghost">{t('learnMore')}</Button>}
+          />
         </Card>
       </section>
 

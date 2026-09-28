@@ -47,7 +47,14 @@ export function useUpload(onComplete?: (fileIds: string[]) => void) {
   const upload = useCallback(
     async (fileList: FileList | File[], target: Target) => {
       const filesArr = Array.from(fileList);
-      const fresh = filesArr.map((f) => ({ key: crypto.randomUUID(), name: f.name, size: f.size, mimeType: f.type || 'application/octet-stream', progress: 0, status: 'uploading' as const }));
+      const fresh = filesArr.map((f) => ({
+        key: crypto.randomUUID(),
+        name: f.name,
+        size: f.size,
+        mimeType: f.type || 'application/octet-stream',
+        progress: 0,
+        status: 'uploading' as const,
+      }));
       setItems((list) => [...list, ...fresh]);
       const done: string[] = [];
       await Promise.all(

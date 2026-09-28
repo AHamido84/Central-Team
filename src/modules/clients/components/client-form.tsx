@@ -96,14 +96,22 @@ export function ClientForm({
             <Field label={t('admin.nameAr')} error={form.formState.errors.nameAr?.message}>
               {(p) => <Input {...p} dir="rtl" lang="ar" {...form.register('nameAr')} data-testid="client-name-ar" />}
             </Field>
-            <Field label={t('admin.nameEn')}>{(p) => <Input {...p} dir="ltr" lang="en" {...form.register('nameEn')} data-testid="client-name-en" />}</Field>
+            <Field label={t('admin.nameEn')}>
+              {(p) => <Input {...p} dir="ltr" lang="en" {...form.register('nameEn')} data-testid="client-name-en" />}
+            </Field>
           </div>
           {clientId ? (
             <Controller
               control={form.control}
               name="logoPath"
               render={({ field }) => (
-                <LogoUploader name={form.watch('nameEn') || form.watch('nameAr')} value={field.value} onChange={field.onChange} target="client" clientId={clientId} />
+                <LogoUploader
+                  name={form.watch('nameEn') || form.watch('nameAr')}
+                  value={field.value}
+                  onChange={field.onChange}
+                  target="client"
+                  clientId={clientId}
+                />
               )}
             />
           ) : (
@@ -141,7 +149,10 @@ export function ClientForm({
           <Field label={t('common.website')} optional>
             {(p) => (
               <div className="relative">
-                <Globe className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-subtle-foreground" aria-hidden />
+                <Globe
+                  className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-subtle-foreground"
+                  aria-hidden
+                />
                 <Input {...p} dir="ltr" className="ps-9" placeholder="example.sa" {...form.register('website')} />
               </div>
             )}
@@ -151,7 +162,10 @@ export function ClientForm({
               <Field key={n} label={t(`clients.social.${n}`)} optional>
                 {(p) => (
                   <div className="relative">
-                    <AtSign className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-subtle-foreground" aria-hidden />
+                    <AtSign
+                      className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-subtle-foreground"
+                      aria-hidden
+                    />
                     <Input {...p} dir="ltr" className="ps-9" {...form.register(`social.${n}`)} />
                   </div>
                 )}
@@ -203,8 +217,19 @@ export function ClientForm({
                       {people.map((person) => {
                         const checked = field.value.includes(person.id);
                         return (
-                          <label key={person.id} className={cn('flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-surface-muted', checked && 'bg-primary-soft/50')}>
-                            <Checkbox checked={checked} onCheckedChange={(v) => field.onChange(v ? [...field.value, person.id] : field.value.filter((x) => x !== person.id))} />
+                          <label
+                            key={person.id}
+                            className={cn(
+                              'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-surface-muted',
+                              checked && 'bg-primary-soft/50',
+                            )}
+                          >
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) =>
+                                field.onChange(v ? [...field.value, person.id] : field.value.filter((x) => x !== person.id))
+                              }
+                            />
                             <Avatar name={person.name} src={publicAssetUrl(person.avatarPath)} size="xs" />
                             <span className="truncate text-sm">{person.name}</span>
                           </label>
@@ -227,7 +252,12 @@ export function ClientForm({
         <Button type="button" variant="outline" onClick={() => (mode === 'portal' ? form.reset() : router.back())}>
           {t('common.cancel')}
         </Button>
-        <Button type="submit" loading={form.formState.isSubmitting} disabled={mode !== 'agency-create' && !form.formState.isDirty} data-testid="client-submit">
+        <Button
+          type="submit"
+          loading={form.formState.isSubmitting}
+          disabled={mode !== 'agency-create' && !form.formState.isDirty}
+          data-testid="client-submit"
+        >
           {mode === 'agency-create' ? t('clients.create') : t('common.saveChanges')}
         </Button>
       </div>

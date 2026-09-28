@@ -1,15 +1,5 @@
 import { sql } from 'drizzle-orm';
-import {
-  boolean,
-  check,
-  index,
-  integer,
-  pgTable,
-  text,
-  timestamp,
-  uniqueIndex,
-  uuid,
-} from 'drizzle-orm/pg-core';
+import { boolean, check, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { createdAt, id, updatedAt } from '@/lib/db/columns';
 import { clients } from '@/modules/clients/db/schema';
@@ -28,7 +18,10 @@ export const invitations = pgTable(
     fullName: text('full_name'),
     userType: text('user_type').notNull(),
     /** Agency invites: roles to assign on acceptance. */
-    roleIds: uuid('role_ids').array().notNull().default(sql`'{}'::uuid[]`),
+    roleIds: uuid('role_ids')
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
     departmentId: uuid('department_id').references(() => departments.id, { onDelete: 'set null' }),
     /** Client invites: target client, client-side role and approval right. */
     clientId: uuid('client_id').references(() => clients.id, { onDelete: 'cascade' }),

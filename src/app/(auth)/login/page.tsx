@@ -11,7 +11,6 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
   const { next, error } = await searchParams;
   const t = await getTranslations('auth');
-  const initialError =
-    error === 'link_invalid' ? t('linkInvalid') : error === 'no_access' ? t('noAccess') : undefined;
+  const initialError = error === 'link_invalid' ? t('linkInvalid') : error === 'no_access' ? t('noAccess') : undefined;
   return <LoginForm next={next} initialError={initialError} />;
 }

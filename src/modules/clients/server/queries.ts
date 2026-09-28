@@ -144,7 +144,14 @@ export async function listClientUsers(clientId: string) {
 export type ClientDetail = {
   client: typeof clients.$inferSelect;
   notes: string;
-  accountManager: { id: string; name: string; email: string; phone: string | null; whatsapp: string | null; avatarPath: string | null } | null;
+  accountManager: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string | null;
+    whatsapp: string | null;
+    avatarPath: string | null;
+  } | null;
   team: { userId: string; name: string; avatarPath: string | null; jobTitle: string | null }[];
   usage: PackageUsage | null;
   packageHistory: { id: string; packageName: LocalizedText; periodStart: string; periodEnd: string }[];
@@ -155,17 +162,25 @@ export async function getClientDetail(clientId: string): Promise<ClientDetail | 
     const [client] = await tx.select().from(clients).where(eq(clients.id, clientId));
     if (!client) return null;
     const [notes] = await tx.select({ body: clientNotes.body }).from(clientNotes).where(eq(clientNotes.clientId, clientId));
-    const [am] = client.accountManagerId
-      ? await tx.select().from(profiles).where(eq(profiles.id, client.accountManagerId))
-      : [];
+    const [am] = client.accountManagerId ? await tx.select().from(profiles).where(eq(profiles.id, client.accountManagerId)) : [];
     const team = await tx
-      .select({ userId: profiles.id, name: profiles.fullName, avatarPath: profiles.avatarPath, jobTitle: sql<string | null>`(select m.job_title from public.organization_members m where m.user_id = profiles.id limit 1)` })
+      .select({
+        userId: profiles.id,
+        name: profiles.fullName,
+        avatarPath: profiles.avatarPath,
+        jobTitle: sql<string | null>`(select m.job_title from public.organization_members m where m.user_id = profiles.id limit 1)`,
+      })
       .from(clientAssignments)
       .innerJoin(profiles, eq(profiles.id, clientAssignments.userId))
       .where(eq(clientAssignments.clientId, clientId));
     const usage = await getCurrentPackageUsage(tx, clientId);
     const history = await tx
-      .select({ id: clientPackages.id, packageName: packages.name, periodStart: clientPackages.periodStart, periodEnd: clientPackages.periodEnd })
+      .select({
+        id: clientPackages.id,
+        packageName: packages.name,
+        periodStart: clientPackages.periodStart,
+        periodEnd: clientPackages.periodEnd,
+      })
       .from(clientPackages)
       .innerJoin(packages, eq(packages.id, clientPackages.packageId))
       .where(eq(clientPackages.clientId, clientId))
@@ -205,7 +220,11 @@ export async function listPackages(ctx: AgencyContext): Promise<PackageWithItems
       .from(packages)
       .where(eq(packages.organizationId, ctx.organization.id))
       .orderBy(asc(packages.priceMinor));
-    const items = await tx.select().from(packageItems).where(eq(packageItems.organizationId, ctx.organization.id)).orderBy(asc(packageItems.sortOrder));
+    const items = await tx
+      .select()
+      .from(packageItems)
+      .where(eq(packageItems.organizationId, ctx.organization.id))
+      .orderBy(asc(packageItems.sortOrder));
     return rows.map(({ p, clientCount }) => ({
       id: p.id,
       name: p.name,

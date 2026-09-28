@@ -204,7 +204,9 @@ export function FileBrowser({
         {canManage ? (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => void update.run({ fileId: file.id, visibility: file.visibility === 'client' ? 'internal' : 'client' })}>
+            <DropdownMenuItem
+              onSelect={() => void update.run({ fileId: file.id, visibility: file.visibility === 'client' ? 'internal' : 'client' })}
+            >
               {file.visibility === 'client' ? <EyeOff /> : <Eye />}
               {file.visibility === 'client' ? t('files.makeInternal') : t('files.shareWithClient')}
             </DropdownMenuItem>
@@ -297,7 +299,11 @@ export function FileBrowser({
                   folder.visibility === 'internal' ? 'bg-warning-soft text-warning' : 'bg-accent text-accent-foreground',
                 )}
               >
-                {folder.visibility === 'internal' ? <FolderLock className="size-5" aria-hidden /> : <Folder className="size-5" aria-hidden />}
+                {folder.visibility === 'internal' ? (
+                  <FolderLock className="size-5" aria-hidden />
+                ) : (
+                  <Folder className="size-5" aria-hidden />
+                )}
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium">{folder.name}</span>
@@ -315,7 +321,13 @@ export function FileBrowser({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="relative sm:w-64">
           <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-subtle-foreground" aria-hidden />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('files.searchPlaceholder')} className="ps-9" aria-label={t('common.search')} />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('files.searchPlaceholder')}
+            className="ps-9"
+            aria-label={t('common.search')}
+          />
         </div>
         <div className="flex gap-1 overflow-x-auto">
           {kindFilters.map((k) => (
@@ -325,12 +337,25 @@ export function FileBrowser({
           ))}
         </div>
         <div className="flex items-center gap-1 sm:ms-auto">
-          <Button variant="ghost" size="icon-sm" onClick={() => setView(view === 'grid' ? 'list' : 'grid')} aria-label={view === 'grid' ? t('files.listView') : t('files.gridView')}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setView(view === 'grid' ? 'list' : 'grid')}
+            aria-label={view === 'grid' ? t('files.listView') : t('files.gridView')}
+          >
             {view === 'grid' ? <List /> : <Grid2x2 />}
           </Button>
           {canUpload ? (
             <>
-              <input ref={input} type="file" multiple accept={acceptAttribute} className="sr-only" onChange={(e) => startUpload(e.target.files)} data-testid="file-upload-input" />
+              <input
+                ref={input}
+                type="file"
+                multiple
+                accept={acceptAttribute}
+                className="sr-only"
+                onChange={(e) => startUpload(e.target.files)}
+                data-testid="file-upload-input"
+              />
               <Button onClick={() => input.current?.click()} data-testid="file-upload">
                 <Upload />
                 {t('files.upload')}
@@ -341,7 +366,9 @@ export function FileBrowser({
       </div>
 
       {canUpload && side === 'client' ? (
-        <p className="-mt-2 text-xs text-subtle-foreground">{t('files.clientUploadHint', { folder: uploadFolder?.name ?? t('files.allFiles') })}</p>
+        <p className="-mt-2 text-xs text-subtle-foreground">
+          {t('files.clientUploadHint', { folder: uploadFolder?.name ?? t('files.allFiles') })}
+        </p>
       ) : null}
 
       {/* Upload progress */}
@@ -366,7 +393,9 @@ export function FileBrowser({
                   <Progress value={Math.round(u.progress * 100)} tone={u.status === 'done' ? 'success' : 'brand'} className="mt-1 h-1.5" />
                 )}
               </div>
-              <span className="text-xs text-subtle-foreground tabular">{u.status === 'uploading' ? f.percent(u.progress) : f.bytes(u.size)}</span>
+              <span className="tabular text-xs text-subtle-foreground">
+                {u.status === 'uploading' ? f.percent(u.progress) : f.bytes(u.size)}
+              </span>
               {u.status !== 'uploading' ? (
                 <Button variant="ghost" size="icon-sm" onClick={() => uploads.remove(u.key)} aria-label={t('common.remove')}>
                   <X />
@@ -383,7 +412,9 @@ export function FileBrowser({
           <EmptyState
             icon={UploadCloud}
             title={query || kind !== 'all' ? t('common.noResults') : t('files.emptyTitle')}
-            description={query || kind !== 'all' ? t('common.noResultsHint') : canUpload ? t('files.emptyUpload') : t('files.emptyReadOnly')}
+            description={
+              query || kind !== 'all' ? t('common.noResultsHint') : canUpload ? t('files.emptyUpload') : t('files.emptyReadOnly')
+            }
             action={
               canUpload && !query ? (
                 <Button onClick={() => input.current?.click()}>
@@ -399,11 +430,21 @@ export function FileBrowser({
           {visible.map((file) => (
             <li key={file.id}>
               <Card className="group overflow-hidden transition-shadow hover:shadow-md" data-testid="file-card">
-                <button type="button" onClick={() => setPreview(file)} className="block w-full text-start" aria-label={`${t('files.preview')}: ${file.name}`}>
+                <button
+                  type="button"
+                  onClick={() => setPreview(file)}
+                  className="block w-full text-start"
+                  aria-label={`${t('files.preview')}: ${file.name}`}
+                >
                   <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-surface-muted">
                     {file.thumbUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- signed Storage URL
-                      <img src={file.thumbUrl} alt="" loading="lazy" className="size-full object-cover transition-transform duration-(--duration-slow) group-hover:scale-[1.03]" />
+                      <img
+                        src={file.thumbUrl}
+                        alt=""
+                        loading="lazy"
+                        className="size-full object-cover transition-transform duration-(--duration-slow) group-hover:scale-[1.03]"
+                      />
                     ) : (
                       <FileTypeIcon kind={file.kind} className="size-14" />
                     )}

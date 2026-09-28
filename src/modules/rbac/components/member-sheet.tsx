@@ -2,7 +2,7 @@
 
 import { Ban, CheckCircle2, Lock, Mail, Phone, ShieldCheck } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { Bdi } from '@/components/patterns';
 import { useFormat } from '@/components/providers';
@@ -44,14 +44,10 @@ export function MemberSheet({
   const locale = useLocale() as Locale;
   const f = useFormat();
   const can = (p: string) => me.permissions.includes(p);
-  const [roleIds, setRoleIds] = useState<string[]>([]);
-  const [jobTitle, setJobTitle] = useState('');
+  // The parent remounts this component per member (key), so initial state comes straight from props.
+  const [roleIds, setRoleIds] = useState<string[]>(member?.roleIds ?? []);
+  const [jobTitle, setJobTitle] = useState(member?.jobTitle ?? '');
   const [confirmStatus, setConfirmStatus] = useState(false);
-
-  useEffect(() => {
-    setRoleIds(member?.roleIds ?? []);
-    setJobTitle(member?.jobTitle ?? '');
-  }, [member]);
 
   const saveRoles = useAction(setMemberRolesAction, { successMessage: t('admin.users.rolesSaved') });
   const saveMember = useAction(updateMemberAction, { successMessage: t('common.saved') });
@@ -67,7 +63,9 @@ export function MemberSheet({
     member.overrides,
     permissions.map((p) => p.key),
   );
-  const fromRoles = new Set(roles.filter((r) => member.roleIds.includes(r.id)).flatMap((r) => (r.isLocked ? permissions.map((p) => p.key) : r.permissionKeys)));
+  const fromRoles = new Set(
+    roles.filter((r) => member.roleIds.includes(r.id)).flatMap((r) => (r.isLocked ? permissions.map((p) => p.key) : r.permissionKeys)),
+  );
   const modules = [...new Set(permissions.map((p) => p.module))];
 
   return (
@@ -90,7 +88,13 @@ export function MemberSheet({
               ) : null}
             </SheetDescription>
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {member.status === 'active' ? <Badge tone="success" dot>{t('common.active')}</Badge> : <Badge dot>{t('common.deactivated')}</Badge>}
+              {member.status === 'active' ? (
+                <Badge tone="success" dot>
+                  {t('common.active')}
+                </Badge>
+              ) : (
+                <Badge dot>{t('common.deactivated')}</Badge>
+              )}
               <Badge>{t('admin.users.joinedOn', { date: f.date(member.joinedAt) })}</Badge>
             </div>
           </div>
@@ -108,7 +112,8 @@ export function MemberSheet({
               ) : null}
             </div>
             <p className="text-xs text-subtle-foreground">
-              {t('admin.users.departments')}: {f.list(member.departmentIds.map((id) => localized(departments.find((d) => d.id === id)?.name, locale))) || '—'}
+              {t('admin.users.departments')}:{' '}
+              {f.list(member.departmentIds.map((id) => localized(departments.find((d) => d.id === id)?.name, locale))) || '—'}
             </p>
           </section>
 
@@ -118,7 +123,12 @@ export function MemberSheet({
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold">{t('common.roles')}</h3>
               {rolesDirty ? (
-                <Button size="sm" onClick={() => void saveRoles.run({ userId: member.userId, roleIds })} loading={saveRoles.pending} data-testid="member-roles-save">
+                <Button
+                  size="sm"
+                  onClick={() => void saveRoles.run({ userId: member.userId, roleIds })}
+                  loading={saveRoles.pending}
+                  data-testid="member-roles-save"
+                >
                   {t('common.saveChanges')}
                 </Button>
               ) : null}
@@ -180,7 +190,9 @@ export function MemberSheet({
                             )}
                             <span className="min-w-0 flex-1 text-sm">
                               {localized(p.label, locale)}
-                              {fromRoles.has(p.key) && !override ? <span className="ms-1.5 text-xs text-subtle-foreground">({t('admin.users.viaRole')})</span> : null}
+                              {fromRoles.has(p.key) && !override ? (
+                                <span className="ms-1.5 text-xs text-subtle-foreground">({t('admin.users.viaRole')})</span>
+                              ) : null}
                             </span>
                             {can('permissions:override') && !isSelf ? (
                               <NativeSelect
@@ -188,7 +200,12 @@ export function MemberSheet({
                                 className="h-8 w-32 text-xs sm:h-8"
                                 value={override?.effect ?? 'none'}
                                 onChange={(e) =>
-                                  void setOverride.run({ userId: member.userId, permissionKey: p.key, effect: e.target.value as 'grant' | 'deny' | 'none', reason: undefined })
+                                  void setOverride.run({
+                                    userId: member.userId,
+                                    permissionKey: p.key,
+                                    effect: e.target.value as 'grant' | 'deny' | 'none',
+                                    reason: undefined,
+                                  })
                                 }
                               >
                                 <option value="none">{t('admin.users.inherit')}</option>
@@ -214,10 +231,19 @@ export function MemberSheet({
               <Separator />
               <section className="flex items-center justify-between gap-3 rounded-lg border border-border p-4">
                 <div>
-                  <p className="text-sm font-medium">{member.status === 'active' ? t('admin.users.deactivate') : t('admin.users.reactivate')}</p>
-                  <p className="text-xs text-subtle-foreground">{member.status === 'active' ? t('admin.users.deactivateHint') : t('admin.users.reactivateHint')}</p>
+                  <p className="text-sm font-medium">
+                    {member.status === 'active' ? t('admin.users.deactivate') : t('admin.users.reactivate')}
+                  </p>
+                  <p className="text-xs text-subtle-foreground">
+                    {member.status === 'active' ? t('admin.users.deactivateHint') : t('admin.users.reactivateHint')}
+                  </p>
                 </div>
-                <Button variant={member.status === 'active' ? 'destructive' : 'outline'} size="sm" onClick={() => setConfirmStatus(true)} data-testid="member-status-toggle">
+                <Button
+                  variant={member.status === 'active' ? 'destructive' : 'outline'}
+                  size="sm"
+                  onClick={() => setConfirmStatus(true)}
+                  data-testid="member-status-toggle"
+                >
                   <ShieldCheck />
                   {member.status === 'active' ? t('admin.users.deactivate') : t('admin.users.reactivate')}
                 </Button>
@@ -225,7 +251,11 @@ export function MemberSheet({
               <ConfirmDialog
                 open={confirmStatus}
                 onOpenChange={setConfirmStatus}
-                title={member.status === 'active' ? t('admin.users.deactivateTitle', { name: member.name }) : t('admin.users.reactivateTitle', { name: member.name })}
+                title={
+                  member.status === 'active'
+                    ? t('admin.users.deactivateTitle', { name: member.name })
+                    : t('admin.users.reactivateTitle', { name: member.name })
+                }
                 description={member.status === 'active' ? t('admin.users.deactivateBody') : t('admin.users.reactivateBody')}
                 confirmLabel={member.status === 'active' ? t('admin.users.deactivate') : t('admin.users.reactivate')}
                 cancelLabel={t('common.cancel')}

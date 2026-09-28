@@ -1,15 +1,5 @@
 import { sql } from 'drizzle-orm';
-import {
-  boolean,
-  check,
-  index,
-  integer,
-  pgTable,
-  primaryKey,
-  text,
-  uniqueIndex,
-  uuid,
-} from 'drizzle-orm/pg-core';
+import { boolean, check, index, integer, pgTable, primaryKey, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { createdAt, id, localized, updatedAt } from '@/lib/db/columns';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
@@ -46,10 +36,7 @@ export const roles = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [
-    uniqueIndex('roles_org_key_key').on(t.organizationId, t.key),
-    check('roles_side_check', sql`${t.side} in ('agency','client')`),
-  ],
+  (t) => [uniqueIndex('roles_org_key_key').on(t.organizationId, t.key), check('roles_side_check', sql`${t.side} in ('agency','client')`)],
 );
 
 export const rolePermissions = pgTable(
@@ -65,10 +52,7 @@ export const rolePermissions = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: 'cascade' }),
   },
-  (t) => [
-    primaryKey({ columns: [t.roleId, t.permissionKey] }),
-    index('role_permissions_org_idx').on(t.organizationId),
-  ],
+  (t) => [primaryKey({ columns: [t.roleId, t.permissionKey] }), index('role_permissions_org_idx').on(t.organizationId)],
 );
 
 /** Agency-side role assignments. Client-side roles live on `client_users.role_id` (ADR-018). */

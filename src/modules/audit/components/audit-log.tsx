@@ -54,8 +54,12 @@ function Diff({ entry }: { entry: AuditEntry }) {
           {keys.map((k) => (
             <tr key={k}>
               <td className="px-3 py-1.5 text-muted-foreground">{k}</td>
-              {entry.action !== 'insert' ? <td className="max-w-xs truncate px-3 py-1.5 text-danger">{formatValue(entry.before?.[k])}</td> : null}
-              {entry.action !== 'delete' ? <td className="max-w-xs truncate px-3 py-1.5 text-success">{formatValue(entry.after?.[k])}</td> : null}
+              {entry.action !== 'insert' ? (
+                <td className="max-w-xs truncate px-3 py-1.5 text-danger">{formatValue(entry.before?.[k])}</td>
+              ) : null}
+              {entry.action !== 'delete' ? (
+                <td className="max-w-xs truncate px-3 py-1.5 text-success">{formatValue(entry.after?.[k])}</td>
+              ) : null}
             </tr>
           ))}
         </tbody>
@@ -97,7 +101,11 @@ export function AuditLog({
     <div className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="sm:w-56">
-          <NativeSelect aria-label={t('filterTable')} value={params.get('table') ?? ''} onChange={(e) => setParam('table', e.target.value || null)}>
+          <NativeSelect
+            aria-label={t('filterTable')}
+            value={params.get('table') ?? ''}
+            onChange={(e) => setParam('table', e.target.value || null)}
+          >
             <option value="">{`${t('filterTable')}: ${tc('all')}`}</option>
             {tables.map((name) => (
               <option key={name} value={name}>
@@ -107,7 +115,11 @@ export function AuditLog({
           </NativeSelect>
         </div>
         <div className="sm:w-56">
-          <NativeSelect aria-label={t('filterActor')} value={params.get('actor') ?? ''} onChange={(e) => setParam('actor', e.target.value || null)}>
+          <NativeSelect
+            aria-label={t('filterActor')}
+            value={params.get('actor') ?? ''}
+            onChange={(e) => setParam('actor', e.target.value || null)}
+          >
             <option value="">{`${t('filterActor')}: ${tc('all')}`}</option>
             {actors.map((a) => (
               <option key={a.id} value={a.id}>
@@ -117,7 +129,11 @@ export function AuditLog({
           </NativeSelect>
         </div>
         <div className="sm:w-44">
-          <NativeSelect aria-label={t('filterAction')} value={params.get('action') ?? ''} onChange={(e) => setParam('action', e.target.value || null)}>
+          <NativeSelect
+            aria-label={t('filterAction')}
+            value={params.get('action') ?? ''}
+            onChange={(e) => setParam('action', e.target.value || null)}
+          >
             <option value="">{`${t('filterAction')}: ${tc('all')}`}</option>
             {(['insert', 'update', 'delete'] as const).map((a) => (
               <option key={a} value={a}>
@@ -154,7 +170,10 @@ export function AuditLog({
                   </p>
                 </div>
                 <Badge tone={actionTone[e.action]}>{t(`actionsLabel.${e.action}`)}</Badge>
-                <ChevronDown className={cn('size-4 text-subtle-foreground transition-transform', open === e.id && 'rotate-180')} aria-hidden />
+                <ChevronDown
+                  className={cn('size-4 text-subtle-foreground transition-transform', open === e.id && 'rotate-180')}
+                  aria-hidden
+                />
               </button>
               {open === e.id ? (
                 <div className="px-4 pb-4">
@@ -169,10 +188,22 @@ export function AuditLog({
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>{t('page', { page })}</span>
         <div className="flex gap-1">
-          <Button variant="outline" size="icon-sm" disabled={page <= 1} onClick={() => setParam('page', String(page - 1))} aria-label={tc('previousPage')}>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            disabled={page <= 1}
+            onClick={() => setParam('page', String(page - 1))}
+            aria-label={tc('previousPage')}
+          >
             <DirIcon icon={ChevronLeft} />
           </Button>
-          <Button variant="outline" size="icon-sm" disabled={!hasNext} onClick={() => setParam('page', String(page + 1))} aria-label={tc('nextPage')}>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            disabled={!hasNext}
+            onClick={() => setParam('page', String(page + 1))}
+            aria-label={tc('nextPage')}
+          >
             <DirIcon icon={ChevronRight} />
           </Button>
         </div>

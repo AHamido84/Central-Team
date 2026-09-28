@@ -1,14 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import {
-  ArrowDownRight,
-  ArrowUpRight,
-  File,
-  FileArchive,
-  FileImage,
-  FileText,
-  FileVideo,
-  Minus,
-} from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, File, FileArchive, FileImage, FileText, FileVideo, Minus } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
 
 import { Card } from '@/components/ui/primitives';
@@ -79,11 +70,7 @@ export function EmptyState({
 }) {
   return (
     <div
-      className={cn(
-        'flex flex-col items-center justify-center text-center',
-        compact ? 'gap-2 px-4 py-8' : 'gap-3 px-6 py-14',
-        className,
-      )}
+      className={cn('flex flex-col items-center justify-center text-center', compact ? 'gap-2 px-4 py-8' : 'gap-3 px-6 py-14', className)}
     >
       <div
         className={cn(

@@ -6,7 +6,7 @@ import type { ComponentProps } from 'react';
 import { cn } from '@/lib/utils/cn';
 
 export const buttonVariants = cva(
-  'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[background-color,color,box-shadow,opacity] duration-(--duration-fast) outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',
+  'inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-[background-color,color,box-shadow,opacity] duration-(--duration-fast) outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',
   {
     variants: {
       variant: {
@@ -30,8 +30,7 @@ export const buttonVariants = cva(
   },
 );
 
-export type ButtonProps = ComponentProps<'button'> &
-  VariantProps<typeof buttonVariants> & { asChild?: boolean; loading?: boolean };
+export type ButtonProps = ComponentProps<'button'> & VariantProps<typeof buttonVariants> & { asChild?: boolean; loading?: boolean };
 
 export function Button({ className, variant, size, asChild, loading, disabled, children, ...props }: ButtonProps) {
   const Comp = asChild ? Slot.Root : 'button';

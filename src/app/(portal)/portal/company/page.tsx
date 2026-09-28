@@ -36,7 +36,10 @@ export default async function CompanyPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <PageHeader title={t('portal.company.title')} description={t('portal.company.description', { client: localized(client.name, locale) })} />
+      <PageHeader
+        title={t('portal.company.title')}
+        description={t('portal.company.description', { client: localized(client.name, locale) })}
+      />
       <nav className="-mx-(--gutter) overflow-x-auto px-(--gutter)" aria-label={t('portal.company.title')}>
         <ul className="flex gap-1 border-b border-border">
           {tabs.map((x) => (
@@ -80,16 +83,46 @@ export default async function CompanyPage({ searchParams }: { searchParams: Prom
             }}
           />
         ) : (
-          <CompanyInfoCard industry={client.industry} city={client.city} website={client.website} social={client.social as Record<string, string>} />
+          <CompanyInfoCard
+            industry={client.industry}
+            city={client.city}
+            website={client.website}
+            social={client.social as Record<string, string>}
+          />
         )
       ) : (
-        <TeamTab clientId={client.id} clientName={localized(client.name, locale)} canManage={can(ctx.permissions, 'portal_users:manage')} meUserId={ctx.session.userId} />
+        <TeamTab
+          clientId={client.id}
+          clientName={localized(client.name, locale)}
+          canManage={can(ctx.permissions, 'portal_users:manage')}
+          meUserId={ctx.session.userId}
+        />
       )}
     </div>
   );
 }
 
-async function TeamTab({ clientId, clientName, canManage, meUserId }: { clientId: string; clientName: string; canManage: boolean; meUserId: string }) {
+async function TeamTab({
+  clientId,
+  clientName,
+  canManage,
+  meUserId,
+}: {
+  clientId: string;
+  clientName: string;
+  canManage: boolean;
+  meUserId: string;
+}) {
   const data = await listClientUsers(clientId);
-  return <ClientUsersManager clientId={clientId} clientName={clientName} users={data.users} invitations={data.invitations} roles={data.roles} canManage={canManage} meUserId={meUserId} />;
+  return (
+    <ClientUsersManager
+      clientId={clientId}
+      clientName={clientName}
+      users={data.users}
+      invitations={data.invitations}
+      roles={data.roles}
+      canManage={canManage}
+      meUserId={meUserId}
+    />
+  );
 }

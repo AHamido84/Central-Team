@@ -4,7 +4,7 @@ import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { DirIcon } from '@/components/patterns';
 import { Breadcrumbs, BreadcrumbProvider } from '@/components/shell/breadcrumbs';
@@ -22,15 +22,7 @@ import { NotificationBell } from '@/modules/notifications/components/notificatio
 
 const SIDEBAR_COOKIE = 'sidebar_collapsed';
 
-function SidebarNav({
-  data,
-  collapsed,
-  onNavigate,
-}: {
-  data: ShellData;
-  collapsed: boolean;
-  onNavigate?: () => void;
-}) {
+function SidebarNav({ data, collapsed, onNavigate }: { data: ShellData; collapsed: boolean; onNavigate?: () => void }) {
   const t = useTranslations('nav');
   const pathname = usePathname();
   const tooltipSide = useLocale() === 'ar' ? 'left' : 'right';
@@ -64,7 +56,11 @@ function SidebarNav({
                   >
                     {active ? <span className="absolute inset-y-1.5 start-0 w-0.5 rounded-full bg-primary" aria-hidden /> : null}
                     <item.icon className="size-[1.125rem] shrink-0" aria-hidden />
-                    {collapsed ? <span className="sr-only">{t(item.key as never)}</span> : <span className="truncate">{t(item.key as never)}</span>}
+                    {collapsed ? (
+                      <span className="sr-only">{t(item.key as never)}</span>
+                    ) : (
+                      <span className="truncate">{t(item.key as never)}</span>
+                    )}
                   </Link>
                 );
                 return (
@@ -102,20 +98,10 @@ function OrgHeader({ data, collapsed }: { data: ShellData; collapsed: boolean })
   );
 }
 
-export function AgencyShell({
-  data,
-  initialCollapsed,
-  children,
-}: {
-  data: ShellData;
-  initialCollapsed: boolean;
-  children: ReactNode;
-}) {
+export function AgencyShell({ data, initialCollapsed, children }: { data: ShellData; initialCollapsed: boolean; children: ReactNode }) {
   const t = useTranslations('common');
   const [collapsed, setCollapsed] = useState(initialCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const pathname = usePathname();
-  useEffect(() => setMobileOpen(false), [pathname]);
 
   const toggle = () => {
     setCollapsed((c) => {
@@ -128,7 +114,10 @@ export function AgencyShell({
 
   return (
     <BreadcrumbProvider>
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-surface focus:px-3 focus:py-2">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-surface focus:px-3 focus:py-2"
+      >
         {t('skipToContent')}
       </a>
       <div className="flex min-h-dvh">
@@ -143,7 +132,12 @@ export function AgencyShell({
           <div className="border-t border-sidebar-border p-2">
             {collapsed ? (
               <div className="flex justify-center py-1">
-                <UserMenu user={data.user} settingsBase="/settings" compact showDesignSystem={can(data.permissions, 'design_system:view')} />
+                <UserMenu
+                  user={data.user}
+                  settingsBase="/settings"
+                  compact
+                  showDesignSystem={can(data.permissions, 'design_system:view')}
+                />
               </div>
             ) : (
               <UserMenu user={data.user} settingsBase="/settings" showDesignSystem={can(data.permissions, 'design_system:view')} />
@@ -168,7 +162,13 @@ export function AgencyShell({
               <Menu />
             </Button>
             <Tooltip content={collapsed ? t('expandSidebar') : t('collapseSidebar')}>
-              <Button variant="ghost" size="icon" className="hidden lg:inline-flex" onClick={toggle} aria-label={collapsed ? t('expandSidebar') : t('collapseSidebar')}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden lg:inline-flex"
+                onClick={toggle}
+                aria-label={collapsed ? t('expandSidebar') : t('collapseSidebar')}
+              >
                 <DirIcon icon={collapsed ? PanelLeftOpen : PanelLeftClose} />
               </Button>
             </Tooltip>

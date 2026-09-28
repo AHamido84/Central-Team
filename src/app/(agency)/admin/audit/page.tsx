@@ -16,10 +16,26 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const PAGE_SIZE = 50;
 const AUDITED_TABLES = [
-  'organizations', 'organization_members', 'profiles', 'roles', 'role_permissions', 'user_roles',
-  'user_permission_overrides', 'departments', 'department_members', 'invitations', 'organization_features',
-  'clients', 'client_notes', 'client_users', 'client_assignments', 'packages', 'package_items', 'client_packages',
-  'file_folders', 'files',
+  'organizations',
+  'organization_members',
+  'profiles',
+  'roles',
+  'role_permissions',
+  'user_roles',
+  'user_permission_overrides',
+  'departments',
+  'department_members',
+  'invitations',
+  'organization_features',
+  'clients',
+  'client_notes',
+  'client_users',
+  'client_assignments',
+  'packages',
+  'package_items',
+  'client_packages',
+  'file_folders',
+  'files',
 ];
 
 export default async function AuditPage({

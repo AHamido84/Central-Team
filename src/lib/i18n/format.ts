@@ -26,9 +26,7 @@ export function createFormatters({ locale, timeZone = 'Asia/Riyadh', calendar = 
       return new Intl.DateTimeFormat(tag, { dateStyle: style, timeZone }).format(toDate(value));
     },
     dateTime(value: Date | string | number) {
-      return new Intl.DateTimeFormat(tag, { dateStyle: 'medium', timeStyle: 'short', timeZone }).format(
-        toDate(value),
-      );
+      return new Intl.DateTimeFormat(tag, { dateStyle: 'medium', timeStyle: 'short', timeZone }).format(toDate(value));
     },
     time(value: Date | string | number) {
       return new Intl.DateTimeFormat(tag, { timeStyle: 'short', timeZone }).format(toDate(value));

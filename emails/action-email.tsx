@@ -42,9 +42,7 @@ export default function ActionEmail({ heading, paragraphs, quote, cta, note, ...
       <EmailButton href={cta.href} color={layout.brandColor}>
         {cta.label}
       </EmailButton>
-      {note ? (
-        <Text style={{ fontSize: 13, color: '#6B7485', lineHeight, margin: '20px 0 0' }}>{note}</Text>
-      ) : null}
+      {note ? <Text style={{ fontSize: 13, color: '#6B7485', lineHeight, margin: '20px 0 0' }}>{note}</Text> : null}
     </EmailLayout>
   );
 }

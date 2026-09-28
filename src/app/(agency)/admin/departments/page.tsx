@@ -35,7 +35,9 @@ export default async function DepartmentsPage() {
       <PageHeader title={t('title')} description={t('description')} />
       <DepartmentsAdmin
         departments={departments}
-        people={team.filter((m) => m.status === 'active').map((m) => ({ userId: m.userId, name: m.name, avatarPath: m.avatarPath, jobTitle: m.jobTitle }))}
+        people={team
+          .filter((m) => m.status === 'active')
+          .map((m) => ({ userId: m.userId, name: m.name, avatarPath: m.avatarPath, jobTitle: m.jobTitle }))}
       />
     </>
   );

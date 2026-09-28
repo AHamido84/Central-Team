@@ -1,11 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
-import {
-  AlertDialog as AlertDialogPrimitive,
-  Dialog as DialogPrimitive,
-  DropdownMenu as DropdownPrimitive,
-} from 'radix-ui';
+import { AlertDialog as AlertDialogPrimitive, Dialog as DialogPrimitive, DropdownMenu as DropdownPrimitive } from 'radix-ui';
 import type { ComponentProps, ReactNode } from 'react';
 
 import { buttonVariants } from '@/components/ui/button';
@@ -44,7 +40,7 @@ export function DialogContent({
       <Overlay />
       <DialogPrimitive.Content
         className={cn(
-          'fixed inset-x-0 bottom-0 z-[70] flex max-h-[92dvh] flex-col rounded-t-xl border border-border bg-surface-raised shadow-lg outline-none data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom sm:inset-auto sm:start-1/2 sm:top-1/2 sm:bottom-auto sm:w-full sm:-translate-y-1/2 sm:rounded-xl sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:slide-out-to-bottom-0 sm:data-[state=open]:slide-in-from-bottom-0 ltr:sm:-translate-x-1/2 rtl:sm:translate-x-1/2',
+          'fixed inset-x-0 bottom-0 z-[70] flex max-h-[92dvh] flex-col rounded-t-xl border border-border bg-surface-raised shadow-lg outline-none data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom sm:inset-auto sm:start-1/2 sm:top-1/2 sm:bottom-auto sm:w-full sm:-translate-y-1/2 sm:rounded-xl sm:data-[state=closed]:slide-out-to-bottom-0 sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=open]:zoom-in-95 ltr:sm:-translate-x-1/2 rtl:sm:translate-x-1/2',
           width,
           className,
         )}
@@ -72,13 +68,7 @@ export function DialogBody({ className, ...props }: ComponentProps<'div'>) {
 
 export function DialogFooter({ className, ...props }: ComponentProps<'div'>) {
   return (
-    <div
-      className={cn(
-        'flex flex-col-reverse gap-2 border-t border-border px-5 py-3 sm:flex-row sm:justify-end',
-        className,
-      )}
-      {...props}
-    />
+    <div className={cn('flex flex-col-reverse gap-2 border-t border-border px-5 py-3 sm:flex-row sm:justify-end', className)} {...props} />
   );
 }
 
@@ -162,15 +152,11 @@ export function ConfirmDialog({
       {trigger ? <AlertDialogPrimitive.Trigger asChild>{trigger}</AlertDialogPrimitive.Trigger> : null}
       <AlertDialogPrimitive.Portal>
         <AlertDialogPrimitive.Overlay className="fixed inset-0 z-[70] bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <AlertDialogPrimitive.Content className="fixed start-1/2 top-1/2 z-[70] w-[calc(100%-2rem)] max-w-md -translate-y-1/2 rounded-xl border border-border bg-surface-raised p-5 shadow-lg ltr:-translate-x-1/2 rtl:translate-x-1/2 data-[state=open]:animate-in data-[state=open]:zoom-in-95">
+        <AlertDialogPrimitive.Content className="fixed start-1/2 top-1/2 z-[70] w-[calc(100%-2rem)] max-w-md -translate-y-1/2 rounded-xl border border-border bg-surface-raised p-5 shadow-lg data-[state=open]:animate-in data-[state=open]:zoom-in-95 ltr:-translate-x-1/2 rtl:translate-x-1/2">
           <AlertDialogPrimitive.Title className="text-h3 font-semibold">{title}</AlertDialogPrimitive.Title>
-          <AlertDialogPrimitive.Description className="mt-2 text-sm text-muted-foreground">
-            {description}
-          </AlertDialogPrimitive.Description>
+          <AlertDialogPrimitive.Description className="mt-2 text-sm text-muted-foreground">{description}</AlertDialogPrimitive.Description>
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <AlertDialogPrimitive.Cancel className={buttonVariants({ variant: 'outline' })}>
-              {cancelLabel}
-            </AlertDialogPrimitive.Cancel>
+            <AlertDialogPrimitive.Cancel className={buttonVariants({ variant: 'outline' })}>{cancelLabel}</AlertDialogPrimitive.Cancel>
             <AlertDialogPrimitive.Action
               className={buttonVariants({ variant: destructive ? 'destructive' : 'primary' })}
               onClick={() => void onConfirm()}
@@ -193,7 +179,12 @@ export const DropdownMenuTrigger = DropdownPrimitive.Trigger;
 export const DropdownMenuGroup = DropdownPrimitive.Group;
 export const DropdownMenuRadioGroup = DropdownPrimitive.RadioGroup;
 
-export function DropdownMenuContent({ className, sideOffset = 6, align = 'end', ...props }: ComponentProps<typeof DropdownPrimitive.Content>) {
+export function DropdownMenuContent({
+  className,
+  sideOffset = 6,
+  align = 'end',
+  ...props
+}: ComponentProps<typeof DropdownPrimitive.Content>) {
   return (
     <DropdownPrimitive.Portal>
       <DropdownPrimitive.Content
@@ -212,13 +203,12 @@ export function DropdownMenuContent({ className, sideOffset = 6, align = 'end', 
 const itemClass =
   'relative flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-surface-muted [&_svg]:size-4 [&_svg]:text-subtle-foreground';
 
-export function DropdownMenuItem({ className, destructive, ...props }: ComponentProps<typeof DropdownPrimitive.Item> & { destructive?: boolean }) {
-  return (
-    <DropdownPrimitive.Item
-      className={cn(itemClass, destructive && 'text-danger [&_svg]:text-danger', className)}
-      {...props}
-    />
-  );
+export function DropdownMenuItem({
+  className,
+  destructive,
+  ...props
+}: ComponentProps<typeof DropdownPrimitive.Item> & { destructive?: boolean }) {
+  return <DropdownPrimitive.Item className={cn(itemClass, destructive && 'text-danger [&_svg]:text-danger', className)} {...props} />;
 }
 
 export function DropdownMenuRadioItem({ className, children, ...props }: ComponentProps<typeof DropdownPrimitive.RadioItem>) {
@@ -235,12 +225,7 @@ export function DropdownMenuRadioItem({ className, children, ...props }: Compone
 }
 
 export function DropdownMenuLabel({ className, ...props }: ComponentProps<typeof DropdownPrimitive.Label>) {
-  return (
-    <DropdownPrimitive.Label
-      className={cn('px-2 py-1.5 text-xs font-medium text-subtle-foreground', className)}
-      {...props}
-    />
-  );
+  return <DropdownPrimitive.Label className={cn('px-2 py-1.5 text-xs font-medium text-subtle-foreground', className)} {...props} />;
 }
 
 export function DropdownMenuSeparator({ className, ...props }: ComponentProps<typeof DropdownPrimitive.Separator>) {

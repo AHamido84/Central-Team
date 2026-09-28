@@ -8,8 +8,25 @@ import { clients, comments, files, profiles, threads } from '@/lib/db/schema';
 import { getCurrentPackageUsage } from '@/modules/clients/server/package-usage';
 
 export type ActivityItem =
-  | { kind: 'file'; id: string; at: string; actorName: string | null; actorAvatar: string | null; fileName: string; folderId: string | null }
-  | { kind: 'message'; id: string; at: string; actorName: string | null; actorAvatar: string | null; threadId: string; threadTitle: string; body: string };
+  | {
+      kind: 'file';
+      id: string;
+      at: string;
+      actorName: string | null;
+      actorAvatar: string | null;
+      fileName: string;
+      folderId: string | null;
+    }
+  | {
+      kind: 'message';
+      id: string;
+      at: string;
+      actorName: string | null;
+      actorAvatar: string | null;
+      threadId: string;
+      threadTitle: string;
+      body: string;
+    };
 
 /** Everything the portal home needs, read as the client user (RLS keeps it to their client, client-visible only). */
 export async function getPortalHome(ctx: ClientContext) {
@@ -20,14 +37,29 @@ export async function getPortalHome(ctx: ClientContext) {
     const usage = await getCurrentPackageUsage(tx, clientId);
 
     const recentFiles = await tx
-      .select({ id: files.id, name: files.name, at: files.createdAt, folderId: files.folderId, actorName: profiles.fullName, actorAvatar: profiles.avatarPath })
+      .select({
+        id: files.id,
+        name: files.name,
+        at: files.createdAt,
+        folderId: files.folderId,
+        actorName: profiles.fullName,
+        actorAvatar: profiles.avatarPath,
+      })
       .from(files)
       .leftJoin(profiles, eq(profiles.id, files.uploadedBy))
       .where(and(eq(files.clientId, clientId), eq(files.source, 'library'), isNull(files.deletedAt)))
       .orderBy(desc(files.createdAt))
       .limit(8);
     const recentMessages = await tx
-      .select({ id: comments.id, at: comments.createdAt, body: comments.body, threadId: comments.threadId, threadTitle: threads.title, actorName: profiles.fullName, actorAvatar: profiles.avatarPath })
+      .select({
+        id: comments.id,
+        at: comments.createdAt,
+        body: comments.body,
+        threadId: comments.threadId,
+        threadTitle: threads.title,
+        actorName: profiles.fullName,
+        actorAvatar: profiles.avatarPath,
+      })
       .from(comments)
       .innerJoin(threads, eq(threads.id, comments.threadId))
       .leftJoin(profiles, eq(profiles.id, comments.authorId))
@@ -35,7 +67,15 @@ export async function getPortalHome(ctx: ClientContext) {
       .orderBy(desc(comments.createdAt))
       .limit(8);
     const activity: ActivityItem[] = [
-      ...recentFiles.map((f) => ({ kind: 'file' as const, id: f.id, at: f.at.toISOString(), actorName: f.actorName, actorAvatar: f.actorAvatar, fileName: f.name, folderId: f.folderId })),
+      ...recentFiles.map((f) => ({
+        kind: 'file' as const,
+        id: f.id,
+        at: f.at.toISOString(),
+        actorName: f.actorName,
+        actorAvatar: f.actorAvatar,
+        fileName: f.name,
+        folderId: f.folderId,
+      })),
       ...recentMessages.map((m) => ({
         kind: 'message' as const,
         id: m.id,

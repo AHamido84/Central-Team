@@ -89,7 +89,11 @@ export const requestLogoUploadAction = defineAction({
     target: z.enum(['organization', 'client']),
     clientId: z.uuid().nullable(),
     contentType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
-    size: z.number().int().positive().max(2 * 1024 * 1024),
+    size: z
+      .number()
+      .int()
+      .positive()
+      .max(2 * 1024 * 1024),
   }),
   side: 'any',
   async handler({ input, ctx }) {

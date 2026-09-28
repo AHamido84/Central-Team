@@ -45,7 +45,11 @@ export async function setThemeAction(theme: 'system' | 'light' | 'dark'): Promis
 
 const avatarUploadSchema = z.object({
   contentType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
-  size: z.number().int().positive().max(2 * 1024 * 1024),
+  size: z
+    .number()
+    .int()
+    .positive()
+    .max(2 * 1024 * 1024),
 });
 
 /** Issues a one-time signed upload URL for the caller's own avatar (public-assets bucket). */
@@ -78,9 +82,7 @@ const onboardingSchema = z.object({
   theme: z.enum(['system', 'light', 'dark']),
 });
 
-export async function completeOnboardingAction(
-  input: z.input<typeof onboardingSchema>,
-): Promise<ActionResult<{ redirectTo: string }>> {
+export async function completeOnboardingAction(input: z.input<typeof onboardingSchema>): Promise<ActionResult<{ redirectTo: string }>> {
   const parsed = onboardingSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: { code: 'validation', fieldErrors: z.flattenError(parsed.error).fieldErrors as Record<string, string[]> } };
@@ -199,7 +201,11 @@ export async function requestEmailChangeAction(input: z.input<typeof emailChange
 }
 
 const passwordSchema = z.object({
-  password: z.string().min(8, { message: 'password_min' }).regex(/[A-Za-z]/, { message: 'password_letters_digits' }).regex(/\d/, { message: 'password_letters_digits' }),
+  password: z
+    .string()
+    .min(8, { message: 'password_min' })
+    .regex(/[A-Za-z]/, { message: 'password_letters_digits' })
+    .regex(/\d/, { message: 'password_letters_digits' }),
 });
 
 export async function changePasswordAction(input: z.input<typeof passwordSchema>): Promise<ActionResult<null>> {

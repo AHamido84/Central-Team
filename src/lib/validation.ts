@@ -4,8 +4,7 @@ import { z } from 'zod';
  * Shared Zod building blocks. Error messages are translation keys under the `validation`
  * namespace, rendered by <Field>.
  */
-export const requiredText = (max = 200) =>
-  z.string().trim().min(1, { message: 'required' }).max(max, { message: 'too_long' });
+export const requiredText = (max = 200) => z.string().trim().min(1, { message: 'required' }).max(max, { message: 'too_long' });
 
 export const optionalText = (max = 500) =>
   z
@@ -15,7 +14,11 @@ export const optionalText = (max = 500) =>
     .optional()
     .transform((v) => (v ? v : null));
 
-export const email = z.email({ message: 'invalid_email' }).trim().toLowerCase();
+export const email = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(z.email({ message: 'invalid_email' }));
 
 export const password = z
   .string()

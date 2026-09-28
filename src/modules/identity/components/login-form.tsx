@@ -74,7 +74,11 @@ export function LoginForm({ next, initialError }: { next?: string; initialError?
       <p className="mt-2 text-sm text-muted-foreground">{t('auth.loginSubtitle')}</p>
 
       {error ? (
-        <div role="alert" className="mt-6 rounded-md border border-danger/20 bg-danger-soft px-3 py-2.5 text-sm text-danger" data-testid="auth-error">
+        <div
+          role="alert"
+          className="mt-6 rounded-md border border-danger/20 bg-danger-soft px-3 py-2.5 text-sm text-danger"
+          data-testid="auth-error"
+        >
           {error}
         </div>
       ) : null}
@@ -93,10 +97,29 @@ export function LoginForm({ next, initialError }: { next?: string; initialError?
         <TabsContent value="password">
           <form onSubmit={onPassword} className="grid gap-4" noValidate>
             <Field label={t('common.email')} error={pw.formState.errors.email?.message} required>
-              {(p) => <Input {...p} type="email" autoComplete="email" dir="ltr" inputMode="email" {...pw.register('email')} data-testid="login-email" />}
+              {(p) => (
+                <Input
+                  {...p}
+                  type="email"
+                  autoComplete="email"
+                  dir="ltr"
+                  inputMode="email"
+                  {...pw.register('email')}
+                  data-testid="login-email"
+                />
+              )}
             </Field>
             <Field label={t('auth.password')} error={pw.formState.errors.password?.message} required>
-              {(p) => <Input {...p} type="password" autoComplete="current-password" dir="ltr" {...pw.register('password')} data-testid="login-password" />}
+              {(p) => (
+                <Input
+                  {...p}
+                  type="password"
+                  autoComplete="current-password"
+                  dir="ltr"
+                  {...pw.register('password')}
+                  data-testid="login-password"
+                />
+              )}
             </Field>
             <div className="-mt-1 flex justify-end">
               <Link href="/forgot-password" className="text-sm text-link hover:underline">
@@ -111,7 +134,17 @@ export function LoginForm({ next, initialError }: { next?: string; initialError?
         <TabsContent value="magic">
           <form onSubmit={onMagic} className="grid gap-4" noValidate>
             <Field label={t('common.email')} error={magic.formState.errors.email?.message} hint={t('auth.magicLinkHint')} required>
-              {(p) => <Input {...p} type="email" autoComplete="email" dir="ltr" inputMode="email" {...magic.register('email')} data-testid="magic-email" />}
+              {(p) => (
+                <Input
+                  {...p}
+                  type="email"
+                  autoComplete="email"
+                  dir="ltr"
+                  inputMode="email"
+                  {...magic.register('email')}
+                  data-testid="magic-email"
+                />
+              )}
             </Field>
             <Button type="submit" size="lg" loading={magic.formState.isSubmitting} data-testid="magic-submit">
               {t('auth.sendMagicLink')}

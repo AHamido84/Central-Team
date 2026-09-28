@@ -55,7 +55,10 @@ export const comments = pgTable(
     authorSide: text('author_side').notNull(),
     body: text('body').notNull(),
     visibility: text('visibility').notNull().default('client'),
-    mentions: uuid('mentions').array().notNull().default(sql`'{}'::uuid[]`),
+    mentions: uuid('mentions')
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
     editedAt: timestamp('edited_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: createdAt(),

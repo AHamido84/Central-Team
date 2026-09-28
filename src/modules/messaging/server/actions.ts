@@ -26,15 +26,27 @@ function writeSide(ctx: AppContext, clientId: string, visibility: 'internal' | '
 /** Everyone who should hear about activity in a thread, split by side. Computed server-side from the DB. */
 async function audienceFor(clientId: string, threadId: string, visibility: 'internal' | 'client') {
   const [client] = await dbAdmin.select({ am: clients.accountManagerId, name: clients.name }).from(clients).where(eq(clients.id, clientId));
-  const team = await dbAdmin.select({ userId: clientAssignments.userId }).from(clientAssignments).where(eq(clientAssignments.clientId, clientId));
+  const team = await dbAdmin
+    .select({ userId: clientAssignments.userId })
+    .from(clientAssignments)
+    .where(eq(clientAssignments.clientId, clientId));
   const commenters = await dbAdmin
     .selectDistinct({ userId: comments.authorId, side: comments.authorSide })
     .from(comments)
     .where(eq(comments.threadId, threadId));
-  const agency = new Set<string>([client?.am, ...team.map((t) => t.userId), ...commenters.filter((c) => c.side === 'agency').map((c) => c.userId)].filter(Boolean) as string[]);
+  const agency = new Set<string>(
+    [client?.am, ...team.map((t) => t.userId), ...commenters.filter((c) => c.side === 'agency').map((c) => c.userId)].filter(
+      Boolean,
+    ) as string[],
+  );
   const clientSide =
     visibility === 'client'
-      ? (await dbAdmin.select({ userId: clientUsers.userId }).from(clientUsers).where(and(eq(clientUsers.clientId, clientId), eq(clientUsers.status, 'active')))).map((u) => u.userId)
+      ? (
+          await dbAdmin
+            .select({ userId: clientUsers.userId })
+            .from(clientUsers)
+            .where(and(eq(clientUsers.clientId, clientId), eq(clientUsers.status, 'active')))
+        ).map((u) => u.userId)
       : [];
   return { agency: [...agency], client: clientSide };
 }
@@ -73,7 +85,9 @@ export const createThreadAction = defineAction({
       visibility: rights.visibility,
       mentions,
     });
-    await tx.insert(threadReads).values({ threadId, userId: ctx.session.userId, organizationId: ctx.organization.id, clientId: input.clientId });
+    await tx
+      .insert(threadReads)
+      .values({ threadId, userId: ctx.session.userId, organizationId: ctx.organization.id, clientId: input.clientId });
     await emitEvent(tx, {
       type: 'thread.created',
       organizationId: ctx.organization.id,
@@ -134,13 +148,21 @@ export const postCommentAction = defineAction({
       mentions,
     });
     if (input.attachmentIds.length) {
-      await tx.insert(commentAttachments).values(
-        input.attachmentIds.map((fileId) => ({ commentId, fileId, organizationId: ctx.organization.id, clientId: thread.clientId })),
-      );
+      await tx
+        .insert(commentAttachments)
+        .values(
+          input.attachmentIds.map((fileId) => ({ commentId, fileId, organizationId: ctx.organization.id, clientId: thread.clientId })),
+        );
     }
     await tx
       .insert(threadReads)
-      .values({ threadId: thread.id, userId: ctx.session.userId, organizationId: ctx.organization.id, clientId: thread.clientId, lastReadAt: new Date() })
+      .values({
+        threadId: thread.id,
+        userId: ctx.session.userId,
+        organizationId: ctx.organization.id,
+        clientId: thread.clientId,
+        lastReadAt: new Date(),
+      })
       .onConflictDoUpdate({ target: [threadReads.threadId, threadReads.userId], set: { lastReadAt: new Date() } });
     const eventId = await emitEvent(tx, {
       type: 'comment.created',
@@ -150,7 +172,15 @@ export const postCommentAction = defineAction({
       clientId: thread.clientId,
       payload: { commentId, threadId: thread.id, clientId: thread.clientId, visibility: rights.visibility, mentions },
     });
-    return { commentId, eventId, clientId: thread.clientId, threadTitle: thread.title, side: rights.side, visibility: rights.visibility, mentions };
+    return {
+      commentId,
+      eventId,
+      clientId: thread.clientId,
+      threadTitle: thread.title,
+      side: rights.side,
+      visibility: rights.visibility,
+      mentions,
+    };
   },
   async after({ input, result, ctx }) {
     await fanOut(ctx, { ...result, threadId: input.threadId, body: input.body });
@@ -159,7 +189,16 @@ export const postCommentAction = defineAction({
 
 async function fanOut(
   ctx: AppContext,
-  e: { clientId: string; threadId: string; threadTitle: string; body: string; side: 'agency' | 'client'; visibility: 'internal' | 'client'; mentions: string[]; eventId: string },
+  e: {
+    clientId: string;
+    threadId: string;
+    threadTitle: string;
+    body: string;
+    side: 'agency' | 'client';
+    visibility: 'internal' | 'client';
+    mentions: string[];
+    eventId: string;
+  },
 ) {
   const audience = await audienceFor(e.clientId, e.threadId, e.visibility);
   // Mentions only reach people who can actually see the message.
@@ -172,11 +211,22 @@ async function fanOut(
   const mentionedAgency = mentioned.filter((id) => !clientSet.has(id));
   const mentionedClient = mentioned.filter((id) => clientSet.has(id));
   await Promise.all(
-    ([
-      [mentionedAgency, links.agency],
-      [mentionedClient, links.client],
-    ] as const).map(([userIds, link]) =>
-      notify({ organizationId: ctx.organization.id, userIds, type: 'mention', params, link, actorId: ctx.session.userId, eventId: e.eventId, quote }),
+    (
+      [
+        [mentionedAgency, links.agency],
+        [mentionedClient, links.client],
+      ] as const
+    ).map(([userIds, link]) =>
+      notify({
+        organizationId: ctx.organization.id,
+        userIds,
+        type: 'mention',
+        params,
+        link,
+        actorId: ctx.session.userId,
+        eventId: e.eventId,
+        quote,
+      }),
     ),
   );
   const others = (ids: string[]) => ids.filter((id) => !mentioned.includes(id));
@@ -215,7 +265,13 @@ export const markThreadReadAction = defineAction({
     if (!thread) throw new ActionFailure('not_found');
     await tx
       .insert(threadReads)
-      .values({ threadId: input.threadId, userId: ctx.session.userId, organizationId: ctx.organization.id, clientId: thread.clientId, lastReadAt: new Date() })
+      .values({
+        threadId: input.threadId,
+        userId: ctx.session.userId,
+        organizationId: ctx.organization.id,
+        clientId: thread.clientId,
+        lastReadAt: new Date(),
+      })
       .onConflictDoUpdate({ target: [threadReads.threadId, threadReads.userId], set: { lastReadAt: new Date() } });
     return null;
   },
