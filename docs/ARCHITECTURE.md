@@ -1,6 +1,6 @@
 # Architecture
 
-Status: **Phases 0–1 built** · Owner: platform team · Related: `DATA_MODEL.md`, `UI.md`, `DECISIONS.md`
+Status: **Phases 0–2 built** · Owner: platform team · Related: `DATA_MODEL.md`, `UI.md`, `DECISIONS.md`
 
 ## 1. System overview
 
@@ -23,7 +23,7 @@ flowchart LR
     PG[(Postgres<br/>RLS · app.* functions · triggers)]
     RT[Realtime<br/>notifications channel]
     ST[Storage<br/>avatars bucket]
-    EF["Edge Functions<br/>event dispatcher (Phase 1+)"]
+    EF["Event dispatcher<br/>after() + /api/cron (ADR-027)"]
   end
 
   MAIL[Email provider<br/>Resend / SMTP / Console]
@@ -109,6 +109,7 @@ Key properties:
 │   │   ├── clients/               # clients, portal users, packages + usage ledger
 │   │   ├── files/                 # folders, uploads (signed URLs), previews
 │   │   ├── messaging/             # threads, comments, mentions, read receipts
+│   │   ├── requests/              # request forms (versioned), requests, triage, SLA groundwork
 │   │   ├── notifications/         # notify(), bell, inbox, preferences
 │   │   ├── portal/                # portal home read models
 │   │   ├── dashboard/             # agency dashboard read models
@@ -307,17 +308,25 @@ emitEvent(tx, { type, aggregate: { type, id }, payload, clientId? })
   `role.updated`, `role.deleted`, `role.permissions_updated`, `user.roles_changed`,
   `user.permission_override_set`, `department.created`, `department.updated`, `department.members_changed`,
   `feature_flag.toggled`, `organization.updated`.
-- **Consumers (Phase 1+)**: a dispatcher (Supabase Database Webhook / `pg_net` → Edge Function, or a
-  cron-driven worker) reads unprocessed events, fans out to handlers (notifications rules, automations, AI
-  indexing), and marks `processed_at` per consumer (`domain_event_deliveries`). Phase 0 builds the producer
-  side and the table; one Phase 0 consumer exists inline: invitations send notification emails directly.
+- **Consumers (Phase 2, ADR-027)**: `src/lib/events/dispatcher.ts` + the registry in `src/lib/events/consumers.ts`.
+  After every committed `defineAction`, `scheduleEventDispatch()` runs the dispatcher via `after()`; the cron route
+  `/api/cron/dispatch-events` (Bearer `CRON_SECRET`) is the safety net. Per pass:
+  1. insert a `domain_event_deliveries (event_id, consumer)` row for each recent event (≤ 2 days) a consumer subscribes to;
+  2. claim due rows (`processed_at is null`, `next_attempt_at <= now()`, lease expired) with `for update skip locked`,
+     set `locked_until = now() + 2 min`, `attempts + 1`;
+  3. run the handler → `processed_at = now()`, or `last_error` + `next_attempt_at = now() + backoff` (30 s × 2ⁿ, ≤ 1 h, 8 attempts).
+  Handlers must be idempotent (`notify()` skips recipients already notified for the event).
+- Current consumers — all notification fan-out (ADR-028): `notifications.messages` (`comment.created` → message / mention,
+  request threads link to the request page), `notifications.files` (`file.uploaded`), `notifications.requests`
+  (`request.submitted | assigned | status_changed`), `notifications.invitations` (`invitation.accepted`),
+  `notifications.roles` (`user.roles_changed`). Automations (Phase 7) and AI indexing (Phase 8) add consumers here.
 
 ```mermaid
 flowchart LR
   SA[Server Action] -->|same tx| T[(domain tables)]
   SA -->|same tx| E[(domain_events)]
   T -->|trigger| AL[(activity_log)]
-  E -. Phase 1+ .-> D[Dispatcher]
+  E --> D[Dispatcher]
   D -.-> N[Notification rules]
   D -.-> AU[Automation engine · Phase 7]
   D -.-> AI[AI indexing · Phase 8]
@@ -461,3 +470,33 @@ which rows each subscriber receives, so internal notes never reach client socket
 `getPackageUsage(tx, clientPackageId)` → allowed per item (from `package_items`) vs used (sum of
 `package_usage_entries`), plus period progress. Runs inside the caller's RLS transaction, so the same service powers
 the agency client page and the portal home.
+
+## 17. Phase 2 — requests
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor C as Client user
+  participant A as submitRequestAction
+  participant DB as Postgres (RLS + triggers)
+  participant D as Dispatcher
+  actor AM as Agency
+  C->>A: form version answers (validated by buildAnswersSchema), attachments
+  A->>DB: insert requests (trigger: number, SLA due, status=submitted, history row, request thread)
+  A->>DB: request_attachments, emitEvent(request.submitted)
+  A-->>C: /portal/requests/<id>
+  A->>D: after() → notifications.requests
+  D->>AM: request_submitted (in-app + email)
+  AM->>DB: triage (assign / priority / status) — trigger enforces transitions, writes history
+  AM->>DB: reply in the request thread (comment trigger: first response, activity)
+  D->>C: request_status_changed / message_new → /portal/requests/<id>
+  DB-->>C: Realtime (requests row, comments) → live page
+```
+
+- Module: `src/modules/requests` (`form-schema.ts` field definitions + validator builder, `constants.ts` lifecycle,
+  `server/{queries,actions,consumers}.ts`, components for inbox, detail, builder and portal).
+- Routes: agency `/requests`, `/requests/[id]`, `/admin/request-forms`, `/admin/request-forms/[id]`, client tab
+  `/clients/[id]?tab=requests`; portal `/portal/requests`, `/portal/requests/new`, `/portal/requests/new/[formId]`,
+  `/portal/requests/[id]`. All behind `module.requests`.
+- Access: agency `requests:read` + client access; `requests:triage` (assign, priority, any status) or `requests:update`
+  (status of requests assigned to you); `request_forms:manage`. Client `portal_requests:create` (Owner, Member).

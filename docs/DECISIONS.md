@@ -154,6 +154,50 @@ Quoted placeholders use Unicode isolates (U+2068/U+2069) so English file names i
 Upcoming-phase portal routes (`/portal/requests`, `/approvals`, `/calendar`) exist but return 404 until their feature
 flag is enabled; the portal home has designed-in slots with empty states for them.
 
+### ADR-027 — In-process domain-event dispatcher with per-consumer deliveries
+2026-09-28 · Accepted (implements the consumer side of ADR-012)
+Consumers (`src/lib/events/consumers.ts`) subscribe to event types. `dispatchPendingEvents()` materializes one
+`domain_event_deliveries` row per (event × consumer), claims batches with `for update skip locked` plus a lease
+(`locked_until`), runs handlers, and marks `processed_at` or records `last_error` with exponential backoff
+(30 s → 1 h, 8 attempts). It is kicked with `after()` once every committed `defineAction` (and invitation acceptance)
+has responded, and `/api/cron/dispatch-events` (Bearer `CRON_SECRET`, Vercel Cron every 5 min) is the safety net.
+Events older than 2 days when a consumer first sees them are skipped (no surprise backfills when a consumer is added).
+Handlers are idempotent: `notify()` skips recipients that already have a notification for the same event and type.
+*Rejected for now*: Supabase Database Webhooks / `pg_net` → Edge Function (needs the DB to call back into the app,
+fragile locally and in CI — same reason as ADR-017) and an external queue (new infrastructure without a need yet).
+The dispatcher's contract (claim → handle → ack) lets either replace the trigger later without touching consumers.
+
+### ADR-028 — All notification fan-out lives in event consumers
+2026-09-28 · Accepted
+Producers only emit events; recipients are computed by consumers from the committed event and the database (service
+connection, listed in CLAUDE.md §6). Messages/mentions, files, invitations, roles and requests all moved. Emails for
+recipients with in-app disabled are not deduplicated on retry (accepted: rare, and better than dropping them).
+
+### ADR-029 — Versioned request forms as JSON field definitions
+2026-09-28 · Accepted
+`request_form_versions.fields` holds an ordered array of typed fields (8 types, AR/EN labels). Published versions are
+immutable (trigger) and requests keep the `form_version_id` they were answered with. A single Zod builder
+(`buildAnswersSchema`) validates in the portal and in the server action. At most one draft per form; publishing freezes
+it. *Rejected*: JSON Schema + a generic renderer (heavier, weaker bilingual labelling) and per-field tables (migrations for
+every form change).
+
+### ADR-030 — Request lifecycle rules enforced by triggers; SLA counted in working hours
+2026-09-28 · Accepted
+Status transitions, client-restricted columns (clients may only cancel; priority limited to normal/high at submit),
+server-owned timestamps (`first_response_at`, `resolved_at`, SLA due dates), per-org numbering and history rows are
+enforced in Postgres so crafted PostgREST writes can't bypass them. Changes made inside another trigger
+(`pg_trigger_depth() > 1`, e.g. a client reply resuming a "waiting on client" request) are system changes. SLA
+groundwork: form-level response/resolution hours counted on Sunday–Thursday in the org time zone (`app.sla_due`);
+pausing while waiting on the client, business-hour calendars, holidays and breach alerts are Phase 5 (SLA policies).
+
+### ADR-031 — Request conversations reuse `threads`, created by trigger
+2026-09-28 · Accepted
+Every request gets exactly one `threads` row (`subject_type = 'request'`, unique per request) created by an
+`after insert` trigger, so client users without `portal_messages:send` still get a conversation. Internal notes are the
+existing internal comments. General message lists show only `subject_type = 'client'` threads; request notifications
+link to the request page. Attachments added at submission are `files` with `source = 'attachment'`, linked through
+`request_attachments`.
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

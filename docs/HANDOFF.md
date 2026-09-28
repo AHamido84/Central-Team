@@ -1,6 +1,6 @@
 # Handoff — state of the project
 
-Last updated: 2026-09-28 · Branch: `claude/modest-faraday-3u6pzy` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
+Last updated: 2026-09-28 · Branch: `claude/stoic-cray-wud1ib` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
 
 ## Where we are
 
@@ -8,10 +8,11 @@ Last updated: 2026-09-28 · Branch: `claude/modest-faraday-3u6pzy` · Read with 
 |---|---|
 | 0 — Foundation | **Built.** Auth (password, magic link, reset, email change), invitations, onboarding, RBAC with permission matrix + overrides, departments, feature flags, audit log, notifications, design system, AR/EN RTL/LTR, light/dark |
 | 1 — Client Portal | **Built.** Agency client management (clients, portal users, packages + usage ledger, files, messages inbox) and the client portal (home, files, messages, company settings, flag-guarded Requests/Approvals/Calendar) |
-| 2 — Requests | **Next.** Nothing started |
+| 2 — Requests | **Built.** Versioned request forms + builder, portal submission with attachments, lifecycle & statuses (DB-enforced), triage inbox (views, filters, bulk assign/priority), SLA groundwork (working hours), request conversations, domain-event dispatcher with all notification fan-out moved onto it |
+| 3 — Tasks & Deliverables | **Next.** Start with "convert request → tasks" (the `requests` row is the parent) |
 
-Verified green on a fresh seed: `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 44 unit tests, 36 RLS tests,
-13 Playwright e2e tests, `pnpm build`. The CI workflow (`.github/workflows/ci.yml`) is written but has not run on GitHub yet.
+Verified green on a fresh seed: `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 60 unit tests, 60 DB tests
+(RLS + dispatcher), 16 Playwright e2e tests, `pnpm build`. The CI workflow (`.github/workflows/ci.yml`) is written but has not run on GitHub yet.
 
 ## Run it
 
@@ -47,18 +48,26 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
    use Unicode isolates (U+2068/U+2069).
 6. **Tests depend on seed data**: run `pnpm db:reset` before `pnpm test:db`; e2e creates unique users and is re-runnable.
 7. Sandboxes may block ghcr/ECR image pulls — `bootstrap.sh` falls back to Docker Hub.
-8. Dev-only: the Next.js dev indicator ("N" bubble) overlaps the bottom-left of mobile screenshots; it is not in builds.
+8. **Constants used by Server Components can't live in `'use client'` files** — they become client references
+   (e.g. `inboxViews.includes is not a function`). Put them in the module's `constants.ts`.
+9. **Grid children with truncated text need `min-w-0`** (and `grid-cols-1` on mobile), or the column grows to the
+   text's full width and the page scrolls sideways.
+10. **Request lifecycle is trigger-enforced**: service-role writes (seed) are trusted; user writes get server-owned
+    timestamps, numbering and transition checks. Updates made inside another trigger count as `system`.
+11. **Notifications only come from event consumers** (`src/lib/events/consumers.ts`). In tests/scripts outside a request,
+    `scheduleEventDispatch()` runs the dispatcher detached.
+12. Dev-only: the Next.js dev indicator ("N" bubble) overlaps the bottom-left of mobile screenshots; it is not in builds.
 
 ## Open items (need the owner)
 
 - Answers to open questions in `docs/DECISIONS.md` (brand, logo, domain, sending email, data residency/PDPL).
 - Staging deploy on Vercel + Supabase Cloud with a custom domain; Resend domain verification; production GoTrue SMTP.
 - Full human QA pass (AR/EN × light/dark × mobile/desktop) on every screen.
-- Event dispatcher (consumers of `domain_events`) — planned with Phase 2; notifications are currently sent inline after commit.
+- Production: set `CRON_SECRET` (Vercel Cron hits `/api/cron/dispatch-events` every 5 min, see `vercel.json`).
 
-## Suggested Phase 2 scope (from the roadmap)
+## Suggested Phase 3 scope (from the roadmap)
 
-Dynamic request forms (versioned JSON definitions), client request submission from the portal, request lifecycle
-and statuses, agency triage inbox (assign, prioritize, convert later to tasks), SLA timer groundwork, and turning on
-`module.requests` so the portal "Active requests" slot and `/portal/requests` become live. Reuse `threads`
-(`subject_type = 'request'`) for request conversations and `files` for attachments.
+Tasks (list/board/calendar) with a "convert request to tasks" action on the request page, workflow templates per
+service (form category → template), deliverables with versions and client approvals (turn on `module.approvals` —
+the portal home slot is ready), comments reusing `threads` (`subject_type = 'deliverable'`), time tracking, and package
+usage entries fed by delivered items (ADR-022). New notifications go in a consumer, not in actions (ADR-028).

@@ -1,6 +1,6 @@
 # Data Model
 
-Status: **Phase 0 design**. Conventions from `CLAUDE.md §6`: plural `snake_case` tables, `uuid` PKs,
+Status: **Phases 0–2**. Conventions from `CLAUDE.md §6`: plural `snake_case` tables, `uuid` PKs,
 `timestamptz` UTC, `organization_id` on tenant-scoped tables, `LocalizedText = jsonb {ar, en}`,
 `created_at` / `updated_at` on every mutable table (`updated_at` maintained by trigger).
 
@@ -450,6 +450,121 @@ append rows with `source_type/source_id`, and `getPackageUsage()` sums them per 
 Triggers force every client-scoped row to carry its client's `organization_id`, and force comments in an internal
 thread to be internal, so a crafted request can't leak data across tenants or visibility levels.
 
+## 3c. Phase 2 — requests
+
+```mermaid
+erDiagram
+  request_forms ||--o{ request_form_versions : "versions"
+  request_forms |o--o| request_form_versions : "current (published)"
+  clients ||--o{ requests : submits
+  request_forms ||--o{ requests : ""
+  request_form_versions ||--o{ requests : "answers conform to"
+  requests ||--o{ request_events : "lifecycle history"
+  requests ||--o{ request_attachments : ""
+  files ||--o{ request_attachments : ""
+  requests ||--|| threads : "conversation (subject_type = request)"
+  profiles ||--o{ requests : "assignee / submitter"
+
+  request_forms {
+    uuid id PK
+    text key "unique per org"
+    jsonb name "LocalizedText"
+    jsonb description "LocalizedText"
+    text icon "lucide name from a fixed list"
+    text category "design | video | content | ads | social | other"
+    text status "draft | published | archived"
+    uuid current_version_id FK "latest published version"
+    text default_priority "low | normal | high | urgent"
+    int response_sla_hours "working hours to first response (null = none)"
+    int resolution_sla_hours "working hours to completion (null = none)"
+    int sort_order
+  }
+  request_form_versions {
+    uuid id PK
+    uuid form_id FK
+    int version "1, 2, … unique per form"
+    jsonb fields "RequestFormField[] (see below)"
+    timestamptz published_at "null = the single editable draft"
+    uuid published_by FK
+  }
+  requests {
+    uuid id PK
+    uuid client_id FK
+    int number "per organization, REQ-0042"
+    uuid form_id FK
+    uuid form_version_id FK
+    text title
+    jsonb answers "{ fieldId: value }"
+    text status "submitted | in_review | in_progress | waiting_client | completed | declined | cancelled"
+    text priority "low | normal | high | urgent"
+    uuid assignee_id FK
+    uuid submitted_by FK
+    text submitted_side "client | agency"
+    date desired_date
+    timestamptz response_due_at "SLA, computed by trigger"
+    timestamptz resolution_due_at "SLA, computed by trigger"
+    timestamptz first_response_at
+    timestamptz resolved_at "completed or declined"
+    timestamptz cancelled_at
+    timestamptz last_activity_at
+  }
+  request_events {
+    uuid id PK
+    uuid request_id FK
+    uuid actor_id
+    text actor_side "agency | client | system"
+    text type "submitted | status_changed | assigned | priority_changed"
+    text from_value
+    text to_value
+    text visibility "internal | client"
+  }
+  request_attachments {
+    uuid request_id PK
+    uuid file_id PK
+  }
+```
+
+**Form definitions.** `request_form_versions.fields` is an ordered array of
+`{ id, type, label: LocalizedText, help?: LocalizedText, required, options?: [{ value, label }], min?, max?, maxLength? }`
+with `type ∈ short_text | long_text | number | date | single_select | multi_select | checkbox | url`. One Zod builder
+(`buildAnswersSchema`) turns a version into the validator used by the portal form *and* the server action. Each form has at
+most one draft version (partial unique index); publishing freezes it (trigger: published rows are immutable and cannot be
+deleted) and points `current_version_id` at it. Requests keep the `form_version_id` they were submitted with, so old
+requests always render with the fields they were answered against.
+
+**Lifecycle.** Allowed transitions (mirrored by `app.request_transition_allowed()` in SQL and `requestTransitions` in TS):
+
+| From | Agency may move to | Client may move to |
+|---|---|---|
+| `submitted` | `in_review`, `in_progress`, `declined` | `cancelled` |
+| `in_review` | `in_progress`, `waiting_client`, `declined` | `cancelled` |
+| `in_progress` | `waiting_client`, `completed`, `in_review` | — |
+| `waiting_client` | `in_progress`, `completed`, `declined` | `cancelled` (a client reply moves it back to `in_progress` automatically) |
+| `completed`, `declined`, `cancelled` | `in_progress` / `in_review` (reopen) | — |
+
+**Triggers** (hand-written migration): per-org `number` (advisory lock), SLA due dates from the form's hours counted on
+working days only (Friday/Saturday skipped, organization time zone) — `app.sla_due()`; `first_response_at` on the first
+agency status change or client-visible agency reply; `resolved_at` / `cancelled_at`; `last_activity_at`. Client users can
+only insert `submitted` requests with `normal`/`high` priority and no assignee, and can only update `status → cancelled`.
+Priority and assignee changes need `requests:triage`; the assignee must be an active agency member. Every insert/update
+writes `request_events` (status → client-visible; assignment and priority → internal). An `after insert` trigger creates
+the request's conversation thread; comments in it bump `last_activity_at`.
+
+**RLS**
+
+| Table | Agency | Client users of that client |
+|---|---|---|
+| `request_forms` | read: members; write: `request_forms:manage` | read: `status = 'published'` |
+| `request_form_versions` | read: members; write drafts: `request_forms:manage` | read: published versions |
+| `requests` | read: `requests:read` + client access; insert/update: `requests:triage`, or `requests:update` on requests assigned to them | read: member; insert/cancel: `portal_requests:create` (Viewer: read only) |
+| `request_events` | read with the request | read `visibility = 'client'` only |
+| `request_attachments` | read with the request; insert by the file's uploader | same |
+
+Internal notes on a request are `comments.visibility = 'internal'` in the request thread (existing messaging RLS).
+
+**Dispatcher columns.** `domain_event_deliveries` gains `created_at`, `next_attempt_at` (backoff) and `locked_until`
+(claim lease) — see ARCHITECTURE §7.
+
 ## 4. Forward-looking sketch (all phases — not built in Phase 0)
 
 ```mermaid
@@ -502,7 +617,7 @@ erDiagram
 | Phase | Main entities | Notes |
 |---|---|---|
 | 1 Portal | `clients` (extended), `client_assignments`, `brands`, `files`, `folders`, `threads`, `messages`, `thread_participants` | Storage bucket per org, path `org/<org>/client/<client>/…`; Realtime for messages |
-| 2 Requests | `request_forms`, `request_form_versions` (JSON schema), `requests`, `request_events`, `request_attachments` | Form definition versioned so old requests render correctly |
+| 2 Requests | **Built** — see §3c | Form definition versioned so old requests render correctly |
 | 3 Tasks | `workflow_templates`, `workflow_template_steps`, `tasks`, `task_assignees`, `task_dependencies`, `deliverables`, `deliverable_versions`, `approvals`, `comments`, `time_entries` | Status machines per template; approvals by client users |
 | 4 Campaigns | `campaigns`, `campaign_kpis`, `campaign_channels`, `metrics_daily` (partitioned by month), `reports`, `report_sections` | Metrics are append-heavy → partitioning, materialized views |
 | 5 Ops | `sla_policies`, `sla_breaches`, read models/views for Client 360 & dashboard | Mostly views over earlier phases |

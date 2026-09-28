@@ -146,9 +146,57 @@ behind feature flags with proper empty states until those phases ship.
 - [x] Playwright: invite client → accept → upload file → agency replies → client notified
 - [ ] AR/EN × light/dark × mobile/desktop pass on every portal screen
 
-## Phase 2 — Requests (next)
-Dynamic request form builder (versioned), client request submission, request lifecycle & statuses, agency triage
-inbox (assign, prioritize, convert to tasks), SLA timers groundwork.
+## Phase 2 — Requests (done)
+
+Plan: clients submit structured requests from the portal using agency-defined, versioned forms; the agency triages
+them in one inbox (assign, prioritize, move through the lifecycle) with SLA due dates; every request has its own
+conversation (a `threads` row with `subject_type = 'request'`) and attachments (`files`). The domain-event dispatcher
+arrives with this phase and becomes the only place notifications are fanned out. Converting requests into tasks is
+Phase 3 (the `requests` row is the future task parent).
+
+### 2.1 Data & security
+- [x] Tables: `request_forms`, `request_form_versions` (JSON field definitions, immutable once published), `requests`, `request_events` (lifecycle history), `request_attachments`
+- [x] Triggers: per-organization request number, SLA due dates (working days, Fri–Sat weekend), status-transition guard, client-restricted columns, lifecycle events, request thread creation, conversation activity (first response, waiting-on-client → in progress)
+- [x] Permissions: `requests:read`, `requests:update`, `requests:triage`, `request_forms:manage` (agency), `portal_requests:create` (client) — seeded, granted to system roles, in the matrix, enforced by RLS
+- [x] RLS: client isolation, Viewer read-only, internal lifecycle events and internal notes never reach the portal, specialists update only requests assigned to them
+- [x] `module.requests` enabled by default; data dark for clients when the flag is off
+
+### 2.2 Domain-event dispatcher
+- [x] `domain_event_deliveries` claim/retry columns (`next_attempt_at`, `locked_until`, `created_at`)
+- [x] Dispatcher: per-consumer delivery rows, `for update skip locked` claiming, exponential backoff, idempotent consumers
+- [x] Triggered after every committed action (`after()`), plus a cron-safe route `/api/cron/dispatch-events` (`CRON_SECRET`)
+- [x] All notification fan-out moved to consumers (messages, mentions, files, invitations, roles, requests); `notify()` idempotent per event
+
+### 2.3 Agency — forms & triage
+- [x] Request forms admin: list, create, settings (name AR/EN, description, icon, category, default priority, SLA hours), archive/restore
+- [x] Form builder: field types (short/long text, number, date, single/multi select, checkbox, URL), AR/EN labels & help, required, options, reorder, live preview, draft → publish new version
+- [x] Triage inbox `/requests`: stats (open, unassigned, overdue, due soon), views (open, mine, unassigned, closed, all), filters (status, priority, client, assignee, form), search, bulk assign / prioritize, SLA indicator, mobile cards
+- [x] Request detail: answers (rendered from the version it was submitted with), attachments, conversation with internal notes, status actions, priority, assignee, SLA card, timeline
+- [x] Client page "Requests" tab
+
+### 2.4 Portal
+- [x] `/portal/requests`: active / closed lists, status badges, empty states
+- [x] New request: choose a form → dynamic form (validated client + server from the same definition) → attachments with progress → submit
+- [x] Request page: status tracker, "waiting for you" banner, answers, attachments, conversation, client-visible timeline, cancel
+- [x] Home "Active requests" slot live
+
+### 2.5 Notifications
+- [x] New request → account manager + assigned team; assignment → assignee; status change → client users (and agency on client cancel); request conversation → message / mention notifications linking to the request page
+- [x] New `requests` preference category (in-app + email)
+
+### 2.6 Quality
+- [x] Seed: 7 forms (one with two published versions, one draft), 23 requests across the 5 clients in every status, with conversations, internal notes, attachments and history
+- [x] Unit tests: answers schema builder, transition map, SLA/status helpers, catalog sync across migrations
+- [x] RLS tests: client isolation, Viewer read-only, internal notes/events hidden, restricted client updates, transition guard, forms visibility, published versions immutable
+- [x] DB test: dispatcher delivery, retry with backoff, no double delivery
+- [x] Playwright: client submits request → agency triages and replies → client notified (realtime, bell, email)
+- [x] Docs: ROADMAP, DATA_MODEL, ARCHITECTURE (dispatcher), DECISIONS, HANDOFF, CLAUDE.md
+
+### 2.7 Deferred (tracked for later phases)
+- [ ] Convert a request into tasks (Phase 3)
+- [ ] SLA policies per client/package, pause while waiting on the client, holidays, breach alerts (Phase 5)
+- [ ] Per-client form availability; agency UI to log a request on a client's behalf (the action already supports it)
+- [ ] AR/EN × light/dark × mobile/desktop human QA pass on the new screens (automated screenshots done)
 
 ## Phase 3 — Tasks & Deliverables
 Tasks (list/board/calendar), workflow templates per service, deliverables with versions, client approvals with
