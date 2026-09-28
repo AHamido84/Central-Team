@@ -22,7 +22,8 @@
     "db:generate": "drizzle-kit generate",
     "db:types": "supabase gen types typescript --local > src/lib/db/supabase-types.ts",
     "email:dev": "email dev --dir emails --port 3001",
-    "prepare": "husky"
+    "prepare": "husky",
+    "setup": "bash scripts/bootstrap.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

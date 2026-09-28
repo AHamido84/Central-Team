@@ -10,11 +10,8 @@ light and dark, mobile-first portal.
 Requirements: Node 22, pnpm 10, Docker, Supabase CLI 2.x.
 
 ```bash
-pnpm install
-pnpm db:start                      # local Supabase (Postgres, Auth, Storage, Realtime, Mailpit)
-cp .env.example .env.local         # fill keys from: supabase status -o env
-pnpm db:reset                      # migrations + seed
-pnpm dev                           # http://localhost:3000
+pnpm setup      # deps, Docker check, local Supabase, .env.local, migrations + seed (scripts/bootstrap.sh)
+pnpm dev        # http://localhost:3000
 ```
 
 Emails (invites, magic links, resets, notifications) land in Mailpit: http://localhost:54324
@@ -47,6 +44,7 @@ pnpm test:e2e     # Playwright end-to-end
 
 ## Docs
 
+- [`docs/HANDOFF.md`](docs/HANDOFF.md) — current state, how to run, gotchas, what's next
 - [`CLAUDE.md`](CLAUDE.md) — vision, stack, conventions, commands, Definition of Done
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — structure, auth & permission flow, events, flags, portal flows
 - [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — ERD, RLS strategy, Phase 1 entities, forward sketch

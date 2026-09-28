@@ -36,7 +36,7 @@ Built single-agency first, but **multi-tenant ready**: every tenant-scoped row c
 | 7 — Integrations & Automation | Meta, WhatsApp, TikTok, Snap, Google, automation engine | — |
 | 8 — AI Intelligence | AI analysis, recommendations, reports, assistant | — |
 
-Details: `docs/ROADMAP.md`. Architecture: `docs/ARCHITECTURE.md`. Data: `docs/DATA_MODEL.md`.
+Current state & gotchas: `docs/HANDOFF.md` (read first in a new session). Details: `docs/ROADMAP.md`. Architecture: `docs/ARCHITECTURE.md`. Data: `docs/DATA_MODEL.md`.
 UI: `docs/UI.md`. Decisions: `docs/DECISIONS.md` (append-only, numbered).
 
 ## 3. Stack
@@ -197,7 +197,7 @@ A feature is done only when **all** are true:
 
 ## 10. Working agreements for AI sessions
 
-- Start by reading this file and `docs/ROADMAP.md`; continue from the first unchecked item.
+- Start by reading this file, `docs/HANDOFF.md` and `docs/ROADMAP.md`; run `pnpm setup`; continue from the first unchecked item.
 - Build only the current phase. Design for later phases (schema shape, extension points) but don't build them.
 - Prefer adding to an existing module over creating a new one; create a module when a new domain appears.
 - When you make a non-obvious choice, append it to `docs/DECISIONS.md`.
