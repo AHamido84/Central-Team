@@ -17,7 +17,7 @@ let org: string;
 
 const consumer = defineConsumer({
   name: consumerName,
-  types: ['request_form.created'],
+  types: ['request_type.created'],
   async handle(event) {
     if (!created.includes(event.id)) return; // ignore anything else of this type
     if (failOnce.has(event.id)) {
@@ -32,7 +32,7 @@ const consumer = defineConsumer({
 async function emit() {
   const id = crypto.randomUUID();
   await sql`insert into public.domain_events (id, organization_id, type, aggregate_type, payload)
-            values (${id}, ${org}, 'request_form.created', 'request_form', ${sql.json({ formId: id })})`;
+            values (${id}, ${org}, 'request_type.created', 'request_form', ${sql.json({ formId: id })})`;
   created.push(id);
   return id;
 }
