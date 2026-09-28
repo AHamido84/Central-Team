@@ -63,7 +63,8 @@
     "deactivateTitle": "Deactivate {name}?",
     "reactivateTitle": "Reactivate {name}?",
     "deactivateBody": "They won't be able to sign in until reactivated.",
-    "reactivateBody": "They'll be able to sign in again."
+    "reactivateBody": "They'll be able to sign in again.",
+    "expiresIn": "Expires {when}"
   },
   "roles": {
     "title": "Roles & permissions",
@@ -90,7 +91,7 @@
     "rolesTab": "Roles",
     "matrixTab": "Permission matrix",
     "deleteTitle": "Delete this role?",
-    "deleteBody": "The role “{name}” will be permanently deleted."
+    "deleteBody": "The role “⁨{name}⁩” will be permanently deleted."
   },
   "departments": {
     "title": "Departments",

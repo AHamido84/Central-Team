@@ -20,5 +20,6 @@
   "upload_failed": "Upload failed. Please try again.",
   "weak_password": "That password is too weak.",
   "invalid_credentials": "Incorrect email or password.",
-  "unknown": "Something unexpected happened. Please try again."
+  "unknown": "Something unexpected happened. Please try again.",
+  "last_client_owner": "The company must keep at least one active owner."
 }

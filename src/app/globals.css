@@ -8,7 +8,8 @@
    Components use semantic tokens only — never raw hex.
    ========================================================================== */
 
-:root {
+:root,
+.light {
   /* Brand scale */
   --indigo-50: #eef0ff;
   --indigo-100: #e0e3ff;

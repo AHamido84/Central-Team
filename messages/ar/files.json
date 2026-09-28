@@ -1,1 +1,47 @@
-{}
+{
+  "title": "الملفات",
+  "description": "كل ملفات حسابك في مكان واحد: الهوية، والتصاميم، والتقارير.",
+  "folderCreated": "تم إنشاء المجلد.",
+  "newFolder": "مجلد جديد",
+  "folderKind": "نوع المجلد",
+  "kinds": {
+    "month": "شهري",
+    "project": "مشروع",
+    "type": "حسب النوع",
+    "brand": "الهوية البصرية",
+    "custom": "مخصص"
+  },
+  "visibility": "الظهور",
+  "visibilityHint": "العناصر الداخلية لا تظهر للعميل أبدًا.",
+  "deleted": "تم حذف الملف.",
+  "preview": "معاينة",
+  "makeInternal": "جعله داخليًا",
+  "shareWithClient": "مشاركته مع العميل",
+  "moveTo": "نقل إلى",
+  "dropHere": "أفلت الملفات للرفع إلى «⁨{folder}⁩»",
+  "allFiles": "كل الملفات",
+  "folders": "المجلدات",
+  "fileCount": "{count, plural, =0 {لا ملفات} one {ملف واحد} two {ملفان} few {# ملفات} many {# ملفًا} other {# ملف}}",
+  "searchPlaceholder": "ابحث باسم الملف…",
+  "filters": {
+    "all": "الكل",
+    "image": "صور",
+    "video": "فيديو",
+    "pdf": "PDF",
+    "document": "مستندات"
+  },
+  "listView": "عرض كقائمة",
+  "gridView": "عرض كشبكة",
+  "upload": "رفع ملفات",
+  "clientUploadHint": "الملفات التي ترفعها تُحفظ في «⁨{folder}⁩» ويراها فريق الوكالة فورًا.",
+  "emptyTitle": "لا ملفات هنا بعد",
+  "emptyUpload": "اسحب الملفات وأفلتها هنا أو استخدم زر الرفع.",
+  "emptyReadOnly": "ستظهر هنا الملفات التي تشاركها الوكالة معك.",
+  "fromClient": "من العميل",
+  "deleteTitle": "حذف الملف؟",
+  "deleteBody": "سيُحذف «⁨{name}⁩» نهائيًا من التخزين.",
+  "previewFailed": "تعذّرت معاينة الملف.",
+  "noPreview": "لا تتوفر معاينة لهذا النوع من الملفات.",
+  "recentFiles": "أحدث الملفات",
+  "noRecentFiles": "لا ملفات مشتركة بعد"
+}

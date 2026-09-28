@@ -2,7 +2,7 @@
 
 Legend: `[ ]` todo · `[x]` done. Update checkboxes in the same PR that completes the work.
 
-## Phase 0 — Foundation (current)
+## Phase 0 — Foundation
 
 ### 0.1 Planning
 - [x] `CLAUDE.md`, `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/UI.md`, `docs/ROADMAP.md`, `docs/DECISIONS.md`
@@ -105,10 +105,46 @@ Legend: `[ ]` todo · `[x]` done. Update checkboxes in the same PR that complete
 - [ ] Vercel + Supabase staging deployment on custom domain; Resend domain verified
 - [ ] Docs updated; Phase 0 report
 
-## Phase 1 — Client Portal
-Portal shell completion, portal home with activity, files (folders, upload, preview, versions), messages (threads,
-realtime), agency-side client management (clients CRUD, contacts, brands, assignments), event dispatcher + first
-notification rules.
+## Phase 1 — Client Portal (current)
+
+Plan: agency-side client management (minimal; full Client 360 is Phase 5) + the client portal foundation.
+Requests (Phase 2) and approvals (Phase 3) get designed-in navigation entries and home-page slots that stay
+behind feature flags with proper empty states until those phases ship.
+
+### 1.1 Data & security
+- [ ] Tables: `clients` (extended), `client_notes` (agency-only), `client_users` (client role + `can_approve`), `client_assignments`
+- [ ] Tables: `packages`, `package_items`, `client_packages`, `package_usage_entries` (usage ledger fed by later phases)
+- [ ] Tables: `file_folders`, `files` (`visibility`: internal | client, `source`: library | attachment)
+- [ ] Tables: `threads` (polymorphic `subject_type/subject_id`), `comments` (`visibility`, mentions), `comment_attachments`, `thread_reads`
+- [ ] RLS: client isolation (`app.is_client_member`, `app.agency_can_access_client`), internal items never reach the portal, Viewer can't write
+- [ ] Storage: private `client-files` bucket, path `org/<org>/clients/<client>/<folder|root>/<file>-<name>`, signed URLs only, per-type size limits
+- [ ] Realtime publication for `comments`, `thread_reads`, `notifications`
+
+### 1.2 Agency — client management
+- [ ] Clients list (DataTable: search, status/industry/AM filters, mobile cards)
+- [ ] Client create / edit form (name AR/EN, logo, industry, city, website, social handles, status, AM, start date, internal notes, assigned team)
+- [ ] Client detail: overview, portal users (invite / role / approval / deactivate / resend / revoke), package, files, messages
+- [ ] Packages admin (monthly items, price) and assigning a package to a client for a period
+- [ ] `getPackageUsage()` service (allowed vs used per item type)
+- [ ] Agency messages inbox across accessible clients (+ internal notes and internal threads)
+
+### 1.3 Portal
+- [ ] Portal shell: org branding (logo, brand color), calmer layout, desktop top nav, mobile bottom nav, client switcher
+- [ ] Home: greeting, account manager card (photo, WhatsApp + email), package summary, recent files, recent activity, "Waiting for your approval" + "Active requests" slots
+- [ ] Files: folders (month / project / type / brand), upload with progress (brand assets), image / PDF / video preview, signed downloads, client-visible only
+- [ ] Messages: threads, realtime, @mentions, attachments, read receipts
+- [ ] Company settings (Client Owner): company profile, team (invite, role, approval right, deactivate)
+- [ ] Flag-guarded routes: Requests (Phase 2), Approvals (Phase 3), Calendar (Phase 3)
+
+### 1.4 Notifications
+- [ ] New message (client ↔ agency) and mentions — in-app + email per preferences
+- [ ] New file shared with the client / uploaded by the client — in-app + email per preferences
+
+### 1.5 Quality
+- [ ] Seed: 5 Saudi client companies with 2–3 portal users, package, folders + files, threads
+- [ ] RLS tests: client A ≠ client B (files, messages, users), internal items hidden, Viewer can't write
+- [ ] Playwright: invite client → accept → upload file → agency replies → client notified
+- [ ] AR/EN × light/dark × mobile/desktop pass on every portal screen
 
 ## Phase 2 — Requests
 Dynamic request form builder (versioned), client request submission, request lifecycle & statuses, agency triage

@@ -10,6 +10,7 @@ export const actionErrorCodes = [
   'invitation_invalid',
   'invitation_expired',
   'last_super_admin',
+  'last_client_owner',
   'cannot_deactivate_self',
   'cannot_modify_self',
   'cannot_grant_unheld_permission',

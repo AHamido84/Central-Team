@@ -24,11 +24,11 @@
     },
     "message_new": {
       "title": "رسالة جديدة من {actor}",
-      "body": "في «{thread}»: {preview}"
+      "body": "في «⁨{thread}⁩»: {preview}"
     },
     "mention": {
       "title": "أشار إليك {actor}",
-      "body": "في «{thread}»: {preview}"
+      "body": "في «⁨{thread}⁩»: {preview}"
     },
     "file_shared": {
       "title": "ملف جديد: {file}",
@@ -36,7 +36,7 @@
     },
     "file_uploaded_by_client": {
       "title": "رفع {client} ملفًا",
-      "body": "رفع {actor} الملف «{file}»."
+      "body": "رفع {actor} الملف «⁨{file}⁩»."
     }
   }
 }

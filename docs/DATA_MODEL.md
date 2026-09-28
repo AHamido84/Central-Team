@@ -325,6 +325,131 @@ permissions that they themselves hold; Super Admin is exempt. Enforced by a trig
 client owner, client viewer, other-org user, anon) assert allowed and denied `select/insert/update/delete`.
 Plus a meta-test: every table in `public`/`app` schemas has RLS enabled and ≥ 1 policy.
 
+## 3b. Phase 1 — client portal entities
+
+```mermaid
+erDiagram
+  clients ||--o| client_notes : "internal notes"
+  clients ||--o{ client_users : "portal users"
+  roles ||--o{ client_users : "client role"
+  clients ||--o{ client_assignments : "agency staff"
+  profiles ||--o{ clients : "account manager"
+  packages ||--o{ package_items : ""
+  packages ||--o{ client_packages : ""
+  clients ||--o{ client_packages : "per period"
+  client_packages ||--o{ package_usage_entries : "usage ledger"
+  clients ||--o{ file_folders : ""
+  file_folders ||--o{ files : ""
+  clients ||--o{ threads : ""
+  threads ||--o{ comments : ""
+  comments ||--o{ comment_attachments : ""
+  files ||--o{ comment_attachments : ""
+  threads ||--o{ thread_reads : "read receipts"
+
+  clients {
+    uuid id PK
+    jsonb name "LocalizedText"
+    text slug "unique per org"
+    text industry
+    text city
+    text website
+    jsonb social "instagram, x, tiktok, snapchat, linkedin, youtube"
+    text status "onboarding | active | paused | archived"
+    text logo_path
+    uuid account_manager_id FK
+    date start_date
+  }
+  client_notes {
+    uuid client_id PK
+    text body "agency-only via RLS"
+  }
+  client_users {
+    uuid id PK
+    uuid client_id FK
+    uuid user_id FK
+    uuid role_id FK "client_owner | client_member | client_viewer"
+    bool can_approve
+    text status "active | deactivated"
+  }
+  packages {
+    uuid id PK
+    jsonb name
+    int price_minor "halalas per month"
+  }
+  package_items {
+    uuid package_id FK
+    text item_type "post, reel, story, video, photo_shoot, ad_campaign, revision_round"
+    int quantity
+  }
+  client_packages {
+    uuid id PK
+    uuid client_id FK
+    uuid package_id FK
+    date period_start
+    date period_end
+  }
+  package_usage_entries {
+    uuid id PK
+    uuid client_package_id FK
+    text item_type
+    int quantity
+    text source_type "deliverable, revision, manual"
+    uuid source_id
+  }
+  file_folders {
+    uuid id PK
+    uuid client_id FK
+    uuid parent_id FK
+    text kind "month | project | type | brand | custom"
+    text visibility "internal | client"
+  }
+  files {
+    uuid id PK
+    uuid client_id FK
+    uuid folder_id FK
+    text storage_path
+    text kind "image | video | pdf | document | archive | other"
+    text visibility "internal | client"
+    text source "library | attachment"
+    text uploader_side "agency | client"
+  }
+  threads {
+    uuid id PK
+    uuid client_id FK
+    text subject_type "client | request | deliverable"
+    uuid subject_id "polymorphic"
+    text visibility "internal | client"
+  }
+  comments {
+    uuid id PK
+    uuid thread_id FK
+    text author_side "agency | client"
+    text body
+    text visibility "internal | client"
+    uuid_array mentions
+  }
+```
+
+**Client roles live on `client_users.role_id`** (ADR-018): a client user's role is scoped to one client, and a person
+could belong to several clients with different roles. `user_roles` stays agency-only.
+
+**Package usage** is a ledger (`package_usage_entries`) rather than counters: Phase 3 deliverables and revision rounds
+append rows with `source_type/source_id`, and `getPackageUsage()` sums them per item type for the current period.
+
+**Visibility rules** (enforced by RLS, not only by queries):
+
+| Item | Agency staff with access to the client | Client users of that client |
+|---|---|---|
+| `files` / `file_folders` with `visibility = 'client'` | ✅ | ✅ (not soft-deleted; parent folder also client-visible) |
+| `files` / `file_folders` with `visibility = 'internal'` | ✅ | ❌ |
+| `threads` with `visibility = 'internal'` | ✅ | ❌ |
+| `comments` with `visibility = 'internal'` (internal notes inside a client thread) | ✅ | ❌ |
+| `client_notes` | ✅ | ❌ |
+| Writing files / messages | `files:upload`, `messages:send` | `portal_files:upload`, `portal_messages:send` (Viewer has neither) |
+
+Triggers force every client-scoped row to carry its client's `organization_id`, and force comments in an internal
+thread to be internal, so a crafted request can't leak data across tenants or visibility levels.
+
 ## 4. Forward-looking sketch (all phases — not built in Phase 0)
 
 ```mermaid

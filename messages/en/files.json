@@ -1,1 +1,47 @@
-{}
+{
+  "title": "Files",
+  "description": "All your account's files in one place: brand assets, designs and reports.",
+  "folderCreated": "Folder created.",
+  "newFolder": "New folder",
+  "folderKind": "Folder type",
+  "kinds": {
+    "month": "Monthly",
+    "project": "Project",
+    "type": "By type",
+    "brand": "Brand assets",
+    "custom": "Custom"
+  },
+  "visibility": "Visibility",
+  "visibilityHint": "Internal items are never shown to the client.",
+  "deleted": "File deleted.",
+  "preview": "Preview",
+  "makeInternal": "Make internal",
+  "shareWithClient": "Share with client",
+  "moveTo": "Move to",
+  "dropHere": "Drop files to upload to “⁨{folder}⁩”",
+  "allFiles": "All files",
+  "folders": "Folders",
+  "fileCount": "{count, plural, =0 {No files} one {# file} other {# files}}",
+  "searchPlaceholder": "Search by file name…",
+  "filters": {
+    "all": "All",
+    "image": "Images",
+    "video": "Video",
+    "pdf": "PDF",
+    "document": "Documents"
+  },
+  "listView": "List view",
+  "gridView": "Grid view",
+  "upload": "Upload files",
+  "clientUploadHint": "Files you upload are saved to “⁨{folder}⁩” and the agency team sees them right away.",
+  "emptyTitle": "No files here yet",
+  "emptyUpload": "Drag and drop files here, or use the upload button.",
+  "emptyReadOnly": "Files the agency shares with you will appear here.",
+  "fromClient": "From client",
+  "deleteTitle": "Delete this file?",
+  "deleteBody": "“⁨{name}⁩” will be permanently removed from storage.",
+  "previewFailed": "We couldn't preview this file.",
+  "noPreview": "No preview is available for this file type.",
+  "recentFiles": "Recent files",
+  "noRecentFiles": "No shared files yet"
+}

@@ -24,11 +24,11 @@
     },
     "message_new": {
       "title": "New message from {actor}",
-      "body": "In “{thread}”: {preview}"
+      "body": "In “⁨{thread}⁩”: {preview}"
     },
     "mention": {
       "title": "{actor} mentioned you",
-      "body": "In “{thread}”: {preview}"
+      "body": "In “⁨{thread}⁩”: {preview}"
     },
     "file_shared": {
       "title": "New file: {file}",
@@ -36,7 +36,7 @@
     },
     "file_uploaded_by_client": {
       "title": "{client} uploaded a file",
-      "body": "{actor} uploaded “{file}”."
+      "body": "{actor} uploaded “⁨{file}⁩”."
     }
   }
 }

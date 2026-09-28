@@ -1,1 +1,45 @@
-{}
+{
+  "heroBody": "هذه مساحة {client} مع {agency}: ملفاتك ورسائلك وتقدّم باقتك في مكان واحد.",
+  "sendMessage": "راسل الفريق",
+  "uploadFiles": "ارفع ملفات",
+  "waitingApproval": "بانتظار اعتمادك",
+  "approvalsSoonTitle": "الاعتمادات قادمة قريبًا",
+  "approvalsSoonBody": "ستعتمد التصاميم والمحتوى من هنا بنقرة واحدة. حتى ذلك الحين، يرسلها فريقك في الرسائل.",
+  "noApprovals": "لا شيء بانتظار اعتمادك",
+  "noApprovalsBody": "سنبلغك فور وصول عمل جديد للمراجعة.",
+  "activeRequests": "الطلبات الجارية",
+  "requestsSoonTitle": "الطلبات قادمة قريبًا",
+  "requestsSoonBody": "ستتمكن من رفع طلباتك ومتابعة حالتها من هنا. حاليًا، أرسل طلبك في الرسائل.",
+  "noRequests": "لا طلبات جارية",
+  "noRequestsBody": "أرسل طلبًا جديدًا وسنتابعه معك خطوة بخطوة.",
+  "messageInstead": "أرسل رسالة",
+  "yourPackage": "باقتك",
+  "yourAccountManager": "مدير حسابك",
+  "recentActivity": "آخر المستجدات",
+  "noActivity": "لا مستجدات بعد",
+  "activityFile": "شارك <b>{file}</b>",
+  "activityMessage": "كتب في <b>{thread}</b>",
+  "company": {
+    "title": "الشركة",
+    "description": "ملف {client} وفريقها في البوابة.",
+    "profileTab": "ملف الشركة",
+    "teamTab": "الفريق"
+  },
+  "upcoming": {
+    "requests": {
+      "title": "الطلبات قادمة قريبًا",
+      "description": "ارفع طلباتك وتابع حالتها.",
+      "body": "نعمل على إتاحة نماذج الطلبات ومتابعتها لحظة بلحظة."
+    },
+    "approvals": {
+      "title": "الاعتمادات قادمة قريبًا",
+      "description": "راجع واعتمد التصاميم والمحتوى.",
+      "body": "قريبًا ستعتمد الأعمال وتطلب التعديلات من مكان واحد."
+    },
+    "calendar": {
+      "title": "التقويم قادم قريبًا",
+      "description": "مواعيد النشر والتسليم.",
+      "body": "سترى هنا جدول النشر ومواعيد التسليم لكل حملة."
+    }
+  }
+}

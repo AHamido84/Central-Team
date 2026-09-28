@@ -1,1 +1,45 @@
-{}
+{
+  "heroBody": "This is {client}'s space with {agency}: your files, messages and package progress in one place.",
+  "sendMessage": "Message the team",
+  "uploadFiles": "Upload files",
+  "waitingApproval": "Waiting for your approval",
+  "approvalsSoonTitle": "Approvals are coming soon",
+  "approvalsSoonBody": "You'll approve designs and content here in one click. Until then, the team shares them in messages.",
+  "noApprovals": "Nothing waiting for your approval",
+  "noApprovalsBody": "We'll let you know as soon as new work is ready for review.",
+  "activeRequests": "Active requests",
+  "requestsSoonTitle": "Requests are coming soon",
+  "requestsSoonBody": "You'll submit requests and track their status here. For now, send your request in messages.",
+  "noRequests": "No active requests",
+  "noRequestsBody": "Send a new request and we'll follow it through with you.",
+  "messageInstead": "Send a message",
+  "yourPackage": "Your package",
+  "yourAccountManager": "Your account manager",
+  "recentActivity": "Latest updates",
+  "noActivity": "No updates yet",
+  "activityFile": "shared <b>{file}</b>",
+  "activityMessage": "wrote in <b>{thread}</b>",
+  "company": {
+    "title": "Company",
+    "description": "{client}'s profile and portal team.",
+    "profileTab": "Company profile",
+    "teamTab": "Team"
+  },
+  "upcoming": {
+    "requests": {
+      "title": "Requests are coming soon",
+      "description": "Submit requests and track their status.",
+      "body": "We're building request forms with live status tracking."
+    },
+    "approvals": {
+      "title": "Approvals are coming soon",
+      "description": "Review and approve designs and content.",
+      "body": "Soon you'll approve work and request changes in one place."
+    },
+    "calendar": {
+      "title": "The calendar is coming soon",
+      "description": "Publishing and delivery dates.",
+      "body": "You'll see the publishing schedule and delivery dates for each campaign here."
+    }
+  }
+}

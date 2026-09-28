@@ -63,7 +63,8 @@
     "deactivateTitle": "تعطيل حساب {name}؟",
     "reactivateTitle": "إعادة تفعيل {name}؟",
     "deactivateBody": "لن يتمكن من تسجيل الدخول حتى تعيد تفعيله.",
-    "reactivateBody": "سيتمكن من تسجيل الدخول مجددًا."
+    "reactivateBody": "سيتمكن من تسجيل الدخول مجددًا.",
+    "expiresIn": "تنتهي {when}"
   },
   "roles": {
     "title": "الأدوار والصلاحيات",
@@ -90,7 +91,7 @@
     "rolesTab": "الأدوار",
     "matrixTab": "مصفوفة الصلاحيات",
     "deleteTitle": "حذف الدور؟",
-    "deleteBody": "سيُحذف الدور «{name}» نهائيًا."
+    "deleteBody": "سيُحذف الدور «⁨{name}⁩» نهائيًا."
   },
   "departments": {
     "title": "الأقسام",
