@@ -6,14 +6,11 @@ import { z } from 'zod';
 import { defineAction } from '@/lib/actions/define-action';
 import { ActionFailure } from '@/lib/actions/errors';
 import type { AppContext } from '@/lib/auth/context';
-import { dbAdmin } from '@/lib/db/client';
-import { clientAssignments, clientUsers, clients, fileFolders, files, threads } from '@/lib/db/schema';
+import { clients, fileFolders, files, threads } from '@/lib/db/schema';
 import { emitEvent } from '@/lib/events/emit';
-import { localized } from '@/lib/i18n/localized';
 import { can } from '@/lib/permissions/can';
 import { CLIENT_FILES_BUCKET, classifyUpload, storagePaths } from '@/lib/storage';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { notify } from '@/modules/notifications/server/notify';
 
 const nameSchema = z
   .string()
@@ -30,6 +27,8 @@ const uploadSchema = z.object({
   mimeType: z.string().min(3).max(120),
   size: z.number().int().positive(),
   visibility: z.enum(['internal', 'client']),
+  /** A file attached to a request being filled in (linked by `submitRequestAction`). */
+  forRequest: z.boolean().optional(),
 });
 
 function uploadRightsFor(ctx: AppContext, clientId: string, visibility: 'internal' | 'client') {
@@ -42,6 +41,7 @@ function uploadRightsFor(ctx: AppContext, clientId: string, visibility: 'interna
 }
 
 function expectedPath(orgId: string, input: z.infer<typeof uploadSchema> & { fileId: string }) {
+  if (input.forRequest) return storagePaths.requestAttachment(orgId, input.clientId, input.fileId, input.name);
   return input.threadId
     ? storagePaths.attachment(orgId, input.clientId, input.threadId, input.fileId, input.name)
     : storagePaths.clientFile(orgId, input.clientId, input.folderId, input.fileId, input.name);
@@ -105,14 +105,14 @@ export const finalizeFileUploadAction = defineAction({
       id: input.fileId,
       organizationId: ctx.organization.id,
       clientId: input.clientId,
-      folderId: input.threadId ? null : input.folderId,
+      folderId: input.threadId || input.forRequest ? null : input.folderId,
       name: input.name,
       storagePath: path,
       mimeType: input.mimeType,
       sizeBytes: actualSize,
       kind: rule.kind,
       visibility: rights.visibility,
-      source: input.threadId ? 'attachment' : 'library',
+      source: input.threadId || input.forRequest ? 'attachment' : 'library',
       uploadedBy: ctx.session.userId,
       uploaderSide: rights.side,
     });
@@ -124,41 +124,13 @@ export const finalizeFileUploadAction = defineAction({
       clientId: input.clientId,
       payload: { fileId: input.fileId, clientId: input.clientId, visibility: rights.visibility, name: input.name },
     });
-    return { fileId: input.fileId, eventId, side: rights.side, visibility: rights.visibility, isAttachment: Boolean(input.threadId) };
-  },
-  async after({ input, result, ctx }) {
-    if (result.isAttachment || result.visibility !== 'client') return;
-    const [client] = await dbAdmin.select().from(clients).where(eq(clients.id, input.clientId));
-    if (!client) return;
-    if (result.side === 'agency') {
-      const recipients = await dbAdmin
-        .select({ userId: clientUsers.userId })
-        .from(clientUsers)
-        .where(and(eq(clientUsers.clientId, input.clientId), eq(clientUsers.status, 'active')));
-      await notify({
-        organizationId: ctx.organization.id,
-        userIds: recipients.map((r) => r.userId),
-        type: 'file_shared',
-        params: { file: input.name, actor: ctx.profile.fullName },
-        link: input.folderId ? `/portal/files?folder=${input.folderId}` : '/portal/files',
-        actorId: ctx.session.userId,
-        eventId: result.eventId,
-      });
-    } else {
-      const team = await dbAdmin
-        .select({ userId: clientAssignments.userId })
-        .from(clientAssignments)
-        .where(eq(clientAssignments.clientId, input.clientId));
-      await notify({
-        organizationId: ctx.organization.id,
-        userIds: [client.accountManagerId, ...team.map((m) => m.userId)].filter(Boolean) as string[],
-        type: 'file_uploaded_by_client',
-        params: { file: input.name, actor: ctx.profile.fullName, client: localized(client.name, 'ar') || localized(client.name, 'en') },
-        link: `/clients/${input.clientId}?tab=files`,
-        actorId: ctx.session.userId,
-        eventId: result.eventId,
-      });
-    }
+    return {
+      fileId: input.fileId,
+      eventId,
+      side: rights.side,
+      visibility: rights.visibility,
+      isAttachment: Boolean(input.threadId || input.forRequest),
+    };
   },
   revalidate: (input) => [`/clients/${input.clientId}`, '/portal/files', '/portal'],
 });

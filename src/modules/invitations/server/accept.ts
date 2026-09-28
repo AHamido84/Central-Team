@@ -19,12 +19,12 @@ import {
 } from '@/lib/db/schema';
 import { LOCALE_COOKIE } from '@/i18n/request';
 import type { LocalizedText } from '@/lib/i18n/localized';
+import { scheduleEventDispatch } from '@/lib/events/schedule';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { password as passwordSchema, requiredText } from '@/lib/validation';
 import { hashInvitationToken } from '@/modules/invitations/server/tokens';
-import { notify } from '@/modules/notifications/server/notify';
 
 export type InvitationPreview =
   | {
@@ -203,16 +203,7 @@ export async function acceptInvitationAction(input: z.input<typeof acceptSchema>
     });
   });
 
-  if (invitation.invitedBy) {
-    await notify({
-      organizationId: invitation.organizationId,
-      userIds: [invitation.invitedBy],
-      type: 'invitation_accepted',
-      params: { name: fullName },
-      link: invitation.userType === 'client' && invitation.clientId ? `/clients/${invitation.clientId}?tab=users` : '/admin/users',
-      actorId: acceptedUserId,
-    }).catch((error) => console.error('[invitation.accept] notify failed', error));
-  }
+  scheduleEventDispatch();
 
   const supabase = await createSupabaseServerClient();
   const { error: signInError } = await supabase.auth.signInWithPassword({ email: invitation.email, password });

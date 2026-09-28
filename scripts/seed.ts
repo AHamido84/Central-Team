@@ -16,6 +16,7 @@ import postgres from 'postgres';
 import * as schema from '../src/lib/db/schema';
 import { hashInvitationToken } from '../src/modules/invitations/server/tokens';
 import { artworkPng, simplePdf } from './seed-assets';
+import { seedRequestsData } from './seed-requests';
 
 config({ path: '.env.local' });
 
@@ -434,6 +435,7 @@ async function main() {
   const deptId = (key: string) => deptRows.find((d) => d.key === key)!.id;
 
   const ids: Record<string, string> = {};
+  const clientIds: Record<string, string> = {};
 
   // --- Agency team ---------------------------------------------------------
   for (const [i, s] of staff.entries()) {
@@ -509,6 +511,7 @@ async function main() {
       })
       .returning();
     const clientId = clientRow!.id;
+    clientIds[c.slug] = clientId;
     await db.insert(schema.clientNotes).values({
       clientId,
       organizationId: ORG_ID,
@@ -822,6 +825,8 @@ async function main() {
     ]);
   }
 
+  await seedRequests(ids, clientIds);
+
   // --- Invitations (pending + expired) --------------------------------------
   await db.insert(schema.invitations).values([
     {
@@ -881,6 +886,18 @@ async function main() {
     .from(schema.clients)
     .where(and(eq(schema.clients.organizationId, ORG_ID)));
   console.info(`✓ Seeded ${usersCount?.count} users, ${clientsCount?.n} clients. Password for every account: ${SEED_PASSWORD}`);
+}
+
+async function seedRequests(ids: Record<string, string>, clientIds: Record<string, string>) {
+  await seedRequestsData({
+    db,
+    ids,
+    clientIds,
+    orgId: ORG_ID,
+    upload,
+    clients: clientSeeds,
+    staffNames: Object.fromEntries(staff.map((s) => [s.key, s.name])),
+  });
 }
 
 main()

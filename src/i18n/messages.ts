@@ -18,6 +18,7 @@ export const namespaces = [
   'files',
   'messaging',
   'portal',
+  'requests',
 ] as const;
 
 export type Namespace = (typeof namespaces)[number];

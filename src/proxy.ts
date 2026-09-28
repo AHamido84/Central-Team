@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { readAppClaims } from '@/lib/auth/claims';
 
 /** Routes reachable without a session. */
-const PUBLIC_PREFIXES = ['/login', '/forgot-password', '/auth/', '/invite/', '/api/health'];
+const PUBLIC_PREFIXES = ['/login', '/forgot-password', '/auth/', '/invite/', '/api/health', '/api/cron/'];
 /** Routes a signed-in user should not see (they bounce to their home). */
 const GUEST_ONLY = ['/login', '/forgot-password'];
 /** Routes available to any signed-in user regardless of side / onboarding state. */

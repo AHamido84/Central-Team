@@ -37,6 +37,18 @@
     "file_uploaded_by_client": {
       "title": "رفع {client} ملفًا",
       "body": "رفع {actor} الملف «⁨{file}⁩»."
+    },
+    "request_submitted": {
+      "title": "طلب جديد من ⁨{client}⁩",
+      "body": "قدّم {actor} الطلب {number}: “⁨{title}⁩”."
+    },
+    "request_assigned": {
+      "title": "أُسند إليك الطلب {number}",
+      "body": "أسند {actor} إليك “⁨{title}⁩” لـ ⁨{client}⁩."
+    },
+    "request_status_changed": {
+      "title": "تحديث على الطلب {number}",
+      "body": "أصبحت حالة “⁨{title}⁩”: {status, select, submitted {مُقدَّم} in_review {قيد المراجعة} in_progress {قيد التنفيذ} waiting_client {بانتظار ردّك} completed {مكتمل} declined {معتذَر عنه} cancelled {ملغى} other {محدَّث}}."
     }
   }
 }

@@ -32,6 +32,8 @@ const segmentKeys: Record<string, string> = {
   notifications: 'nav.inbox',
   clients: 'nav.clients',
   messages: 'nav.messages',
+  requests: 'nav.requests',
+  'request-forms': 'nav.requestForms',
   admin: 'nav.sectionAdmin',
   users: 'nav.users',
   roles: 'nav.roles',

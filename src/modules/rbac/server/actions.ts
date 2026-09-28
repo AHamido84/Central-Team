@@ -8,7 +8,6 @@ import { ActionFailure } from '@/lib/actions/errors';
 import { organizationMembers, rolePermissions, roles, userPermissionOverrides, userRoles } from '@/lib/db/schema';
 import { emitEvent } from '@/lib/events/emit';
 import { localizedText, optionalText } from '@/lib/validation';
-import { notify } from '@/modules/notifications/server/notify';
 
 /* -------------------------------------------------------------------------- */
 /* Members                                                                    */
@@ -44,17 +43,6 @@ export const setMemberRolesAction = defineAction({
       payload: { userId: input.userId, added, removed },
     });
     return { changed: added.length + removed.length > 0 };
-  },
-  async after({ input, result, ctx }) {
-    if (!result.changed) return;
-    await notify({
-      organizationId: ctx.organization.id,
-      userIds: [input.userId],
-      type: 'roles_changed',
-      params: { actor: ctx.profile.fullName },
-      link: '/dashboard',
-      actorId: ctx.session.userId,
-    });
   },
   revalidate: ['/admin/users', '/admin/roles'],
 });

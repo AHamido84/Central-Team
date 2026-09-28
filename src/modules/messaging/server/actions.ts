@@ -6,13 +6,11 @@ import { z } from 'zod';
 import { defineAction } from '@/lib/actions/define-action';
 import { ActionFailure } from '@/lib/actions/errors';
 import type { AppContext } from '@/lib/auth/context';
-import { dbAdmin } from '@/lib/db/client';
-import { clientAssignments, clientUsers, clients, commentAttachments, comments, files, threadReads, threads } from '@/lib/db/schema';
+import { commentAttachments, comments, files, threadReads, threads } from '@/lib/db/schema';
 import { emitEvent } from '@/lib/events/emit';
 import { can } from '@/lib/permissions/can';
-import { extractMentionIds, preview } from '@/modules/messaging/mentions';
+import { extractMentionIds } from '@/modules/messaging/mentions';
 import { getThread, type ThreadDetail } from '@/modules/messaging/server/queries';
-import { notify } from '@/modules/notifications/server/notify';
 
 function writeSide(ctx: AppContext, clientId: string, visibility: 'internal' | 'client') {
   if (ctx.side === 'agency') {
@@ -21,34 +19,6 @@ function writeSide(ctx: AppContext, clientId: string, visibility: 'internal' | '
   }
   if (ctx.client.id !== clientId || !can(ctx.permissions, 'portal_messages:send')) throw new ActionFailure('forbidden');
   return { side: 'client' as const, visibility: 'client' as const };
-}
-
-/** Everyone who should hear about activity in a thread, split by side. Computed server-side from the DB. */
-async function audienceFor(clientId: string, threadId: string, visibility: 'internal' | 'client') {
-  const [client] = await dbAdmin.select({ am: clients.accountManagerId, name: clients.name }).from(clients).where(eq(clients.id, clientId));
-  const team = await dbAdmin
-    .select({ userId: clientAssignments.userId })
-    .from(clientAssignments)
-    .where(eq(clientAssignments.clientId, clientId));
-  const commenters = await dbAdmin
-    .selectDistinct({ userId: comments.authorId, side: comments.authorSide })
-    .from(comments)
-    .where(eq(comments.threadId, threadId));
-  const agency = new Set<string>(
-    [client?.am, ...team.map((t) => t.userId), ...commenters.filter((c) => c.side === 'agency').map((c) => c.userId)].filter(
-      Boolean,
-    ) as string[],
-  );
-  const clientSide =
-    visibility === 'client'
-      ? (
-          await dbAdmin
-            .select({ userId: clientUsers.userId })
-            .from(clientUsers)
-            .where(and(eq(clientUsers.clientId, clientId), eq(clientUsers.status, 'active')))
-        ).map((u) => u.userId)
-      : [];
-  return { agency: [...agency], client: clientSide };
 }
 
 const bodySchema = z.string().trim().min(1, { message: 'required' }).max(10000, { message: 'too_long' });
@@ -105,9 +75,6 @@ export const createThreadAction = defineAction({
       payload: { commentId, threadId, clientId: input.clientId, visibility: rights.visibility, mentions },
     });
     return { threadId, commentId, eventId, side: rights.side, visibility: rights.visibility, mentions };
-  },
-  async after({ input, result, ctx }) {
-    await fanOut(ctx, { ...result, clientId: input.clientId, threadTitle: input.title, body: input.body });
   },
   revalidate: (input) => [`/clients/${input.clientId}`, '/messages', '/portal/messages'],
 });
@@ -182,80 +149,7 @@ export const postCommentAction = defineAction({
       mentions,
     };
   },
-  async after({ input, result, ctx }) {
-    await fanOut(ctx, { ...result, threadId: input.threadId, body: input.body });
-  },
 });
-
-async function fanOut(
-  ctx: AppContext,
-  e: {
-    clientId: string;
-    threadId: string;
-    threadTitle: string;
-    body: string;
-    side: 'agency' | 'client';
-    visibility: 'internal' | 'client';
-    mentions: string[];
-    eventId: string;
-  },
-) {
-  const audience = await audienceFor(e.clientId, e.threadId, e.visibility);
-  // Mentions only reach people who can actually see the message.
-  const visible = new Set([...audience.agency, ...audience.client]);
-  const mentioned = e.mentions.filter((id) => visible.has(id) && id !== ctx.session.userId);
-  const params = { actor: ctx.profile.fullName, thread: e.threadTitle, preview: preview(e.body, 90) };
-  const quote = preview(e.body, 600);
-  const links = { agency: `/messages?thread=${e.threadId}`, client: `/portal/messages?thread=${e.threadId}` };
-  const clientSet = new Set(audience.client);
-  const mentionedAgency = mentioned.filter((id) => !clientSet.has(id));
-  const mentionedClient = mentioned.filter((id) => clientSet.has(id));
-  await Promise.all(
-    (
-      [
-        [mentionedAgency, links.agency],
-        [mentionedClient, links.client],
-      ] as const
-    ).map(([userIds, link]) =>
-      notify({
-        organizationId: ctx.organization.id,
-        userIds,
-        type: 'mention',
-        params,
-        link,
-        actorId: ctx.session.userId,
-        eventId: e.eventId,
-        quote,
-      }),
-    ),
-  );
-  const others = (ids: string[]) => ids.filter((id) => !mentioned.includes(id));
-  // Client authors notify the agency team; agency authors notify the client (and teammates on internal notes).
-  const agencyRecipients = others(audience.agency);
-  const clientRecipients = e.side === 'agency' ? others(audience.client) : [];
-  await Promise.all([
-    notify({
-      organizationId: ctx.organization.id,
-      userIds: agencyRecipients,
-      type: 'message_new',
-      params,
-      link: links.agency,
-      actorId: ctx.session.userId,
-      eventId: e.eventId,
-      quote,
-    }),
-    notify({
-      organizationId: ctx.organization.id,
-      userIds: clientRecipients,
-      type: 'message_new',
-      params,
-      link: links.client,
-      actorId: ctx.session.userId,
-      eventId: e.eventId,
-      quote,
-    }),
-  ]);
-}
 
 export const markThreadReadAction = defineAction({
   input: z.object({ threadId: z.uuid() }),

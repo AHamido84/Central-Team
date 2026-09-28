@@ -7,6 +7,7 @@ import { ActionFailure, toActionError, type ActionResult } from '@/lib/actions/e
 import { getAppContext, type AgencyContext, type AppContext, type ClientContext } from '@/lib/auth/context';
 import type { Tx } from '@/lib/db/client';
 import { withRls } from '@/lib/db/rls';
+import { scheduleEventDispatch } from '@/lib/events/schedule';
 import { can } from '@/lib/permissions/can';
 import type { Permission } from '@/lib/permissions/catalog';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -20,14 +21,14 @@ type ActionConfig<S extends z.ZodType, T, Side extends keyof SideContext> = {
   permission?: Permission | ((input: z.infer<S>) => Permission | null);
   rateLimit?: { key: string; max: number; windowSeconds: number };
   handler: (args: { input: z.infer<S>; tx: Tx; ctx: SideContext[Side] }) => Promise<T>;
-  /** Runs after commit (emails, notification fan-out). Failures are logged, never surfaced. */
+  /** Runs after commit (e.g. transactional emails). Failures are logged, never surfaced. Notification fan-out belongs in event consumers. */
   after?: (args: { input: z.infer<S>; result: T; ctx: SideContext[Side] }) => Promise<void>;
   revalidate?: string[] | ((input: z.infer<S>, result: T) => string[]);
 };
 
 /**
  * The only way to write a mutation (CLAUDE.md §6): validate → authenticate → side check →
- * can() → RLS transaction → commit → after hooks → revalidate → typed Result.
+ * can() → RLS transaction → commit → event dispatch (scheduled) → after hooks → revalidate → typed Result.
  */
 export function defineAction<S extends z.ZodType, T, Side extends keyof SideContext>(config: ActionConfig<S, T, Side>) {
   return async (raw: z.input<S>): Promise<ActionResult<T>> => {
@@ -58,6 +59,8 @@ export function defineAction<S extends z.ZodType, T, Side extends keyof SideCont
       }
 
       const result = await withRls((tx) => config.handler({ input, tx, ctx: typedCtx }), ctx.session);
+      // Committed: consumers (notifications, …) react to the events the handler emitted.
+      scheduleEventDispatch();
 
       if (config.after) {
         try {

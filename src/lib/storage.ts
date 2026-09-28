@@ -38,6 +38,9 @@ export const storagePaths = {
   /** org/<org>/clients/<client>/threads/<thread>/<fileId>-<slug> */
   attachment: (orgId: string, clientId: string, threadId: string, fileId: string, name: string) =>
     `org/${orgId}/clients/${clientId}/threads/${threadId}/${fileId}-${slugifyFileName(name)}`,
+  /** org/<org>/clients/<client>/requests/<fileId>-<slug> — attached while filling in a request, linked on submit. */
+  requestAttachment: (orgId: string, clientId: string, fileId: string, name: string) =>
+    `org/${orgId}/clients/${clientId}/requests/${fileId}-${slugifyFileName(name)}`,
 };
 
 export type FileKind = 'image' | 'video' | 'pdf' | 'document' | 'archive' | 'other';

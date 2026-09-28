@@ -21,7 +21,10 @@ export type ThreadSummary = {
   unread: number;
 };
 
-/** Threads visible to the caller (RLS), newest activity first, with unread counts for the caller. */
+/**
+ * General conversation threads visible to the caller (RLS), newest activity first, with unread counts.
+ * Request conversations (`subject_type = 'request'`) live on their request page instead.
+ */
 export async function listThreads(opts: { clientId?: string; limit?: number } = {}): Promise<ThreadSummary[]> {
   return withRls(async (tx) => {
     const rows = await tx
@@ -42,7 +45,13 @@ export async function listThreads(opts: { clientId?: string; limit?: number } = 
       })
       .from(threads)
       .innerJoin(clients, eq(clients.id, threads.clientId))
-      .where(and(opts.clientId ? eq(threads.clientId, opts.clientId) : undefined, sql`${threads.archivedAt} is null`))
+      .where(
+        and(
+          opts.clientId ? eq(threads.clientId, opts.clientId) : undefined,
+          eq(threads.subjectType, 'client'),
+          sql`${threads.archivedAt} is null`,
+        ),
+      )
       .orderBy(desc(threads.lastCommentAt))
       .limit(opts.limit ?? 200);
     return rows.map((r) => ({

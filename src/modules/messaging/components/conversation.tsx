@@ -75,7 +75,8 @@ export function Conversation({
   me: { userId: string };
   side: 'agency' | 'client';
   canWrite: boolean;
-  backHref: string;
+  /** Mobile "back to list" link; omitted when the conversation is embedded (e.g. on a request page). */
+  backHref?: string;
 }) {
   const t = useTranslations('messaging');
   const f = useFormat();
@@ -93,7 +94,7 @@ export function Conversation({
     },
   });
   const [preview, setPreview] = useState<FileItem | null>(null);
-  const bottom = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
   const post = useAction(postCommentAction, { refresh: false });
 
   // Realtime: new comments / read receipts in this thread (RLS filters what each user receives).
@@ -123,7 +124,9 @@ export function Conversation({
   useEffect(() => {
     // Refresh server data (thread list unread counts) after recording the read receipt.
     void markThreadReadAction({ threadId }).then(() => router.refresh());
-    bottom.current?.scrollIntoView({ block: 'end' });
+    // Scroll the message list only — never the page (the conversation can be embedded, e.g. on a request page).
+    const el = scroller.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [threadId, lastId, router]);
 
   const send = async (payload: { body: string; internal: boolean; attachmentIds: string[] }) => {
@@ -150,11 +153,13 @@ export function Conversation({
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="conversation">
       <header className="flex items-center gap-3 border-b border-border px-4 py-3">
-        <Button asChild variant="ghost" size="icon-sm" className="md:hidden" aria-label={t('backToList')}>
-          <Link href={backHref}>
-            <DirIcon icon={ArrowLeft} />
-          </Link>
-        </Button>
+        {backHref ? (
+          <Button asChild variant="ghost" size="icon-sm" className="md:hidden" aria-label={t('backToList')}>
+            <Link href={backHref}>
+              <DirIcon icon={ArrowLeft} />
+            </Link>
+          </Button>
+        ) : null}
         <div className="min-w-0 flex-1">
           <h2 className="flex items-center gap-2 truncate font-semibold">
             {data.thread.title}
@@ -170,7 +175,7 @@ export function Conversation({
         <AvatarGroup size="xs" max={5} people={others.map((p) => ({ id: p.userId, name: p.name, src: publicAssetUrl(p.avatarPath) }))} />
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4" aria-live="polite">
+      <div ref={scroller} className="flex-1 overflow-y-auto px-4 py-4" aria-live="polite">
         {data.comments.length === 0 ? (
           <EmptyState icon={MessagesSquare} title={t('emptyThread')} description={t('emptyThreadBody')} />
         ) : (
@@ -239,7 +244,6 @@ export function Conversation({
             {t('seenBy', { names: f.list(seenBy.map((s) => s.name)) })}
           </p>
         ) : null}
-        <div ref={bottom} />
       </div>
 
       <div className="border-t border-border p-3">

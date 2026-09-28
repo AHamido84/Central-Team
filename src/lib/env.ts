@@ -13,6 +13,8 @@ const serverSchema = z.object({
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),
   RESEND_API_KEY: z.string().optional(),
+  /** Bearer secret for /api/cron/* (the event dispatcher safety net). */
+  CRON_SECRET: z.string().min(16).optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;

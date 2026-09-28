@@ -37,6 +37,18 @@
     "file_uploaded_by_client": {
       "title": "{client} uploaded a file",
       "body": "{actor} uploaded “⁨{file}⁩”."
+    },
+    "request_submitted": {
+      "title": "New request from {client}",
+      "body": "{actor} submitted {number}: “⁨{title}⁩”."
+    },
+    "request_assigned": {
+      "title": "{number} was assigned to you",
+      "body": "{actor} assigned you “⁨{title}⁩” for {client}."
+    },
+    "request_status_changed": {
+      "title": "Update on {number}",
+      "body": "“⁨{title}⁩” {status, select, submitted {was resubmitted} in_review {is in review} in_progress {is in progress} waiting_client {is waiting for your reply} completed {is completed} declined {was declined} cancelled {was cancelled} other {was updated}}."
     }
   }
 }

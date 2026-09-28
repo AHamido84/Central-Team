@@ -21,5 +21,10 @@
   "weak_password": "That password is too weak.",
   "invalid_credentials": "Incorrect email or password.",
   "unknown": "Something unexpected happened. Please try again.",
-  "last_client_owner": "The company must keep at least one active owner."
+  "last_client_owner": "The company must keep at least one active owner.",
+  "invalid_transition": "The request can't move to that status from its current one.",
+  "invalid_assignee": "The request can't be assigned to this person.",
+  "form_not_published": "This form isn't published right now. Refresh and pick an available form.",
+  "form_version_published": "A published form version can't be changed.",
+  "request_field_restricted": "You can't change this part of the request."
 }

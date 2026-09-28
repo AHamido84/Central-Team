@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { bigserial, boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { createdAt, id } from '@/lib/db/columns';
@@ -36,8 +37,18 @@ export const domainEventDeliveries = pgTable(
     processedAt: timestamp('processed_at', { withTimezone: true }),
     attempts: integer('attempts').notNull().default(0),
     lastError: text('last_error'),
+    /** Earliest time the next attempt may run (exponential backoff after a failure). */
+    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Claim lease: another dispatcher may take the delivery over once it expires. */
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    createdAt: createdAt(),
   },
-  (t) => [primaryKey({ columns: [t.eventId, t.consumer] })],
+  (t) => [
+    primaryKey({ columns: [t.eventId, t.consumer] }),
+    index('domain_event_deliveries_pending_idx')
+      .on(t.nextAttemptAt)
+      .where(sql`${t.processedAt} is null`),
+  ],
 );
 
 /** Row-level audit trail, written only by the `app.audit_trigger()` trigger. */

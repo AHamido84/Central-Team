@@ -45,6 +45,16 @@ export type DomainEventPayloads = {
     visibility: 'internal' | 'client';
     mentions: string[];
   };
+  // Requests (Phase 2)
+  'request_form.created': { formId: string };
+  'request_form.updated': { formId: string; fields: string[] };
+  'request_form.draft_saved': { formId: string; versionId: string; version: number };
+  'request_form.published': { formId: string; versionId: string; version: number };
+  'request_form.archived': { formId: string; archived: boolean };
+  'request.submitted': { requestId: string; clientId: string; number: number; formId: string; side: 'agency' | 'client' };
+  'request.status_changed': { requestId: string; clientId: string; from: string; to: string; commentId?: string | null };
+  'request.assigned': { requestId: string; clientId: string; assigneeId: string | null; previousAssigneeId: string | null };
+  'request.priority_changed': { requestId: string; clientId: string; from: string; to: string };
 };
 
 export type DomainEventType = keyof DomainEventPayloads;

@@ -22,6 +22,11 @@ export const actionErrorCodes = [
   'upload_failed',
   'weak_password',
   'invalid_credentials',
+  'invalid_transition',
+  'invalid_assignee',
+  'form_not_published',
+  'form_version_published',
+  'request_field_restricted',
   'unknown',
 ] as const;
 
@@ -63,6 +68,11 @@ const raisedCodes = new Set<ActionErrorCode>([
   'cannot_grant_unheld_permission',
   'role_locked',
   'system_role_not_deletable',
+  'invalid_transition',
+  'invalid_assignee',
+  'form_not_published',
+  'form_version_published',
+  'request_field_restricted',
 ]);
 
 /** Maps thrown errors (ActionFailure, Postgres errors raised by RLS/triggers) to a safe error code. */

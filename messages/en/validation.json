@@ -12,5 +12,16 @@
   "period_end_before_start": "End date must be after the start date.",
   "min_one": "Choose at least one.",
   "invalid_slug": "Use lowercase English letters, numbers and dashes only.",
-  "positive_number": "Enter a number greater than zero."
+  "positive_number": "Enter a number greater than zero.",
+  "too_short": "This is shorter than required.",
+  "invalid_number": "Enter a valid number.",
+  "number_min": "The number is below the minimum.",
+  "number_max": "The number is above the maximum.",
+  "invalid_option": "Choose one of the available options.",
+  "options_min": "Add at least two options.",
+  "options_unique": "Options must be unique.",
+  "min_gt_max": "The minimum is greater than the maximum.",
+  "field_ids_unique": "Two fields share the same id.",
+  "invalid_field_id": "Invalid id.",
+  "fields_min": "Add at least one question."
 }

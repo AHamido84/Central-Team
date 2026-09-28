@@ -1,6 +1,6 @@
 /**
- * Permission keys (resource:action). Must match `public.permissions` (seeded by migration
- * 20260928183500_reference_data.sql); a unit test checks the two stay in sync.
+ * Permission keys (resource:action). Must match `public.permissions` (seeded by the migrations in
+ * supabase/migrations); a unit test checks the two stay in sync.
  */
 export const agencyPermissions = [
   'organization:read',
@@ -33,6 +33,10 @@ export const agencyPermissions = [
   'files:upload',
   'files:manage',
   'messages:send',
+  'requests:read',
+  'requests:update',
+  'requests:triage',
+  'request_forms:manage',
 ] as const;
 
 export const clientPermissions = [
@@ -42,6 +46,7 @@ export const clientPermissions = [
   'portal_users:read',
   'portal_users:manage',
   'portal_company:update',
+  'portal_requests:create',
 ] as const;
 
 export type AgencyPermission = (typeof agencyPermissions)[number];

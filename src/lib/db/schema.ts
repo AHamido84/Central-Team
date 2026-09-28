@@ -6,3 +6,4 @@ export * from '@/modules/invitations/db/schema';
 export * from '@/modules/messaging/db/schema';
 export * from '@/modules/organizations/db/schema';
 export * from '@/modules/rbac/db/schema';
+export * from '@/modules/requests/db/schema';

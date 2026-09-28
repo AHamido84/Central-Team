@@ -1,4 +1,4 @@
-import { ArrowUpRight, CheckCheck, ClipboardList, FileUp, MessageSquare, MessagesSquare, Sparkles, Upload } from 'lucide-react';
+import { ArrowUpRight, CheckCheck, ClipboardList, FileUp, MessageSquare, MessagesSquare, Plus, Sparkles, Upload } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
@@ -17,6 +17,9 @@ import { listRecentFiles } from '@/modules/files/server/queries';
 import { RecentFilesGrid } from '@/modules/portal/components/recent-files';
 import { preview } from '@/modules/messaging/mentions';
 import { getPortalHome } from '@/modules/portal/server/queries';
+import { RequestRow } from '@/modules/requests/components/portal-requests';
+import { openStatuses } from '@/modules/requests/constants';
+import { listRequests } from '@/modules/requests/server/queries';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('nav');
@@ -33,13 +36,24 @@ export default async function PortalHomePage() {
   const ctx = await requirePortal();
   const t = await getTranslations();
   const f = await getFormatters();
-  const [home, recentFiles] = await Promise.all([getPortalHome(ctx), listRecentFiles(ctx.client.id, 4)]);
+  const requestsLive = Boolean(ctx.flags['module.requests']);
+  const [home, recentFiles, requests] = await Promise.all([
+    getPortalHome(ctx),
+    listRecentFiles(ctx.client.id, 4),
+    requestsLive ? listRequests({ clientId: ctx.client.id }) : Promise.resolve([]),
+  ]);
+  const activeRequests = requests
+    .filter((r) => openStatuses.includes(r.status))
+    .sort(
+      (a, b) =>
+        Number(b.status === 'waiting_client') - Number(a.status === 'waiting_client') || b.lastActivityAt.localeCompare(a.lastActivityAt),
+    );
+  const canRequest = requestsLive && can(ctx.permissions, 'portal_requests:create');
   const hour = Number(
     new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: ctx.profile.timezone }).format(new Date()),
   );
   const firstName = ctx.profile.fullName.split(' ')[0] ?? '';
   const clientName = localized(home.client.name, f.locale);
-  const requestsLive = Boolean(ctx.flags['module.requests']);
   const approvalsLive = Boolean(ctx.flags['module.approvals']);
 
   return (
@@ -92,8 +106,8 @@ export default async function PortalHomePage() {
         <AccountManagerCard manager={home.accountManager} title={t('portal.yourAccountManager')} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="space-y-8">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0 space-y-8">
           {/* Phase 3 slot: approvals */}
           <section data-testid="slot-approvals">
             <SectionTitle
@@ -128,24 +142,53 @@ export default async function PortalHomePage() {
                 ) : null
               }
             />
-            <Card>
-              <EmptyState
-                compact
-                icon={ClipboardList}
-                title={requestsLive ? t('portal.noRequests') : t('portal.requestsSoonTitle')}
-                description={requestsLive ? t('portal.noRequestsBody') : t('portal.requestsSoonBody')}
-                action={
-                  can(ctx.permissions, 'portal_messages:send') ? (
-                    <Button asChild variant="outline" size="sm">
-                      <Link href="/portal/messages">
-                        <MessagesSquare />
-                        {t('portal.messageInstead')}
+            {requestsLive && activeRequests.length ? (
+              <Card className="overflow-hidden">
+                <ul className="divide-y divide-border" data-testid="home-requests">
+                  {activeRequests.slice(0, 4).map((r) => (
+                    <li key={r.id}>
+                      <RequestRow r={r} href={`/portal/requests/${r.id}`} />
+                    </li>
+                  ))}
+                </ul>
+                {canRequest ? (
+                  <div className="border-t border-border p-3">
+                    <Button asChild variant="ghost" size="sm">
+                      <Link href="/portal/requests/new">
+                        <Plus />
+                        {t('requests.newRequest')}
                       </Link>
                     </Button>
-                  ) : null
-                }
-              />
-            </Card>
+                  </div>
+                ) : null}
+              </Card>
+            ) : (
+              <Card>
+                <EmptyState
+                  compact
+                  icon={ClipboardList}
+                  title={requestsLive ? t('portal.noRequests') : t('portal.requestsSoonTitle')}
+                  description={requestsLive ? t('portal.noRequestsBody') : t('portal.requestsSoonBody')}
+                  action={
+                    canRequest ? (
+                      <Button asChild size="sm">
+                        <Link href="/portal/requests/new" data-testid="home-new-request">
+                          <Plus />
+                          {t('requests.newRequest')}
+                        </Link>
+                      </Button>
+                    ) : !requestsLive && can(ctx.permissions, 'portal_messages:send') ? (
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/portal/messages">
+                          <MessagesSquare />
+                          {t('portal.messageInstead')}
+                        </Link>
+                      </Button>
+                    ) : null
+                  }
+                />
+              </Card>
+            )}
           </section>
 
           <section>
@@ -183,7 +226,9 @@ export default async function PortalHomePage() {
                         href={
                           a.kind === 'file'
                             ? `/portal/files${a.folderId ? `?folder=${a.folderId}` : ''}`
-                            : `/portal/messages?thread=${a.threadId}`
+                            : a.requestId
+                              ? `/portal/requests/${a.requestId}`
+                              : `/portal/messages?thread=${a.threadId}`
                         }
                         className="flex items-start gap-3 rounded-md px-2 py-2.5 transition-colors hover:bg-surface-muted"
                       >

@@ -12,6 +12,7 @@ import type nav from '@messages/ar/nav.json';
 import type notifications from '@messages/ar/notifications.json';
 import type onboarding from '@messages/ar/onboarding.json';
 import type portal from '@messages/ar/portal.json';
+import type requests from '@messages/ar/requests.json';
 import type settings from '@messages/ar/settings.json';
 import type validation from '@messages/ar/validation.json';
 
@@ -31,6 +32,7 @@ export type AppMessages = {
   notifications: typeof notifications;
   onboarding: typeof onboarding;
   portal: typeof portal;
+  requests: typeof requests;
   settings: typeof settings;
   validation: typeof validation;
 };

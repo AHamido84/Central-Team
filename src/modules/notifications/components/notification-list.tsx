@@ -1,6 +1,6 @@
 'use client';
 
-import { FileUp, MessageSquare, AtSign, UserCheck, ShieldCheck, Bell } from 'lucide-react';
+import { FileUp, MessageSquare, AtSign, UserCheck, ShieldCheck, Bell, ClipboardList, UserRoundPlus, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
@@ -17,6 +17,9 @@ const typeIcon: Record<NotificationType, typeof Bell> = {
   mention: AtSign,
   file_shared: FileUp,
   file_uploaded_by_client: FileUp,
+  request_submitted: ClipboardList,
+  request_assigned: UserRoundPlus,
+  request_status_changed: RefreshCw,
 };
 
 export function NotificationRow({

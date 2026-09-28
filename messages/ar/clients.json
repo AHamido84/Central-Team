@@ -36,7 +36,8 @@
     "users": "مستخدمو البوابة",
     "package": "الباقة",
     "files": "الملفات",
-    "messages": "الرسائل"
+    "messages": "الرسائل",
+    "requests": "الطلبات"
   },
   "statuses": {
     "onboarding": "قيد التهيئة",

@@ -23,13 +23,23 @@ export type NotifyInput = {
 };
 
 /**
- * Fan-out after commit: in-app rows + email per recipient preference. Runs with the service
+ * Fan-out from event consumers: in-app rows + email per recipient preference. Runs with the service
  * connection because it writes rows for *other* users (listed service path, CLAUDE.md §6);
- * recipients are always computed by the caller from RLS-checked data.
+ * recipients are always computed server-side from the committed event and the database.
  */
 export async function notify(input: NotifyInput): Promise<void> {
-  const recipients = [...new Set(input.userIds)].filter((id) => id !== input.actorId);
+  let recipients = [...new Set(input.userIds)].filter((id) => id !== input.actorId);
   if (recipients.length === 0) return;
+  // Idempotent per event: a retried delivery doesn't notify the same person twice.
+  if (input.eventId) {
+    const already = await dbAdmin
+      .select({ userId: notifications.userId })
+      .from(notifications)
+      .where(and(eq(notifications.eventId, input.eventId), eq(notifications.type, input.type), inArray(notifications.userId, recipients)));
+    const done = new Set(already.map((r) => r.userId));
+    recipients = recipients.filter((id) => !done.has(id));
+    if (recipients.length === 0) return;
+  }
   const category = notificationTypes[input.type];
 
   const prefs = await dbAdmin

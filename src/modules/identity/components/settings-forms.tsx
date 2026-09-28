@@ -3,7 +3,7 @@
 import { languageNames } from '@/lib/i18n/localized';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Bell, FileUp, KeyRound, Mail, MessageSquare, UserRound } from 'lucide-react';
+import { Bell, ClipboardList, FileUp, KeyRound, Mail, MessageSquare, UserRound } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
@@ -219,7 +219,12 @@ export function PreferencesSettings({ defaults, timezones }: { defaults: z.infer
   );
 }
 
-const categoryIcon: Record<NotificationCategory, typeof Bell> = { account: Bell, messages: MessageSquare, files: FileUp };
+const categoryIcon: Record<NotificationCategory, typeof Bell> = {
+  account: Bell,
+  messages: MessageSquare,
+  files: FileUp,
+  requests: ClipboardList,
+};
 
 export function NotificationSettings({ defaults }: { defaults: { category: NotificationCategory; inApp: boolean; email: boolean }[] }) {
   const t = useTranslations();

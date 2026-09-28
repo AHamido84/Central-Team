@@ -34,6 +34,10 @@
     "files": {
       "title": "Files",
       "body": "Newly shared or uploaded files."
+    },
+    "requests": {
+      "title": "Requests",
+      "body": "New requests, assignments and status changes."
     }
   }
 }

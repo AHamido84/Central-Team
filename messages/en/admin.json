@@ -15,7 +15,8 @@
     "clients": "Clients",
     "files": "Files",
     "messaging": "Messages",
-    "portal": "Portal"
+    "portal": "Portal",
+    "requests": "Requests"
   },
   "users": {
     "title": "Team & invitations",
