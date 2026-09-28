@@ -1,5 +1,5 @@
 {
-  "id": "bcc15673-6a25-4294-b44c-96fcdda69dbf",
+  "id": "fb81b3eb-1862-4b65-ae7e-7e86c009e3c8",
   "prevId": "dd283a16-eddf-4e1e-89af-2407ea9d6697",
   "version": "7",
   "dialect": "postgresql",
@@ -1258,6 +1258,12 @@
         "start_date": {
           "name": "start_date",
           "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "request_prefix": {
+          "name": "request_prefix",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -4338,6 +4344,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "field_id": {
+          "name": "field_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "organization_id": {
           "name": "organization_id",
           "type": "uuid",
@@ -4507,7 +4519,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'client'"
+          "default": "'internal'"
         },
         "created_at": {
           "name": "created_at",
@@ -4604,7 +4616,7 @@
         },
         "request_events_type_check": {
           "name": "request_events_type_check",
-          "value": "\"request_events\".\"type\" in ('submitted','status_changed','assigned','priority_changed')"
+          "value": "\"request_events\".\"type\" in ('assigned','priority_changed','due_date_changed','flags_changed','brief_updated')"
         },
         "request_events_visibility_check": {
           "name": "request_events_visibility_check",
@@ -4613,8 +4625,8 @@
       },
       "isRLSEnabled": false
     },
-    "public.request_form_versions": {
-      "name": "request_form_versions",
+    "public.request_status_history": {
+      "name": "request_status_history",
       "schema": "",
       "columns": {
         "id": {
@@ -4630,42 +4642,47 @@
           "primaryKey": false,
           "notNull": true
         },
-        "form_id": {
-          "name": "form_id",
+        "client_id": {
+          "name": "client_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "version": {
-          "name": "version",
-          "type": "integer",
+        "request_id": {
+          "name": "request_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "fields": {
-          "name": "fields",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "published_at": {
-          "name": "published_at",
-          "type": "timestamp with time zone",
+        "from_status": {
+          "name": "from_status",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "published_by": {
-          "name": "published_by",
+        "to_status": {
+          "name": "to_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actor_id": {
+          "name": "actor_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
+        "actor_side": {
+          "name": "actor_side",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
@@ -4673,58 +4690,35 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
         }
       },
       "indexes": {
-        "request_form_versions_form_version_idx": {
-          "name": "request_form_versions_form_version_idx",
+        "request_status_history_request_idx": {
+          "name": "request_status_history_request_idx",
           "columns": [
             {
-              "expression": "form_id",
+              "expression": "request_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "version",
+              "expression": "created_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "request_form_versions_one_draft_idx": {
-          "name": "request_form_versions_one_draft_idx",
-          "columns": [
-            {
-              "expression": "form_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"request_form_versions\".\"published_at\" is null",
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
         }
       },
       "foreignKeys": {
-        "request_form_versions_organization_id_organizations_id_fk": {
-          "name": "request_form_versions_organization_id_organizations_id_fk",
-          "tableFrom": "request_form_versions",
+        "request_status_history_organization_id_organizations_id_fk": {
+          "name": "request_status_history_organization_id_organizations_id_fk",
+          "tableFrom": "request_status_history",
           "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
@@ -4735,12 +4729,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "request_form_versions_form_id_request_forms_id_fk": {
-          "name": "request_form_versions_form_id_request_forms_id_fk",
-          "tableFrom": "request_form_versions",
-          "tableTo": "request_forms",
+        "request_status_history_client_id_clients_id_fk": {
+          "name": "request_status_history_client_id_clients_id_fk",
+          "tableFrom": "request_status_history",
+          "tableTo": "clients",
           "columnsFrom": [
-            "form_id"
+            "client_id"
           ],
           "columnsTo": [
             "id"
@@ -4748,25 +4742,25 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "request_form_versions_published_by_profiles_id_fk": {
-          "name": "request_form_versions_published_by_profiles_id_fk",
-          "tableFrom": "request_form_versions",
-          "tableTo": "profiles",
+        "request_status_history_request_id_requests_id_fk": {
+          "name": "request_status_history_request_id_requests_id_fk",
+          "tableFrom": "request_status_history",
+          "tableTo": "requests",
           "columnsFrom": [
-            "published_by"
+            "request_id"
           ],
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "request_form_versions_created_by_profiles_id_fk": {
-          "name": "request_form_versions_created_by_profiles_id_fk",
-          "tableFrom": "request_form_versions",
+        "request_status_history_actor_id_profiles_id_fk": {
+          "name": "request_status_history_actor_id_profiles_id_fk",
+          "tableFrom": "request_status_history",
           "tableTo": "profiles",
           "columnsFrom": [
-            "created_by"
+            "actor_id"
           ],
           "columnsTo": [
             "id"
@@ -4778,11 +4772,20 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "request_status_history_actor_side_check": {
+          "name": "request_status_history_actor_side_check",
+          "value": "\"request_status_history\".\"actor_side\" in ('agency','client','system')"
+        },
+        "request_status_history_reason_length_check": {
+          "name": "request_status_history_reason_length_check",
+          "value": "\"request_status_history\".\"reason\" is null or char_length(\"request_status_history\".\"reason\") <= 2000"
+        }
+      },
       "isRLSEnabled": false
     },
-    "public.request_forms": {
-      "name": "request_forms",
+    "public.request_types": {
+      "name": "request_types",
       "schema": "",
       "columns": {
         "id": {
@@ -4831,19 +4834,6 @@
           "notNull": true,
           "default": "'other'"
         },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'draft'"
-        },
-        "current_version_id": {
-          "name": "current_version_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "default_priority": {
           "name": "default_priority",
           "type": "text",
@@ -4851,17 +4841,38 @@
           "notNull": true,
           "default": "'normal'"
         },
-        "response_sla_hours": {
-          "name": "response_sla_hours",
+        "sla_days": {
+          "name": "sla_days",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
-        "resolution_sla_hours": {
-          "name": "resolution_sla_hours",
-          "type": "integer",
+        "package_item_type": {
+          "name": "package_item_type",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "form_schema": {
+          "name": "form_schema",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{\"fields\":[]}'::jsonb"
+        },
+        "schema_version": {
+          "name": "schema_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
         },
         "sort_order": {
           "name": "sort_order",
@@ -4892,8 +4903,8 @@
         }
       },
       "indexes": {
-        "request_forms_org_key_idx": {
-          "name": "request_forms_org_key_idx",
+        "request_types_org_key_idx": {
+          "name": "request_types_org_key_idx",
           "columns": [
             {
               "expression": "organization_id",
@@ -4915,9 +4926,9 @@
         }
       },
       "foreignKeys": {
-        "request_forms_organization_id_organizations_id_fk": {
-          "name": "request_forms_organization_id_organizations_id_fk",
-          "tableFrom": "request_forms",
+        "request_types_organization_id_organizations_id_fk": {
+          "name": "request_types_organization_id_organizations_id_fk",
+          "tableFrom": "request_types",
           "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
@@ -4928,22 +4939,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "request_forms_current_version_id_request_form_versions_id_fk": {
-          "name": "request_forms_current_version_id_request_form_versions_id_fk",
-          "tableFrom": "request_forms",
-          "tableTo": "request_form_versions",
-          "columnsFrom": [
-            "current_version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "request_forms_created_by_profiles_id_fk": {
-          "name": "request_forms_created_by_profiles_id_fk",
-          "tableFrom": "request_forms",
+        "request_types_created_by_profiles_id_fk": {
+          "name": "request_types_created_by_profiles_id_fk",
+          "tableFrom": "request_types",
           "tableTo": "profiles",
           "columnsFrom": [
             "created_by"
@@ -4959,21 +4957,17 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "request_forms_status_check": {
-          "name": "request_forms_status_check",
-          "value": "\"request_forms\".\"status\" in ('draft','published','archived')"
+        "request_types_category_check": {
+          "name": "request_types_category_check",
+          "value": "\"request_types\".\"category\" in ('design','video','content','ads','web','branding','other')"
         },
-        "request_forms_category_check": {
-          "name": "request_forms_category_check",
-          "value": "\"request_forms\".\"category\" in ('design','video','content','ads','social','other')"
+        "request_types_priority_check": {
+          "name": "request_types_priority_check",
+          "value": "\"request_types\".\"default_priority\" in ('low','normal','high','urgent')"
         },
-        "request_forms_priority_check": {
-          "name": "request_forms_priority_check",
-          "value": "\"request_forms\".\"default_priority\" in ('low','normal','high','urgent')"
-        },
-        "request_forms_sla_check": {
-          "name": "request_forms_sla_check",
-          "value": "(\"request_forms\".\"response_sla_hours\" is null or \"request_forms\".\"response_sla_hours\" between 1 and 720) and (\"request_forms\".\"resolution_sla_hours\" is null or \"request_forms\".\"resolution_sla_hours\" between 1 and 2160)"
+        "request_types_sla_check": {
+          "name": "request_types_sla_check",
+          "value": "\"request_types\".\"sla_days\" is null or \"request_types\".\"sla_days\" between 1 and 90"
         }
       },
       "isRLSEnabled": false
@@ -5001,44 +4995,65 @@
           "primaryKey": false,
           "notNull": true
         },
+        "request_type_id": {
+          "name": "request_type_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "number": {
           "name": "number",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "default": 0
+          "notNull": false
         },
-        "form_id": {
-          "name": "form_id",
-          "type": "uuid",
+        "reference": {
+          "name": "reference",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
-        },
-        "form_version_id": {
-          "name": "form_version_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "title": {
           "name": "title",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "''"
         },
-        "answers": {
-          "name": "answers",
+        "brief": {
+          "name": "brief",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
+        },
+        "form_snapshot": {
+          "name": "form_snapshot",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "schema_version": {
+          "name": "schema_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "reference_links": {
+          "name": "reference_links",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         },
         "status": {
           "name": "status",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'submitted'"
+          "default": "'draft'"
         },
         "priority": {
           "name": "priority",
@@ -5053,18 +5068,17 @@
           "primaryKey": false,
           "notNull": false
         },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "submitted_by": {
           "name": "submitted_by",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
-        },
-        "submitted_side": {
-          "name": "submitted_side",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'client'"
         },
         "desired_date": {
           "name": "desired_date",
@@ -5072,14 +5086,28 @@
           "primaryKey": false,
           "notNull": false
         },
-        "response_due_at": {
-          "name": "response_due_at",
-          "type": "timestamp with time zone",
+        "due_date": {
+          "name": "due_date",
+          "type": "date",
           "primaryKey": false,
           "notNull": false
         },
-        "resolution_due_at": {
-          "name": "resolution_due_at",
+        "is_extra": {
+          "name": "is_extra",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "is_billable": {
+          "name": "is_billable",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "submitted_at": {
+          "name": "submitted_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
@@ -5090,14 +5118,20 @@
           "primaryKey": false,
           "notNull": false
         },
-        "resolved_at": {
-          "name": "resolved_at",
+        "accepted_at": {
+          "name": "accepted_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "cancelled_at": {
-          "name": "cancelled_at",
+        "delivered_at": {
+          "name": "delivered_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
@@ -5125,11 +5159,11 @@
         }
       },
       "indexes": {
-        "requests_org_number_idx": {
-          "name": "requests_org_number_idx",
+        "requests_client_number_idx": {
+          "name": "requests_client_number_idx",
           "columns": [
             {
-              "expression": "organization_id",
+              "expression": "client_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5215,11 +5249,26 @@
           "method": "btree",
           "with": {}
         },
-        "requests_form_idx": {
-          "name": "requests_form_idx",
+        "requests_type_idx": {
+          "name": "requests_type_idx",
           "columns": [
             {
-              "expression": "form_id",
+              "expression": "request_type_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "requests_created_by_idx": {
+          "name": "requests_created_by_idx",
+          "columns": [
+            {
+              "expression": "created_by",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5258,25 +5307,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "requests_form_id_request_forms_id_fk": {
-          "name": "requests_form_id_request_forms_id_fk",
+        "requests_request_type_id_request_types_id_fk": {
+          "name": "requests_request_type_id_request_types_id_fk",
           "tableFrom": "requests",
-          "tableTo": "request_forms",
+          "tableTo": "request_types",
           "columnsFrom": [
-            "form_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "requests_form_version_id_request_form_versions_id_fk": {
-          "name": "requests_form_version_id_request_form_versions_id_fk",
-          "tableFrom": "requests",
-          "tableTo": "request_form_versions",
-          "columnsFrom": [
-            "form_version_id"
+            "request_type_id"
           ],
           "columnsTo": [
             "id"
@@ -5290,6 +5326,19 @@
           "tableTo": "profiles",
           "columnsFrom": [
             "assignee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "requests_created_by_profiles_id_fk": {
+          "name": "requests_created_by_profiles_id_fk",
+          "tableFrom": "requests",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "created_by"
           ],
           "columnsTo": [
             "id"
@@ -5317,19 +5366,15 @@
       "checkConstraints": {
         "requests_status_check": {
           "name": "requests_status_check",
-          "value": "\"requests\".\"status\" in ('submitted','in_review','in_progress','waiting_client','completed','declined','cancelled')"
+          "value": "\"requests\".\"status\" in ('draft','submitted','under_review','needs_info','accepted','in_progress','in_review','delivered','closed','rejected','cancelled')"
         },
         "requests_priority_check": {
           "name": "requests_priority_check",
           "value": "\"requests\".\"priority\" in ('low','normal','high','urgent')"
         },
-        "requests_submitted_side_check": {
-          "name": "requests_submitted_side_check",
-          "value": "\"requests\".\"submitted_side\" in ('agency','client')"
-        },
         "requests_title_length_check": {
           "name": "requests_title_length_check",
-          "value": "char_length(\"requests\".\"title\") between 1 and 140"
+          "value": "char_length(\"requests\".\"title\") <= 140 and (\"requests\".\"status\" = 'draft' or char_length(\"requests\".\"title\") >= 3)"
         }
       },
       "isRLSEnabled": false

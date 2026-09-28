@@ -1,6 +1,17 @@
 'use client';
 
-import { FileUp, MessageSquare, AtSign, UserCheck, ShieldCheck, Bell, ClipboardList, UserRoundPlus, RefreshCw } from 'lucide-react';
+import {
+  FileUp,
+  MessageSquare,
+  AtSign,
+  UserCheck,
+  ShieldCheck,
+  Bell,
+  ClipboardList,
+  UserRoundPlus,
+  RefreshCw,
+  MessageCircleQuestion,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
@@ -20,6 +31,7 @@ const typeIcon: Record<NotificationType, typeof Bell> = {
   request_submitted: ClipboardList,
   request_assigned: UserRoundPlus,
   request_status_changed: RefreshCw,
+  request_needs_info: MessageCircleQuestion,
 };
 
 export function NotificationRow({

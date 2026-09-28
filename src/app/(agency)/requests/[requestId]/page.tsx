@@ -1,4 +1,4 @@
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, ExternalLink } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -15,8 +15,8 @@ import { publicAssetUrl } from '@/lib/storage';
 import { listAgencyPeople } from '@/modules/clients/server/queries';
 import { Conversation } from '@/modules/messaging/components/conversation';
 import { getThread } from '@/modules/messaging/server/queries';
-import { AnswersView } from '@/modules/requests/components/answers-view';
-import { FormIcon, PriorityBadge, RequestStatusBadge } from '@/modules/requests/components/badges';
+import { ExtraBadge, PriorityBadge, RequestStatusBadge, TypeIcon } from '@/modules/requests/components/badges';
+import { BriefView } from '@/modules/requests/components/brief-fields';
 import {
   PersonLine,
   RequestAttachments,
@@ -25,7 +25,6 @@ import {
   SlaCard,
   TriagePanel,
 } from '@/modules/requests/components/request-detail';
-import { formatRequestNumber } from '@/modules/requests/constants';
 import { getRequest } from '@/modules/requests/server/queries';
 
 const isUuid = (v: string) => /^[0-9a-f-]{36}$/.test(v);
@@ -33,7 +32,7 @@ const isUuid = (v: string) => /^[0-9a-f-]{36}$/.test(v);
 export async function generateMetadata({ params }: { params: Promise<{ requestId: string }> }): Promise<Metadata> {
   const { requestId } = await params;
   const request = isUuid(requestId) ? await getRequest(requestId) : null;
-  return { title: request ? `${formatRequestNumber(request.number)} · ${request.title}` : undefined };
+  return { title: request ? `${request.reference} · ${request.title}` : undefined };
 }
 
 export default async function AgencyRequestPage({ params }: { params: Promise<{ requestId: string }> }) {
@@ -47,12 +46,13 @@ export default async function AgencyRequestPage({ params }: { params: Promise<{ 
   const f = await getFormatters();
   const [thread, people] = await Promise.all([request.threadId ? getThread(request.threadId) : null, listAgencyPeople(ctx)]);
   const canTriage = can(ctx.permissions, 'requests:triage');
-  const canUpdate = canTriage || (can(ctx.permissions, 'requests:update') && request.assignee?.id === ctx.session.userId);
+  const isAssignee = can(ctx.permissions, 'requests:update') && request.assigneeId === ctx.session.userId;
   const clientName = localized(request.clientName, f.locale);
+  const general = request.attachments.filter((a) => !a.fieldId);
 
   return (
     <div className="space-y-6">
-      <BreadcrumbLabel segment={requestId} label={formatRequestNumber(request.number)} />
+      <BreadcrumbLabel segment={requestId} label={request.reference ?? ''} />
       <RequestLiveRefresh requestId={request.id} />
       <PageHeader
         eyebrow={
@@ -67,12 +67,14 @@ export default async function AgencyRequestPage({ params }: { params: Promise<{ 
         }
         title={
           <span className="flex items-start gap-3">
-            <FormIcon icon={request.formIcon} />
+            <TypeIcon icon={request.typeIcon} />
             <span className="min-w-0">
               <bdi data-testid="request-heading">{request.title}</bdi>
               <span className="mt-1 block text-sm font-normal text-muted-foreground">
-                <span dir="ltr">{formatRequestNumber(request.number)}</span> · {localized(request.formName, f.locale)} ·{' '}
-                {t('requests.formVersion', { version: request.formVersion })}
+                <span dir="ltr" data-testid="request-reference">
+                  {request.reference}
+                </span>{' '}
+                · {localized(request.typeName, f.locale)} · {t('requests.formVersion', { version: request.schemaVersion })}
               </span>
             </span>
           </span>
@@ -81,6 +83,7 @@ export default async function AgencyRequestPage({ params }: { params: Promise<{ 
           <span className="flex flex-wrap items-center gap-2">
             <RequestStatusBadge status={request.status} />
             <PriorityBadge priority={request.priority} />
+            {request.isExtra ? <ExtraBadge /> : null}
           </span>
         }
       />
@@ -88,15 +91,34 @@ export default async function AgencyRequestPage({ params }: { params: Promise<{ 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-6">
           <section>
-            <SectionTitle title={t('requests.details')} />
+            <SectionTitle title={t('requests.brief')} />
             <Card className="p-5">
-              <AnswersView fields={request.fields} answers={request.answers} />
+              <BriefView fields={request.fields} brief={request.brief} files={request.attachments} />
             </Card>
           </section>
           <section>
-            <SectionTitle title={t('requests.attachments')} />
-            <Card className="p-4">
-              <RequestAttachments files={request.attachments} />
+            <SectionTitle title={t('requests.attachmentsAndReferences')} />
+            <Card className="grid gap-4 p-4">
+              <RequestAttachments files={general} />
+              {request.referenceLinks.length ? (
+                <ul className="grid gap-1" data-testid="reference-links">
+                  {request.referenceLinks.map((u) => (
+                    <li key={u}>
+                      <a
+                        href={u}
+                        target="_blank"
+                        rel="noopener noreferrer nofollow"
+                        className="inline-flex max-w-full items-center gap-1 text-sm text-link hover:underline"
+                      >
+                        <bdi dir="ltr" className="truncate">
+                          {u}
+                        </bdi>
+                        <ExternalLink className="size-3.5 shrink-0" aria-hidden />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </Card>
           </section>
           {thread ? (
@@ -120,7 +142,8 @@ export default async function AgencyRequestPage({ params }: { params: Promise<{ 
             request={request}
             people={people.map((p) => ({ id: p.id, name: p.name, avatarPath: p.avatar_path }))}
             canTriage={canTriage}
-            canUpdate={canUpdate}
+            isAssignee={isAssignee}
+            tasksEnabled={Boolean(ctx.flags['module.tasks'])}
           />
           <section>
             <SectionTitle title={t('requests.sla.title')} />
@@ -135,24 +158,26 @@ export default async function AgencyRequestPage({ params }: { params: Promise<{ 
                 <div className="grid gap-1">
                   <dt className="text-xs text-muted-foreground">{t('requests.submittedBy')}</dt>
                   <dd>
-                    <PersonLine person={request.submitter} fallback="—" />
+                    <PersonLine person={request.author} fallback="—" />
                   </dd>
-                </div>
-                <div className="grid gap-1">
-                  <dt className="text-xs text-muted-foreground">{t('requests.submittedAt')}</dt>
-                  <dd>{f.dateTime(request.createdAt)}</dd>
                 </div>
                 <div className="grid gap-1">
                   <dt className="text-xs text-muted-foreground">{t('requests.fields.desiredDate')}</dt>
                   <dd>{request.desiredDate ? f.date(`${request.desiredDate}T12:00:00`, 'long') : '—'}</dd>
                 </div>
+                {request.packageItemType ? (
+                  <div className="grid gap-1">
+                    <dt className="text-xs text-muted-foreground">{t('requests.packageItem')}</dt>
+                    <dd>{request.isExtra ? t('requests.extraOutside') : t(`clients.itemTypes.${request.packageItemType}`)}</dd>
+                  </div>
+                ) : null}
               </dl>
             </Card>
           </section>
           <section>
             <SectionTitle title={t('requests.history')} />
             <Card className="p-4">
-              <RequestTimeline events={request.events} />
+              <RequestTimeline items={request.timeline} />
             </Card>
           </section>
         </aside>

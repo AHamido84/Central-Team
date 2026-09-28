@@ -2,10 +2,12 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
-import { PageHeader } from '@/components/patterns';
+import { EmptyState, PageHeader } from '@/components/patterns';
+import { Card } from '@/components/ui/primitives';
 import { requirePortal } from '@/lib/auth/context';
-import { FormPicker } from '@/modules/requests/components/portal-requests';
-import { listPublishedForms } from '@/modules/requests/server/queries';
+import { ClipboardList } from 'lucide-react';
+import { RequestWizard } from '@/modules/requests/components/request-wizard';
+import { getQuotas, listRequestTypes } from '@/modules/requests/server/queries';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('requests');
@@ -16,11 +18,18 @@ export default async function NewRequestPage() {
   const ctx = await requirePortal('portal_requests:create');
   if (!ctx.flags['module.requests']) notFound();
   const t = await getTranslations('requests');
-  const forms = await listPublishedForms();
+  const types = await listRequestTypes({ activeOnly: true });
+  const quotas = await getQuotas(ctx.client.id, types.map((x) => x.packageItemType).filter(Boolean) as string[]);
   return (
     <>
-      <PageHeader title={t('newRequest')} description={t('chooseForm')} />
-      <FormPicker forms={forms} />
+      <PageHeader title={t('newRequest')} description={t('wizard.description')} />
+      {types.length ? (
+        <RequestWizard types={types} quotas={quotas} clientId={ctx.client.id} />
+      ) : (
+        <Card>
+          <EmptyState icon={ClipboardList} title={t('noTypesTitle')} description={t('noTypesBody')} />
+        </Card>
+      )}
     </>
   );
 }

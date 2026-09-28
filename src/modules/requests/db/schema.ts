@@ -1,28 +1,15 @@
 import { sql } from 'drizzle-orm';
-import {
-  check,
-  date,
-  index,
-  integer,
-  jsonb,
-  pgTable,
-  primaryKey,
-  text,
-  timestamp,
-  uniqueIndex,
-  uuid,
-  type AnyPgColumn,
-} from 'drizzle-orm/pg-core';
+import { boolean, check, date, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { createdAt, id, localized, updatedAt } from '@/lib/db/columns';
 import { clients } from '@/modules/clients/db/schema';
 import { files } from '@/modules/files/db/schema';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
-import type { RequestFormField } from '@/modules/requests/form-schema';
+import type { Brief, FormSchema, RequestFormField } from '@/modules/requests/form-schema';
 
-/** Agency-defined request types. The questions live in versions so old requests keep rendering correctly. */
-export const requestForms = pgTable(
-  'request_forms',
+/** What clients can ask for. The brief form lives on the type; each request keeps a snapshot of it. */
+export const requestTypes = pgTable(
+  'request_types',
   {
     id: id(),
     organizationId: uuid('organization_id')
@@ -33,52 +20,22 @@ export const requestForms = pgTable(
     description: localized('description').notNull().default({}),
     icon: text('icon').notNull().default('clipboard-list'),
     category: text('category').notNull().default('other'),
-    status: text('status').notNull().default('draft'),
-    currentVersionId: uuid('current_version_id').references((): AnyPgColumn => requestFormVersions.id, { onDelete: 'set null' }),
     defaultPriority: text('default_priority').notNull().default('normal'),
-    responseSlaHours: integer('response_sla_hours'),
-    resolutionSlaHours: integer('resolution_sla_hours'),
+    slaDays: integer('sla_days'),
+    packageItemType: text('package_item_type'),
+    isActive: boolean('is_active').notNull().default(false),
+    formSchema: jsonb('form_schema').$type<FormSchema>().notNull().default({ fields: [] }),
+    schemaVersion: integer('schema_version').notNull().default(1),
     sortOrder: integer('sort_order').notNull().default(0),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
-    uniqueIndex('request_forms_org_key_idx').on(t.organizationId, t.key),
-    check('request_forms_status_check', sql`${t.status} in ('draft','published','archived')`),
-    check('request_forms_category_check', sql`${t.category} in ('design','video','content','ads','social','other')`),
-    check('request_forms_priority_check', sql`${t.defaultPriority} in ('low','normal','high','urgent')`),
-    check(
-      'request_forms_sla_check',
-      sql`(${t.responseSlaHours} is null or ${t.responseSlaHours} between 1 and 720) and (${t.resolutionSlaHours} is null or ${t.resolutionSlaHours} between 1 and 2160)`,
-    ),
-  ],
-);
-
-export const requestFormVersions = pgTable(
-  'request_form_versions',
-  {
-    id: id(),
-    organizationId: uuid('organization_id')
-      .notNull()
-      .references(() => organizations.id, { onDelete: 'cascade' }),
-    formId: uuid('form_id')
-      .notNull()
-      .references(() => requestForms.id, { onDelete: 'cascade' }),
-    version: integer('version').notNull(),
-    fields: jsonb('fields').$type<RequestFormField[]>().notNull().default([]),
-    publishedAt: timestamp('published_at', { withTimezone: true }),
-    publishedBy: uuid('published_by').references(() => profiles.id, { onDelete: 'set null' }),
-    createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (t) => [
-    uniqueIndex('request_form_versions_form_version_idx').on(t.formId, t.version),
-    // At most one editable draft per form.
-    uniqueIndex('request_form_versions_one_draft_idx')
-      .on(t.formId)
-      .where(sql`${t.publishedAt} is null`),
+    uniqueIndex('request_types_org_key_idx').on(t.organizationId, t.key),
+    check('request_types_category_check', sql`${t.category} in ('design','video','content','ads','web','branding','other')`),
+    check('request_types_priority_check', sql`${t.defaultPriority} in ('low','normal','high','urgent')`),
+    check('request_types_sla_check', sql`${t.slaDays} is null or ${t.slaDays} between 1 and 90`),
   ],
 );
 
@@ -92,48 +49,82 @@ export const requests = pgTable(
     clientId: uuid('client_id')
       .notNull()
       .references(() => clients.id, { onDelete: 'cascade' }),
-    /** Per-organization sequence, assigned by trigger (shown as REQ-0042). */
-    number: integer('number').notNull().default(0),
-    formId: uuid('form_id')
+    requestTypeId: uuid('request_type_id')
       .notNull()
-      .references(() => requestForms.id, { onDelete: 'restrict' }),
-    formVersionId: uuid('form_version_id')
-      .notNull()
-      .references(() => requestFormVersions.id, { onDelete: 'restrict' }),
-    title: text('title').notNull(),
-    answers: jsonb('answers').$type<Record<string, unknown>>().notNull().default({}),
-    status: text('status').notNull().default('submitted'),
+      .references(() => requestTypes.id, { onDelete: 'restrict' }),
+    /** Per-client sequence, assigned by trigger on submit (drafts have none). */
+    number: integer('number'),
+    /** `<client prefix>-<number>`, e.g. NAJD-0042. */
+    reference: text('reference'),
+    title: text('title').notNull().default(''),
+    brief: jsonb('brief').$type<Brief>().notNull().default({}),
+    /** The form the brief was written against (type forms keep evolving). */
+    formSnapshot: jsonb('form_snapshot').$type<RequestFormField[]>().notNull().default([]),
+    schemaVersion: integer('schema_version').notNull().default(1),
+    referenceLinks: jsonb('reference_links').$type<string[]>().notNull().default([]),
+    status: text('status').notNull().default('draft'),
     priority: text('priority').notNull().default('normal'),
     assigneeId: uuid('assignee_id').references(() => profiles.id, { onDelete: 'set null' }),
+    createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
     submittedBy: uuid('submitted_by').references(() => profiles.id, { onDelete: 'set null' }),
-    submittedSide: text('submitted_side').notNull().default('client'),
     desiredDate: date('desired_date'),
-    responseDueAt: timestamp('response_due_at', { withTimezone: true }),
-    resolutionDueAt: timestamp('resolution_due_at', { withTimezone: true }),
+    dueDate: date('due_date'),
+    isExtra: boolean('is_extra').notNull().default(false),
+    isBillable: boolean('is_billable').notNull().default(false),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }),
     firstResponseAt: timestamp('first_response_at', { withTimezone: true }),
-    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
-    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
     lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).notNull().defaultNow(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
-    uniqueIndex('requests_org_number_idx').on(t.organizationId, t.number),
+    uniqueIndex('requests_client_number_idx').on(t.clientId, t.number),
     index('requests_client_status_idx').on(t.clientId, t.status, t.lastActivityAt),
     index('requests_org_status_idx').on(t.organizationId, t.status, t.lastActivityAt),
     index('requests_assignee_idx').on(t.assigneeId),
-    index('requests_form_idx').on(t.formId),
+    index('requests_type_idx').on(t.requestTypeId),
+    index('requests_created_by_idx').on(t.createdBy),
     check(
       'requests_status_check',
-      sql`${t.status} in ('submitted','in_review','in_progress','waiting_client','completed','declined','cancelled')`,
+      sql`${t.status} in ('draft','submitted','under_review','needs_info','accepted','in_progress','in_review','delivered','closed','rejected','cancelled')`,
     ),
     check('requests_priority_check', sql`${t.priority} in ('low','normal','high','urgent')`),
-    check('requests_submitted_side_check', sql`${t.submittedSide} in ('agency','client')`),
-    check('requests_title_length_check', sql`char_length(${t.title}) between 1 and 140`),
+    check('requests_title_length_check', sql`char_length(${t.title}) <= 140 and (${t.status} = 'draft' or char_length(${t.title}) >= 3)`),
   ],
 );
 
-/** Lifecycle history, written only by triggers on `requests`. */
+/** Every status transition, with the reason when one is required. Written only by triggers on `requests`. */
+export const requestStatusHistory = pgTable(
+  'request_status_history',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    clientId: uuid('client_id')
+      .notNull()
+      .references(() => clients.id, { onDelete: 'cascade' }),
+    requestId: uuid('request_id')
+      .notNull()
+      .references(() => requests.id, { onDelete: 'cascade' }),
+    fromStatus: text('from_status'),
+    toStatus: text('to_status').notNull(),
+    reason: text('reason'),
+    actorId: uuid('actor_id').references(() => profiles.id, { onDelete: 'set null' }),
+    actorSide: text('actor_side').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('request_status_history_request_idx').on(t.requestId, t.createdAt),
+    check('request_status_history_actor_side_check', sql`${t.actorSide} in ('agency','client','system')`),
+    check('request_status_history_reason_length_check', sql`${t.reason} is null or char_length(${t.reason}) <= 2000`),
+  ],
+);
+
+/** Non-status changes (assignment, priority, due date, flags, brief edits). Written only by triggers. */
 export const requestEvents = pgTable(
   'request_events',
   {
@@ -152,13 +143,16 @@ export const requestEvents = pgTable(
     type: text('type').notNull(),
     fromValue: text('from_value'),
     toValue: text('to_value'),
-    visibility: text('visibility').notNull().default('client'),
+    visibility: text('visibility').notNull().default('internal'),
     createdAt: createdAt(),
   },
   (t) => [
     index('request_events_request_idx').on(t.requestId, t.createdAt),
     check('request_events_actor_side_check', sql`${t.actorSide} in ('agency','client','system')`),
-    check('request_events_type_check', sql`${t.type} in ('submitted','status_changed','assigned','priority_changed')`),
+    check(
+      'request_events_type_check',
+      sql`${t.type} in ('assigned','priority_changed','due_date_changed','flags_changed','brief_updated')`,
+    ),
     check('request_events_visibility_check', sql`${t.visibility} in ('internal','client')`),
   ],
 );
@@ -172,6 +166,8 @@ export const requestAttachments = pgTable(
     fileId: uuid('file_id')
       .notNull()
       .references(() => files.id, { onDelete: 'cascade' }),
+    /** The brief's file field this belongs to; null = general attachment (wizard step 3). */
+    fieldId: text('field_id'),
     organizationId: uuid('organization_id')
       .notNull()
       .references(() => organizations.id, { onDelete: 'cascade' }),

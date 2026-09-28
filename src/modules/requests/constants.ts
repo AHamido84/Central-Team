@@ -1,42 +1,93 @@
-/** Request lifecycle, priorities and form metadata shared by UI, actions and tests. Mirrors the SQL guards. */
-export const requestStatuses = ['submitted', 'in_review', 'in_progress', 'waiting_client', 'completed', 'declined', 'cancelled'] as const;
+/** Request lifecycle, priorities and request-type metadata shared by UI, actions and tests. Mirrors the SQL guards. */
+export const requestStatuses = [
+  'draft',
+  'submitted',
+  'under_review',
+  'needs_info',
+  'accepted',
+  'in_progress',
+  'in_review',
+  'delivered',
+  'closed',
+  'rejected',
+  'cancelled',
+] as const;
 export type RequestStatus = (typeof requestStatuses)[number];
 
-export const openStatuses: readonly RequestStatus[] = ['submitted', 'in_review', 'in_progress', 'waiting_client'];
-export const closedStatuses: readonly RequestStatus[] = ['completed', 'declined', 'cancelled'];
+/** Waiting on the agency's decision. */
+export const pendingStatuses: readonly RequestStatus[] = ['submitted', 'under_review', 'needs_info'];
+/** Accepted work under way. */
+export const activeStatuses: readonly RequestStatus[] = ['accepted', 'in_progress', 'in_review'];
+/** Everything not finished (excludes drafts). */
+export const openStatuses: readonly RequestStatus[] = [...pendingStatuses, ...activeStatuses, 'delivered'];
+export const closedStatuses: readonly RequestStatus[] = ['closed', 'rejected', 'cancelled'];
+/** Statuses in which the package item is consumed. */
+export const consumingStatuses: readonly RequestStatus[] = ['accepted', 'in_progress', 'in_review', 'delivered', 'closed'];
+
+export type Side = 'agency' | 'client';
+
+/**
+ * Allowed transitions per side — keep identical to `app.request_transition_allowed()` in SQL
+ * (a unit test compares the two).
+ */
+export const requestTransitions: Record<Side, Record<RequestStatus, readonly RequestStatus[]>> = {
+  client: {
+    draft: ['submitted'],
+    submitted: ['cancelled'],
+    under_review: ['cancelled'],
+    needs_info: ['under_review', 'cancelled'],
+    accepted: [],
+    in_progress: [],
+    in_review: [],
+    delivered: ['closed'],
+    closed: [],
+    rejected: [],
+    cancelled: [],
+  },
+  agency: {
+    draft: [],
+    submitted: ['under_review', 'needs_info', 'accepted', 'rejected'],
+    under_review: ['needs_info', 'accepted', 'rejected'],
+    needs_info: ['under_review'],
+    accepted: ['in_progress'],
+    in_progress: ['in_review', 'delivered'],
+    in_review: ['in_progress', 'delivered'],
+    delivered: ['closed', 'in_progress'],
+    closed: [],
+    rejected: ['under_review'],
+    cancelled: [],
+  },
+};
+
+/** Transitions that must carry a reason (shown to the client). */
+export const reasonRequired: readonly RequestStatus[] = ['needs_info', 'rejected'];
+
+/** Transitions only `requests:triage` may make; the assignee with `requests:update` may make the rest. */
+export const triageOnlyTargets: readonly RequestStatus[] = ['under_review', 'needs_info', 'accepted', 'rejected'];
+
+export function canTransition(side: Side, from: RequestStatus, to: RequestStatus): boolean {
+  return requestTransitions[side][from].includes(to);
+}
+
+/** Client users may edit the brief only while drafting or when the agency asked for more information. */
+export const clientEditableStatuses: readonly RequestStatus[] = ['draft', 'needs_info'];
 
 export const requestPriorities = ['low', 'normal', 'high', 'urgent'] as const;
 export type RequestPriority = (typeof requestPriorities)[number];
-
-/** Priorities a client may pick when submitting (urgent is an agency decision). */
-export const clientPriorities: readonly RequestPriority[] = ['normal', 'high'];
-
-/** Agency transitions — keep identical to `app.request_transition_allowed()` in SQL. */
-export const agencyTransitions: Record<RequestStatus, readonly RequestStatus[]> = {
-  submitted: ['in_review', 'in_progress', 'declined'],
-  in_review: ['in_progress', 'waiting_client', 'declined'],
-  in_progress: ['waiting_client', 'completed', 'in_review'],
-  waiting_client: ['in_progress', 'completed', 'declined'],
-  completed: ['in_progress'],
-  declined: ['in_review'],
-  cancelled: ['in_review'],
-};
-
-/** Client users may only cancel, and only before work is under way (or while the agency waits on them). */
-export const clientCancellable: readonly RequestStatus[] = ['submitted', 'in_review', 'waiting_client'];
-
-export function canTransition(side: 'agency' | 'client', from: RequestStatus, to: RequestStatus): boolean {
-  if (side === 'client') return to === 'cancelled' && clientCancellable.includes(from);
-  return agencyTransitions[from].includes(to);
-}
+/** Priorities a client may pick (urgent is an agency decision). */
+export const clientPriorities: readonly RequestPriority[] = ['low', 'normal', 'high'];
 
 export const requestStatusTone = {
+  draft: 'outline',
   submitted: 'info',
-  in_review: 'brand',
+  under_review: 'brand',
+  needs_info: 'danger',
+  accepted: 'accent',
   in_progress: 'warning',
-  waiting_client: 'danger',
-  completed: 'success',
-  declined: 'neutral',
+  in_review: 'warning',
+  delivered: 'success',
+  closed: 'neutral',
+  rejected: 'neutral',
   cancelled: 'neutral',
 } as const satisfies Record<RequestStatus, string>;
 
@@ -47,74 +98,126 @@ export const requestPriorityTone = {
   urgent: 'danger',
 } as const satisfies Record<RequestPriority, string>;
 
-/** The steps a client sees in the status tracker (terminal off-ramps are shown separately). */
-export const trackerSteps = ['submitted', 'in_review', 'in_progress', 'completed'] as const satisfies readonly RequestStatus[];
+/** The steps a client sees in the tracker; off-ramps (needs info, rejected, cancelled) are called out separately. */
+export const trackerSteps = [
+  'submitted',
+  'under_review',
+  'accepted',
+  'in_progress',
+  'delivered',
+  'closed',
+] as const satisfies readonly RequestStatus[];
 
-export const formCategories = ['design', 'video', 'content', 'ads', 'social', 'other'] as const;
-export type FormCategory = (typeof formCategories)[number];
+export function trackerIndex(status: RequestStatus): number {
+  switch (status) {
+    case 'draft':
+      return -1;
+    case 'needs_info':
+      return 1;
+    case 'in_review':
+      return 3;
+    default:
+      return (trackerSteps as readonly RequestStatus[]).indexOf(status);
+  }
+}
 
-export const formStatuses = ['draft', 'published', 'archived'] as const;
-export type FormStatus = (typeof formStatuses)[number];
+export const typeCategories = ['design', 'video', 'content', 'ads', 'web', 'branding', 'other'] as const;
+export type TypeCategory = (typeof typeCategories)[number];
 
-/** Icons a form can use (lucide names); the UI maps them to components. */
-export const formIcons = [
-  'clipboard-list',
+/** Icons a request type can use (lucide names); the UI maps them to components. */
+export const typeIcons = [
   'image',
+  'gallery-horizontal',
   'clapperboard',
-  'pen-line',
+  'smartphone',
   'megaphone',
   'camera',
+  'globe',
   'palette',
-  'sparkles',
-  'calendar',
-  'repeat',
+  'pen-line',
+  'clipboard-list',
 ] as const;
-export type FormIcon = (typeof formIcons)[number];
+export type TypeIcon = (typeof typeIcons)[number];
 
-export type SlaState = 'none' | 'met' | 'on_track' | 'at_risk' | 'breached';
+/** Platform picker options (fixed list; labels come from translations). */
+export const platforms = ['instagram', 'tiktok', 'snapchat', 'x', 'linkedin', 'youtube', 'facebook'] as const;
+export type Platform = (typeof platforms)[number];
+
+/** Aspect-ratio presets for the dimensions field (`custom` takes width × height in px). */
+export const aspectRatios = ['1:1', '4:5', '9:16', '16:9', '1.91:1', 'custom'] as const;
+export type AspectRatio = (typeof aspectRatios)[number];
+
+/** Agency inbox views (saved filters). */
+export const inboxViews = ['new', 'pending', 'active', 'delivered', 'closed', 'mine', 'all'] as const;
+export type InboxView = (typeof inboxViews)[number];
+
+export function inInboxView(r: { status: RequestStatus; assigneeId: string | null }, view: InboxView, me: string): boolean {
+  switch (view) {
+    case 'new':
+      return r.status === 'submitted';
+    case 'pending':
+      return r.status === 'under_review' || r.status === 'needs_info';
+    case 'active':
+      return activeStatuses.includes(r.status);
+    case 'delivered':
+      return r.status === 'delivered';
+    case 'closed':
+      return closedStatuses.includes(r.status);
+    case 'mine':
+      return r.assigneeId === me && !closedStatuses.includes(r.status);
+    case 'all':
+      return true;
+  }
+}
+
+export type SlaState = 'none' | 'met' | 'missed' | 'on_track' | 'at_risk' | 'overdue';
+
+const DAY = 86_400_000;
 
 /**
- * SLA state for display. The next milestone is the first response until one happens, then resolution.
- * "At risk" = less than a quarter of the window (or 4 hours) left.
+ * SLA state from the due date (a calendar date, due by the end of that day in Riyadh).
+ * At risk = one day or less left, or under a quarter of the window.
  */
 export function slaState(
-  r: {
-    status: RequestStatus;
-    createdAt: string;
-    responseDueAt: string | null;
-    resolutionDueAt: string | null;
-    firstResponseAt: string | null;
-    resolvedAt: string | null;
-  },
+  r: { status: RequestStatus; submittedAt: string | null; dueDate: string | null; deliveredAt: string | null },
   now: Date = new Date(),
-): { state: SlaState; dueAt: string | null; milestone: 'response' | 'resolution' | null } {
-  if (r.status === 'cancelled') return { state: 'none', dueAt: null, milestone: null };
-  const milestone = !r.firstResponseAt && r.responseDueAt ? 'response' : r.resolutionDueAt ? 'resolution' : null;
-  if (!milestone) return { state: 'none', dueAt: null, milestone: null };
-  const dueAt = milestone === 'response' ? r.responseDueAt! : r.resolutionDueAt!;
-  const doneAt = milestone === 'response' ? r.firstResponseAt : r.resolvedAt;
-  if (doneAt) return { state: doneAt <= dueAt ? 'met' : 'breached', dueAt, milestone };
-  if (closedStatuses.includes(r.status)) return { state: 'none', dueAt, milestone };
-  const due = new Date(dueAt).getTime();
-  const left = due - now.getTime();
-  if (left < 0) return { state: 'breached', dueAt, milestone };
-  const windowMs = due - new Date(r.createdAt).getTime();
-  const risk = Math.min(Math.max(windowMs * 0.25, 0), 4 * 3600_000);
-  return { state: left <= Math.max(risk, 3600_000) ? 'at_risk' : 'on_track', dueAt, milestone };
+): SlaState {
+  if (!r.dueDate || !r.submittedAt || r.status === 'draft' || r.status === 'cancelled' || r.status === 'rejected') return 'none';
+  const dueEnd = new Date(`${r.dueDate}T23:59:59+03:00`).getTime();
+  if (r.deliveredAt) return new Date(r.deliveredAt).getTime() <= dueEnd ? 'met' : 'missed';
+  if (r.status === 'closed') return 'none';
+  const left = dueEnd - now.getTime();
+  if (left < 0) return 'overdue';
+  const window = dueEnd - new Date(r.submittedAt).getTime();
+  return left <= Math.max(DAY, window * 0.25) ? 'at_risk' : 'on_track';
 }
 
 export const slaTone = {
   none: 'neutral',
   met: 'success',
+  missed: 'danger',
   on_track: 'success',
   at_risk: 'warning',
-  breached: 'danger',
+  overdue: 'danger',
 } as const satisfies Record<SlaState, string>;
 
-export function formatRequestNumber(n: number): string {
-  return `REQ-${String(n).padStart(4, '0')}`;
+/** Adds working days (Sunday–Thursday) to a date string — mirrors `app.add_working_days()` for previews. */
+export function addWorkingDays(from: string, days: number): string {
+  const d = new Date(`${from}T12:00:00Z`);
+  let left = days;
+  while (left > 0) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const dow = d.getUTCDay();
+    if (dow !== 5 && dow !== 6) left--;
+  }
+  return d.toISOString().slice(0, 10);
 }
 
-/** Agency inbox views (saved filters). */
-export const inboxViews = ['open', 'mine', 'unassigned', 'closed', 'all'] as const;
-export type InboxView = (typeof inboxViews)[number];
+/** Default reference prefix for a client (mirrors the SQL default): first slug word, letters/digits, max 6, upper-case. */
+export function defaultPrefix(slug: string): string {
+  const word = (slug.split('-')[0] ?? '')
+    .replace(/[^a-z0-9]/gi, '')
+    .slice(0, 6)
+    .toUpperCase();
+  return word || 'REQ';
+}

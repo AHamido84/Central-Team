@@ -26,6 +26,8 @@ export const clients = pgTable(
       onDelete: 'set null',
     }),
     startDate: date('start_date'),
+    /** Prefix of request references (NAJD-0042). Defaults from the slug (trigger). */
+    requestPrefix: text('request_prefix'),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

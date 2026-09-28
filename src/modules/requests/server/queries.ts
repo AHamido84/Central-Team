@@ -9,70 +9,78 @@ import {
   profiles,
   requestAttachments,
   requestEvents,
-  requestFormVersions,
-  requestForms,
+  requestStatusHistory,
+  requestTypes,
   requests,
   threads,
 } from '@/lib/db/schema';
 import type { LocalizedText } from '@/lib/i18n/localized';
+import type { PackageItemType } from '@/modules/clients/constants';
 import { toFileItem, withThumbnails, type FileItem } from '@/modules/files/server/queries';
-import type { FormCategory, FormIcon, FormStatus, RequestPriority, RequestStatus } from '@/modules/requests/constants';
-import type { RequestFormField } from '@/modules/requests/form-schema';
+import type { RequestPriority, RequestStatus, TypeCategory, TypeIcon } from '@/modules/requests/constants';
+import type { Brief, RequestFormField } from '@/modules/requests/form-schema';
 
 type Person = { id: string; name: string; avatarPath: string | null };
 
 export type RequestListItem = {
   id: string;
-  number: number;
+  reference: string | null;
   title: string;
   status: RequestStatus;
   priority: RequestPriority;
   clientId: string;
   clientName: LocalizedText;
   clientLogo: string | null;
-  formId: string;
-  formName: LocalizedText;
-  formIcon: FormIcon;
+  typeId: string;
+  typeName: LocalizedText;
+  typeIcon: TypeIcon;
+  packageItemType: PackageItemType | null;
+  assigneeId: string | null;
   assignee: Person | null;
-  submitter: Person | null;
-  submittedSide: 'agency' | 'client';
+  author: Person | null;
   desiredDate: string | null;
+  dueDate: string | null;
+  isExtra: boolean;
+  isBillable: boolean;
+  submittedAt: string | null;
+  deliveredAt: string | null;
   createdAt: string;
   lastActivityAt: string;
-  responseDueAt: string | null;
-  resolutionDueAt: string | null;
-  firstResponseAt: string | null;
-  resolvedAt: string | null;
   threadId: string | null;
   unread: number;
   comments: number;
+  /** The agency's latest question while the request is in Needs info. */
+  needsInfoReason: string | null;
 };
 
 const iso = (d: Date | string | null) => (d ? new Date(d).toISOString() : null);
 
 async function selectRequests(where: { clientId?: string; ids?: string[]; limit?: number }) {
   return withRls(async (tx) => {
-    const assignee = sql<string | null>`(select p.full_name from public.profiles p where p.id = requests.assignee_id)`;
     const rows = await tx
       .select({
         r: requests,
         clientName: clients.name,
         clientLogo: clients.logoPath,
-        formName: requestForms.name,
-        formIcon: requestForms.icon,
-        assigneeName: assignee,
+        typeName: requestTypes.name,
+        typeIcon: requestTypes.icon,
+        packageItemType: requestTypes.packageItemType,
+        assigneeName: sql<string | null>`(select p.full_name from public.profiles p where p.id = requests.assignee_id)`,
         assigneeAvatar: sql<string | null>`(select p.avatar_path from public.profiles p where p.id = requests.assignee_id)`,
-        submitterName: profiles.fullName,
-        submitterAvatar: profiles.avatarPath,
+        authorName: profiles.fullName,
+        authorAvatar: profiles.avatarPath,
         threadId: threads.id,
         // Counts go through RLS (comments_select), so client users never count internal notes.
         comments: sql<number>`(select count(*)::int from public.comments c where c.thread_id = threads.id and c.deleted_at is null)`,
         unread: sql<number>`(select count(*)::int from public.comments c where c.thread_id = threads.id and c.deleted_at is null and c.author_id is distinct from auth.uid() and c.created_at > coalesce((select tr.last_read_at from public.thread_reads tr where tr.thread_id = threads.id and tr.user_id = auth.uid()), 'epoch'))`,
+        needsInfoReason: sql<
+          string | null
+        >`(select h.reason from public.request_status_history h where h.request_id = requests.id and h.to_status = 'needs_info' order by h.created_at desc limit 1)`,
       })
       .from(requests)
       .innerJoin(clients, eq(clients.id, requests.clientId))
-      .innerJoin(requestForms, eq(requestForms.id, requests.formId))
-      .leftJoin(profiles, eq(profiles.id, requests.submittedBy))
+      .innerJoin(requestTypes, eq(requestTypes.id, requests.requestTypeId))
+      .leftJoin(profiles, eq(profiles.id, requests.createdBy))
       .leftJoin(threads, and(eq(threads.subjectType, 'request'), eq(threads.subjectId, requests.id)))
       .where(
         and(
@@ -84,59 +92,75 @@ async function selectRequests(where: { clientId?: string; ids?: string[]; limit?
       .limit(where.limit ?? 500);
     return rows.map((x): RequestListItem => ({
       id: x.r.id,
-      number: x.r.number,
+      reference: x.r.reference,
       title: x.r.title,
       status: x.r.status as RequestStatus,
       priority: x.r.priority as RequestPriority,
       clientId: x.r.clientId,
       clientName: x.clientName,
       clientLogo: x.clientLogo,
-      formId: x.r.formId,
-      formName: x.formName,
-      formIcon: x.formIcon as FormIcon,
+      typeId: x.r.requestTypeId,
+      typeName: x.typeName,
+      typeIcon: x.typeIcon as TypeIcon,
+      packageItemType: x.packageItemType as PackageItemType | null,
+      assigneeId: x.r.assigneeId,
       assignee: x.r.assigneeId ? { id: x.r.assigneeId, name: x.assigneeName ?? '', avatarPath: x.assigneeAvatar } : null,
-      submitter: x.r.submittedBy ? { id: x.r.submittedBy, name: x.submitterName ?? '', avatarPath: x.submitterAvatar } : null,
-      submittedSide: x.r.submittedSide as 'agency' | 'client',
+      author: x.r.createdBy ? { id: x.r.createdBy, name: x.authorName ?? '', avatarPath: x.authorAvatar } : null,
       desiredDate: x.r.desiredDate,
+      dueDate: x.r.dueDate,
+      isExtra: x.r.isExtra,
+      isBillable: x.r.isBillable,
+      submittedAt: iso(x.r.submittedAt),
+      deliveredAt: iso(x.r.deliveredAt),
       createdAt: x.r.createdAt.toISOString(),
       lastActivityAt: x.r.lastActivityAt.toISOString(),
-      responseDueAt: iso(x.r.responseDueAt),
-      resolutionDueAt: iso(x.r.resolutionDueAt),
-      firstResponseAt: iso(x.r.firstResponseAt),
-      resolvedAt: iso(x.r.resolvedAt),
       threadId: x.threadId,
       unread: x.unread,
       comments: x.comments,
+      needsInfoReason: x.r.status === 'needs_info' ? x.needsInfoReason : null,
     }));
   });
 }
 
-/** Requests the caller can see (RLS: agency by client access + `requests:read`; client users their own client). */
+/** Requests the caller can see (RLS: agency never sees drafts; client users see their client's plus own drafts). */
 export async function listRequests(opts: { clientId?: string; limit?: number } = {}): Promise<RequestListItem[]> {
   return selectRequests(opts);
 }
 
-export type RequestEventItem = {
-  id: string;
-  type: 'submitted' | 'status_changed' | 'assigned' | 'priority_changed';
-  actorName: string | null;
-  actorAvatar: string | null;
-  actorSide: 'agency' | 'client' | 'system';
-  fromValue: string | null;
-  toValue: string | null;
-  /** For assignment events: the people behind the ids. */
-  fromName: string | null;
-  toName: string | null;
-  visibility: 'internal' | 'client';
-  createdAt: string;
-};
+export type TimelineItem =
+  | {
+      kind: 'status';
+      id: string;
+      from: RequestStatus | null;
+      to: RequestStatus;
+      reason: string | null;
+      actorName: string | null;
+      actorSide: 'agency' | 'client' | 'system';
+      createdAt: string;
+    }
+  | {
+      kind: 'event';
+      id: string;
+      type: 'assigned' | 'priority_changed' | 'due_date_changed' | 'flags_changed' | 'brief_updated';
+      fromValue: string | null;
+      toValue: string | null;
+      /** Assignment events: the people behind the ids. */
+      toName: string | null;
+      actorName: string | null;
+      actorSide: 'agency' | 'client' | 'system';
+      visibility: 'internal' | 'client';
+      createdAt: string;
+    };
+
+export type RequestAttachment = FileItem & { fieldId: string | null };
 
 export type RequestDetail = RequestListItem & {
-  answers: Record<string, unknown>;
+  brief: Brief;
   fields: RequestFormField[];
-  formVersion: number;
-  attachments: FileItem[];
-  events: RequestEventItem[];
+  schemaVersion: number;
+  referenceLinks: string[];
+  attachments: RequestAttachment[];
+  timeline: TimelineItem[];
 };
 
 export async function getRequest(requestId: string): Promise<RequestDetail | null> {
@@ -144,193 +168,177 @@ export async function getRequest(requestId: string): Promise<RequestDetail | nul
   if (!item) return null;
   const detail = await withRls(async (tx) => {
     const [row] = await tx
-      .select({ answers: requests.answers, fields: requestFormVersions.fields, version: requestFormVersions.version })
+      .select({ brief: requests.brief, fields: requests.formSnapshot, version: requests.schemaVersion, links: requests.referenceLinks })
       .from(requests)
-      .innerJoin(requestFormVersions, eq(requestFormVersions.id, requests.formVersionId))
       .where(eq(requests.id, requestId));
     const attachmentRows = await tx
-      .select({ file: files, uploaderName: profiles.fullName, uploaderAvatar: profiles.avatarPath })
+      .select({ file: files, fieldId: requestAttachments.fieldId, uploaderName: profiles.fullName, uploaderAvatar: profiles.avatarPath })
       .from(requestAttachments)
       .innerJoin(files, eq(files.id, requestAttachments.fileId))
       .leftJoin(profiles, eq(profiles.id, files.uploadedBy))
       .where(and(eq(requestAttachments.requestId, requestId), isNull(files.deletedAt)))
       .orderBy(asc(files.createdAt));
+    const history = await tx
+      .select({ h: requestStatusHistory, actorName: profiles.fullName })
+      .from(requestStatusHistory)
+      .leftJoin(profiles, eq(profiles.id, requestStatusHistory.actorId))
+      .where(eq(requestStatusHistory.requestId, requestId));
     const events = await tx
-      .select({ e: requestEvents, actorName: profiles.fullName, actorAvatar: profiles.avatarPath })
+      .select({ e: requestEvents, actorName: profiles.fullName })
       .from(requestEvents)
       .leftJoin(profiles, eq(profiles.id, requestEvents.actorId))
-      .where(eq(requestEvents.requestId, requestId))
-      .orderBy(asc(requestEvents.createdAt));
-    const personIds = [
-      ...new Set(
-        events
-          .filter((x) => x.e.type === 'assigned')
-          .flatMap((x) => [x.e.fromValue, x.e.toValue])
-          .filter(Boolean) as string[],
-      ),
-    ];
-    const people = personIds.length
-      ? await tx.select({ id: profiles.id, name: profiles.fullName }).from(profiles).where(inArray(profiles.id, personIds))
+      .where(eq(requestEvents.requestId, requestId));
+    const assigneeIds = [...new Set(events.filter((x) => x.e.type === 'assigned' && x.e.toValue).map((x) => x.e.toValue!))];
+    const people = assigneeIds.length
+      ? await tx.select({ id: profiles.id, name: profiles.fullName }).from(profiles).where(inArray(profiles.id, assigneeIds))
       : [];
-    const nameOf = (id: string | null) => (id ? (people.find((p) => p.id === id)?.name ?? null) : null);
-    return {
-      answers: row?.answers ?? {},
-      fields: row?.fields ?? [],
-      formVersion: row?.version ?? 1,
-      attachments: attachmentRows.map((a) => toFileItem(a.file, a.uploaderName, a.uploaderAvatar)),
-      paths: new Map(attachmentRows.map((a) => [a.file.id, a.file.storagePath])),
-      events: events.map(({ e, actorName, actorAvatar }): RequestEventItem => ({
-        id: e.id,
-        type: e.type as RequestEventItem['type'],
+    const timeline: TimelineItem[] = [
+      ...history.map(({ h, actorName }): TimelineItem => ({
+        kind: 'status',
+        id: h.id,
+        from: h.fromStatus as RequestStatus | null,
+        to: h.toStatus as RequestStatus,
+        reason: h.reason,
         actorName,
-        actorAvatar,
-        actorSide: e.actorSide as RequestEventItem['actorSide'],
+        actorSide: h.actorSide as 'agency' | 'client' | 'system',
+        createdAt: h.createdAt.toISOString(),
+      })),
+      ...events.map(({ e, actorName }): TimelineItem => ({
+        kind: 'event',
+        id: e.id,
+        type: e.type as Extract<TimelineItem, { kind: 'event' }>['type'],
         fromValue: e.fromValue,
         toValue: e.toValue,
-        fromName: e.type === 'assigned' ? nameOf(e.fromValue) : null,
-        toName: e.type === 'assigned' ? nameOf(e.toValue) : null,
+        toName: e.type === 'assigned' ? (people.find((p) => p.id === e.toValue)?.name ?? null) : null,
+        actorName,
+        actorSide: e.actorSide as 'agency' | 'client' | 'system',
         visibility: e.visibility as 'internal' | 'client',
         createdAt: e.createdAt.toISOString(),
       })),
+    ].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    return {
+      brief: row?.brief ?? {},
+      fields: row?.fields ?? [],
+      schemaVersion: row?.version ?? 1,
+      referenceLinks: row?.links ?? [],
+      attachments: attachmentRows.map((a) => ({ ...toFileItem(a.file, a.uploaderName, a.uploaderAvatar), fieldId: a.fieldId })),
+      paths: new Map(attachmentRows.map((a) => [a.file.id, a.file.storagePath])),
+      timeline,
     };
   });
   const { paths, ...rest } = detail;
-  return { ...item, ...rest, attachments: await withThumbnails(rest.attachments, paths) };
+  const withThumbs = await withThumbnails(rest.attachments, paths);
+  return {
+    ...item,
+    ...rest,
+    attachments: withThumbs.map((f, i) => ({ ...f, fieldId: rest.attachments[i]!.fieldId })),
+  };
 }
 
-export type FormSummary = {
+export type RequestTypeItem = {
   id: string;
   key: string;
   name: LocalizedText;
   description: LocalizedText;
-  icon: FormIcon;
-  category: FormCategory;
-  status: FormStatus;
+  icon: TypeIcon;
+  category: TypeCategory;
   defaultPriority: RequestPriority;
-  responseSlaHours: number | null;
-  resolutionSlaHours: number | null;
-  currentVersion: number | null;
-  hasDraft: boolean;
+  slaDays: number | null;
+  packageItemType: PackageItemType | null;
+  isActive: boolean;
+  fields: RequestFormField[];
+  schemaVersion: number;
   requestCount: number;
-  fieldCount: number;
   updatedAt: string;
 };
 
-/** Agency list of forms (drafts and archived included). */
-export async function listForms(): Promise<FormSummary[]> {
+/** Request types visible to the caller (portal: RLS returns active types only). */
+export async function listRequestTypes(opts: { activeOnly?: boolean } = {}): Promise<RequestTypeItem[]> {
   return withRls(async (tx) => {
     const rows = await tx
       .select({
-        f: requestForms,
-        currentVersion: sql<
-          number | null
-        >`(select v.version from public.request_form_versions v where v.id = request_forms.current_version_id)`,
-        fieldCount: sql<number>`coalesce((select jsonb_array_length(v.fields) from public.request_form_versions v where v.form_id = request_forms.id order by (v.published_at is null) desc, v.version desc limit 1), 0)`,
-        hasDraft: sql<boolean>`exists (select 1 from public.request_form_versions v where v.form_id = request_forms.id and v.published_at is null)`,
-        requestCount: sql<number>`(select count(*)::int from public.requests r where r.form_id = request_forms.id)`,
+        t: requestTypes,
+        requestCount: sql<number>`(select count(*)::int from public.requests r where r.request_type_id = request_types.id)`,
       })
-      .from(requestForms)
-      .orderBy(asc(requestForms.sortOrder), asc(requestForms.createdAt));
-    return rows.map(({ f, currentVersion, fieldCount, hasDraft, requestCount }) => ({
-      id: f.id,
-      key: f.key,
-      name: f.name,
-      description: f.description,
-      icon: f.icon as FormIcon,
-      category: f.category as FormCategory,
-      status: f.status as FormStatus,
-      defaultPriority: f.defaultPriority as RequestPriority,
-      responseSlaHours: f.responseSlaHours,
-      resolutionSlaHours: f.resolutionSlaHours,
-      currentVersion,
-      hasDraft,
+      .from(requestTypes)
+      .where(opts.activeOnly ? eq(requestTypes.isActive, true) : undefined)
+      .orderBy(asc(requestTypes.sortOrder), asc(requestTypes.createdAt));
+    return rows.map(({ t, requestCount }) => ({
+      id: t.id,
+      key: t.key,
+      name: t.name,
+      description: t.description,
+      icon: t.icon as TypeIcon,
+      category: t.category as TypeCategory,
+      defaultPriority: t.defaultPriority as RequestPriority,
+      slaDays: t.slaDays,
+      packageItemType: t.packageItemType as PackageItemType | null,
+      isActive: t.isActive,
+      fields: t.formSchema.fields ?? [],
+      schemaVersion: t.schemaVersion,
       requestCount,
-      fieldCount,
-      updatedAt: f.updatedAt.toISOString(),
+      updatedAt: t.updatedAt.toISOString(),
     }));
   });
 }
 
-export type FormVersionItem = {
-  id: string;
-  version: number;
-  publishedAt: string | null;
-  publishedByName: string | null;
-  fieldCount: number;
-};
+export async function getRequestType(typeId: string): Promise<RequestTypeItem | null> {
+  return (await listRequestTypes()).find((t) => t.id === typeId) ?? null;
+}
 
-export type FormForBuilder = {
-  form: FormSummary;
-  /** Fields being edited: the draft if one exists, else a copy of the published version. */
-  fields: RequestFormField[];
-  draftVersionId: string | null;
-  versions: FormVersionItem[];
-};
+export type Quota = { itemType: PackageItemType; allowed: number; used: number; pending: number; hasPackage: boolean };
 
-export async function getFormForBuilder(formId: string): Promise<FormForBuilder | null> {
-  const forms = await listForms();
-  const form = forms.find((f) => f.id === formId);
-  if (!form) return null;
+/** Remaining package quota per item type for the client's current period (for the wizard's package check). */
+export async function getQuotas(clientId: string, itemTypes: readonly string[], excludeRequestId?: string): Promise<Record<string, Quota>> {
+  const unique = [...new Set(itemTypes)];
+  if (!unique.length) return {};
   return withRls(async (tx) => {
-    const versions = await tx
-      .select({ v: requestFormVersions, publishedByName: profiles.fullName })
-      .from(requestFormVersions)
-      .leftJoin(profiles, eq(profiles.id, requestFormVersions.publishedBy))
-      .where(eq(requestFormVersions.formId, formId))
-      .orderBy(desc(requestFormVersions.version));
-    const draft = versions.find((x) => !x.v.publishedAt);
-    const latest = versions.find((x) => x.v.publishedAt);
-    return {
-      form,
-      fields: (draft ?? latest)?.v.fields ?? [],
-      draftVersionId: draft?.v.id ?? null,
-      versions: versions.map(({ v, publishedByName }) => ({
-        id: v.id,
-        version: v.version,
-        publishedAt: iso(v.publishedAt),
-        publishedByName,
-        fieldCount: v.fields.length,
-      })),
-    };
+    const out: Record<string, Quota> = {};
+    for (const item of unique) {
+      const [row] = await tx.execute<{ client_package_id: string | null; allowed: number; used: number; pending: number }>(
+        sql`select * from app.request_quota(${clientId}, ${item}, ${excludeRequestId ?? null})`,
+      );
+      out[item] = {
+        itemType: item as PackageItemType,
+        allowed: row?.allowed ?? 0,
+        used: row?.used ?? 0,
+        pending: row?.pending ?? 0,
+        hasPackage: Boolean(row?.client_package_id),
+      };
+    }
+    return out;
   });
 }
 
-export type PublishedForm = {
+export type RequestActivity = {
   id: string;
-  name: LocalizedText;
-  description: LocalizedText;
-  icon: FormIcon;
-  category: FormCategory;
-  defaultPriority: RequestPriority;
-  responseSlaHours: number | null;
-  versionId: string;
-  fields: RequestFormField[];
+  requestId: string;
+  reference: string | null;
+  title: string;
+  to: RequestStatus;
+  actorName: string | null;
+  at: string;
 };
 
-/** Forms a request can be submitted with (portal: RLS only returns published forms). */
-export async function listPublishedForms(): Promise<PublishedForm[]> {
+/** Recent status changes of a client's requests (portal home timeline). */
+export async function listRequestActivity(clientId: string, limit = 8): Promise<RequestActivity[]> {
   return withRls(async (tx) => {
     const rows = await tx
-      .select({ f: requestForms, v: requestFormVersions })
-      .from(requestForms)
-      .innerJoin(requestFormVersions, eq(requestFormVersions.id, requestForms.currentVersionId))
-      .where(eq(requestForms.status, 'published'))
-      .orderBy(asc(requestForms.sortOrder), asc(requestForms.createdAt));
-    return rows.map(({ f, v }) => ({
-      id: f.id,
-      name: f.name,
-      description: f.description,
-      icon: f.icon as FormIcon,
-      category: f.category as FormCategory,
-      defaultPriority: f.defaultPriority as RequestPriority,
-      responseSlaHours: f.responseSlaHours,
-      versionId: v.id,
-      fields: v.fields,
-    }));
+      .select({
+        id: requestStatusHistory.id,
+        requestId: requests.id,
+        reference: requests.reference,
+        title: requests.title,
+        to: requestStatusHistory.toStatus,
+        actorName: profiles.fullName,
+        at: requestStatusHistory.createdAt,
+      })
+      .from(requestStatusHistory)
+      .innerJoin(requests, eq(requests.id, requestStatusHistory.requestId))
+      .leftJoin(profiles, eq(profiles.id, requestStatusHistory.actorId))
+      .where(eq(requestStatusHistory.clientId, clientId))
+      .orderBy(desc(requestStatusHistory.createdAt))
+      .limit(limit);
+    return rows.map((r) => ({ ...r, to: r.to as RequestStatus, at: r.at.toISOString() }));
   });
-}
-
-export async function getPublishedForm(formId: string): Promise<PublishedForm | null> {
-  const forms = await listPublishedForms();
-  return forms.find((f) => f.id === formId) ?? null;
 }

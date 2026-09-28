@@ -7,7 +7,6 @@ import { clientAssignments, clientUsers, clients, comments, profiles, requests, 
 import { defineConsumer } from '@/lib/events/dispatcher';
 import { preview } from '@/modules/messaging/mentions';
 import { notify } from '@/modules/notifications/server/notify';
-import { formatRequestNumber } from '@/modules/requests/constants';
 
 /** Everyone who should hear about activity in a thread, split by side. Computed server-side from the DB. */
 export async function threadAudience(clientId: string, threadId: string, visibility: 'internal' | 'client') {
@@ -58,11 +57,11 @@ export const messageNotifications = defineConsumer({
     let links = { agency: `/messages?thread=${threadId}`, client: `/portal/messages?thread=${threadId}` };
     if (thread.subjectType === 'request' && thread.subjectId) {
       const [request] = await dbAdmin
-        .select({ id: requests.id, number: requests.number, assigneeId: requests.assigneeId })
+        .select({ id: requests.id, reference: requests.reference, assigneeId: requests.assigneeId })
         .from(requests)
         .where(eq(requests.id, thread.subjectId));
       if (request) {
-        title = `${formatRequestNumber(request.number)} · ${thread.title}`;
+        title = request.reference ? `${request.reference} · ${thread.title}` : thread.title;
         links = { agency: `/requests/${request.id}`, client: `/portal/requests/${request.id}` };
         if (request.assigneeId && !audience.agency.includes(request.assigneeId)) audience.agency.push(request.assigneeId);
       }

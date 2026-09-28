@@ -40,15 +40,19 @@
     },
     "request_submitted": {
       "title": "طلب جديد من ⁨{client}⁩",
-      "body": "قدّم {actor} الطلب {number}: “⁨{title}⁩”."
+      "body": "قدّم {actor} الطلب {reference}: «⁨{title}⁩»."
     },
     "request_assigned": {
-      "title": "أُسند إليك الطلب {number}",
-      "body": "أسند {actor} إليك “⁨{title}⁩” لـ ⁨{client}⁩."
+      "title": "أُسند إليك الطلب {reference}",
+      "body": "أسند {actor} إليك «⁨{title}⁩» لـ ⁨{client}⁩."
     },
     "request_status_changed": {
-      "title": "تحديث على الطلب {number}",
-      "body": "أصبحت حالة “⁨{title}⁩”: {status, select, submitted {مُقدَّم} in_review {قيد المراجعة} in_progress {قيد التنفيذ} waiting_client {بانتظار ردّك} completed {مكتمل} declined {معتذَر عنه} cancelled {ملغى} other {محدَّث}}."
+      "title": "تحديث على الطلب {reference}",
+      "body": "أصبحت حالة «⁨{title}⁩»: {status, select, submitted {مُقدَّم} under_review {قيد المراجعة} needs_info {بحاجة لمعلومات} accepted {مقبول} in_progress {قيد التنفيذ} in_review {قيد المراجعة الداخلية} delivered {مُسلَّم} closed {مغلق} rejected {مرفوض} cancelled {ملغى} other {محدَّث}}."
+    },
+    "request_needs_info": {
+      "title": "نحتاج معلومات إضافية للطلب {reference}",
+      "body": "يحتاج {actor} بعض التفاصيل حول «⁨{title}⁩» قبل البدء."
     }
   }
 }

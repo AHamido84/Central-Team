@@ -19,7 +19,10 @@ import { preview } from '@/modules/messaging/mentions';
 import { getPortalHome } from '@/modules/portal/server/queries';
 import { RequestRow } from '@/modules/requests/components/portal-requests';
 import { openStatuses } from '@/modules/requests/constants';
-import { listRequests } from '@/modules/requests/server/queries';
+import { listRequestActivity, listRequests } from '@/modules/requests/server/queries';
+import { ClientRequestStatsRow, PackageUsageChart } from '@/modules/requests/components/client-dashboard';
+import { RequestStatusBadge } from '@/modules/requests/components/badges';
+import { clientRequestStats } from '@/modules/requests/stats';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('nav');
@@ -37,17 +40,18 @@ export default async function PortalHomePage() {
   const t = await getTranslations();
   const f = await getFormatters();
   const requestsLive = Boolean(ctx.flags['module.requests']);
-  const [home, recentFiles, requests] = await Promise.all([
+  const [home, recentFiles, requests, requestActivity] = await Promise.all([
     getPortalHome(ctx),
     listRecentFiles(ctx.client.id, 4),
     requestsLive ? listRequests({ clientId: ctx.client.id }) : Promise.resolve([]),
+    requestsLive ? listRequestActivity(ctx.client.id, 6) : Promise.resolve([]),
   ]);
   const activeRequests = requests
     .filter((r) => openStatuses.includes(r.status))
     .sort(
-      (a, b) =>
-        Number(b.status === 'waiting_client') - Number(a.status === 'waiting_client') || b.lastActivityAt.localeCompare(a.lastActivityAt),
+      (a, b) => Number(b.status === 'needs_info') - Number(a.status === 'needs_info') || b.lastActivityAt.localeCompare(a.lastActivityAt),
     );
+  const stats = clientRequestStats(requests, ctx.profile.timezone);
   const canRequest = requestsLive && can(ctx.permissions, 'portal_requests:create');
   const hour = Number(
     new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: ctx.profile.timezone }).format(new Date()),
@@ -101,6 +105,8 @@ export default async function PortalHomePage() {
           </div>
         </div>
       </section>
+
+      {requestsLive ? <ClientRequestStatsRow stats={stats} /> : null}
 
       <div className="lg:hidden">
         <AccountManagerCard manager={home.accountManager} title={t('portal.yourAccountManager')} />
@@ -193,7 +199,7 @@ export default async function PortalHomePage() {
 
           <section>
             <SectionTitle title={t('portal.yourPackage')} />
-            <PackageUsageCard usage={home.usage} compact />
+            {requestsLive ? <PackageUsageChart usage={home.usage} /> : <PackageUsageCard usage={home.usage} compact />}
           </section>
 
           <section>
@@ -213,6 +219,34 @@ export default async function PortalHomePage() {
           <div className="hidden lg:block">
             <AccountManagerCard manager={home.accountManager} title={t('portal.yourAccountManager')} />
           </div>
+          {requestsLive ? (
+            <section>
+              <SectionTitle title={t('requests.dashboard.updates')} />
+              <Card className="p-4" data-testid="request-activity">
+                {requestActivity.length === 0 ? (
+                  <EmptyState compact icon={ClipboardList} title={t('requests.dashboard.noUpdates')} />
+                ) : (
+                  <ol className="grid gap-3">
+                    {requestActivity.map((a) => (
+                      <li key={a.id}>
+                        <Link href={`/portal/requests/${a.requestId}`} className="block rounded-md text-sm hover:underline">
+                          <span className="flex flex-wrap items-center gap-1.5">
+                            <span className="truncate font-medium">
+                              <bdi>{a.title}</bdi>
+                            </span>
+                            <RequestStatusBadge status={a.to} />
+                          </span>
+                          <span className="block text-xs text-subtle-foreground">
+                            <span dir="ltr">{a.reference}</span> · {f.relative(a.at)}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </Card>
+            </section>
+          ) : null}
           <section>
             <SectionTitle title={t('portal.recentActivity')} />
             <Card className="p-2" data-testid="portal-activity">

@@ -24,8 +24,8 @@ export const actionErrorCodes = [
   'invalid_credentials',
   'invalid_transition',
   'invalid_assignee',
-  'form_not_published',
-  'form_version_published',
+  'request_type_inactive',
+  'reason_required',
   'request_field_restricted',
   'unknown',
 ] as const;
@@ -70,8 +70,8 @@ const raisedCodes = new Set<ActionErrorCode>([
   'system_role_not_deletable',
   'invalid_transition',
   'invalid_assignee',
-  'form_not_published',
-  'form_version_published',
+  'request_type_inactive',
+  'reason_required',
   'request_field_restricted',
 ]);
 

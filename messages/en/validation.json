@@ -23,5 +23,11 @@
   "min_gt_max": "The minimum is greater than the maximum.",
   "field_ids_unique": "Two fields share the same id.",
   "invalid_field_id": "Invalid id.",
-  "fields_min": "Add at least one question."
+  "fields_min": "Add at least one question.",
+  "invalid": "Invalid value.",
+  "too_many": "Too many items.",
+  "invalid_color": "Enter a color as #RRGGBB.",
+  "invalid_dimensions": "Enter a valid width and height in pixels.",
+  "invalid_condition": "A condition must depend on an earlier choice or checkbox question and an existing value.",
+  "reason_required": "Add a reason (at least 3 characters)."
 }

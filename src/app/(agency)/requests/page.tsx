@@ -29,7 +29,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
         me={ctx.session.userId}
         people={people.map((p) => ({ id: p.id, name: p.name, avatarPath: p.avatar_path }))}
         canTriage={can(ctx.permissions, 'requests:triage')}
-        initialView={inboxViews.includes(view as InboxView) ? (view as InboxView) : 'open'}
+        initialView={inboxViews.includes(view as InboxView) ? (view as InboxView) : 'new'}
       />
     </>
   );

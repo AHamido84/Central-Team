@@ -65,7 +65,7 @@ export const agencyNav: NavSection[] = [
       { key: 'users', href: '/admin/users', icon: Users, anyOf: ['users:read', 'invitations:read'] },
       { key: 'roles', href: '/admin/roles', icon: ShieldCheck, anyOf: ['roles:read'] },
       { key: 'departments', href: '/admin/departments', icon: Network, anyOf: ['departments:manage'] },
-      { key: 'requestForms', href: '/admin/request-forms', icon: FileSliders, anyOf: ['request_forms:manage'], flag: 'module.requests' },
+      { key: 'requestTypes', href: '/admin/request-types', icon: FileSliders, anyOf: ['request_types:manage'], flag: 'module.requests' },
       { key: 'packages', href: '/admin/packages', icon: Package, anyOf: ['packages:manage'], flag: 'module.clients' },
       { key: 'features', href: '/admin/features', icon: Blocks, anyOf: ['feature_flags:manage'] },
       { key: 'audit', href: '/admin/audit', icon: ScrollText, anyOf: ['audit_log:read'] },

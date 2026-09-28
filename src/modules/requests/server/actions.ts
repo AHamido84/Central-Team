@@ -1,27 +1,30 @@
 'use server';
 
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { defineAction } from '@/lib/actions/define-action';
 import { ActionFailure } from '@/lib/actions/errors';
-import type { AppContext } from '@/lib/auth/context';
+import type { ClientContext } from '@/lib/auth/context';
 import type { Tx } from '@/lib/db/client';
-import { comments, files, requestAttachments, requestFormVersions, requestForms, requests, threadReads, threads } from '@/lib/db/schema';
+import { comments, files, requestAttachments, requestTypes, requests, threadReads, threads } from '@/lib/db/schema';
 import { emitEvent } from '@/lib/events/emit';
 import { can } from '@/lib/permissions/can';
-import { canTransition, clientPriorities, type RequestPriority, type RequestStatus } from '@/modules/requests/constants';
-import { buildAnswersSchema, type RequestFormField } from '@/modules/requests/form-schema';
+import { canTransition, triageOnlyTargets, type RequestStatus } from '@/modules/requests/constants';
+import { briefFileIds, validateBrief, type RequestFormField } from '@/modules/requests/form-schema';
 import {
   changeStatusSchema,
-  formSettingsSchema,
-  saveFormFieldsSchema,
-  submitRequestSchema,
+  requestDraftSchema,
+  requestTitleSchema,
+  saveTypeFormSchema,
   triageSchema,
+  typeSettingsSchema,
+  type RequestDraftInput,
 } from '@/modules/requests/schemas';
+import { getRequest, type RequestDetail } from '@/modules/requests/server/queries';
 
 // ---------------------------------------------------------------------------
-// Forms (agency, request_forms:manage)
+// Request types (agency, request_types:manage)
 // ---------------------------------------------------------------------------
 
 const starterFields: RequestFormField[] = [
@@ -34,292 +37,360 @@ const starterFields: RequestFormField[] = [
   },
 ];
 
-function formKey(name: { ar: string; en: string }) {
+function typeKey(name: { ar: string; en: string }) {
   const base = name.en
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 40);
-  return `${base || 'form'}-${crypto.randomUUID().slice(0, 6)}`;
+  return `${base || 'type'}-${crypto.randomUUID().slice(0, 6)}`;
 }
 
-export const createFormAction = defineAction({
-  input: formSettingsSchema,
+export const createRequestTypeAction = defineAction({
+  input: typeSettingsSchema,
   side: 'agency',
-  permission: 'request_forms:manage',
+  permission: 'request_types:manage',
   async handler({ input, tx, ctx }) {
-    const formId = crypto.randomUUID();
     const [{ n }] = (await tx.execute<{ n: number }>(
-      sql`select coalesce(max(sort_order), 0)::int + 1 as n from public.request_forms`,
+      sql`select coalesce(max(sort_order), 0)::int + 1 as n from public.request_types`,
     )) as unknown as [{ n: number }];
-    await tx.insert(requestForms).values({
-      id: formId,
-      organizationId: ctx.organization.id,
-      key: formKey(input.name),
-      ...input,
-      status: 'draft',
-      sortOrder: n,
-      createdBy: ctx.session.userId,
-    });
-    await tx.insert(requestFormVersions).values({
-      organizationId: ctx.organization.id,
-      formId,
-      version: 1,
-      fields: starterFields,
-      createdBy: ctx.session.userId,
-    });
-    await emitEvent(tx, {
-      type: 'request_form.created',
-      organizationId: ctx.organization.id,
-      actorId: ctx.session.userId,
-      aggregate: { type: 'request_form', id: formId },
-      payload: { formId },
-    });
-    return { formId };
-  },
-  revalidate: ['/admin/request-forms'],
-});
-
-export const updateFormSettingsAction = defineAction({
-  input: formSettingsSchema.extend({ formId: z.uuid() }),
-  side: 'agency',
-  permission: 'request_forms:manage',
-  async handler({ input, tx, ctx }) {
-    const { formId, ...patch } = input;
-    const [row] = await tx.update(requestForms).set(patch).where(eq(requestForms.id, formId)).returning({ id: requestForms.id });
-    if (!row) throw new ActionFailure('not_found');
-    await emitEvent(tx, {
-      type: 'request_form.updated',
-      organizationId: ctx.organization.id,
-      actorId: ctx.session.userId,
-      aggregate: { type: 'request_form', id: formId },
-      payload: { formId, fields: Object.keys(patch) },
-    });
-    return { formId };
-  },
-  revalidate: (input) => ['/admin/request-forms', `/admin/request-forms/${input.formId}`, '/portal/requests'],
-});
-
-async function draftOf(tx: Tx, formId: string) {
-  const [draft] = await tx
-    .select()
-    .from(requestFormVersions)
-    .where(and(eq(requestFormVersions.formId, formId), isNull(requestFormVersions.publishedAt)));
-  return draft ?? null;
-}
-
-async function saveDraft(tx: Tx, ctx: AppContext, formId: string, fields: RequestFormField[]) {
-  const [form] = await tx.select({ id: requestForms.id }).from(requestForms).where(eq(requestForms.id, formId));
-  if (!form) throw new ActionFailure('not_found');
-  const draft = await draftOf(tx, formId);
-  if (draft) {
     const [row] = await tx
-      .update(requestFormVersions)
-      .set({ fields })
-      .where(eq(requestFormVersions.id, draft.id))
-      .returning({ id: requestFormVersions.id, version: requestFormVersions.version });
-    if (!row) throw new ActionFailure('forbidden');
-    return row;
-  }
-  const [latest] = await tx
-    .select({ version: requestFormVersions.version })
-    .from(requestFormVersions)
-    .where(eq(requestFormVersions.formId, formId))
-    .orderBy(desc(requestFormVersions.version))
-    .limit(1);
-  const [row] = await tx
-    .insert(requestFormVersions)
-    .values({ organizationId: ctx.organization.id, formId, version: (latest?.version ?? 0) + 1, fields, createdBy: ctx.session.userId })
-    .returning({ id: requestFormVersions.id, version: requestFormVersions.version });
-  if (!row) throw new ActionFailure('forbidden');
-  return row;
-}
-
-export const saveFormDraftAction = defineAction({
-  input: saveFormFieldsSchema,
-  side: 'agency',
-  permission: 'request_forms:manage',
-  async handler({ input, tx, ctx }) {
-    const version = await saveDraft(tx, ctx, input.formId, input.fields as RequestFormField[]);
-    await emitEvent(tx, {
-      type: 'request_form.draft_saved',
-      organizationId: ctx.organization.id,
-      actorId: ctx.session.userId,
-      aggregate: { type: 'request_form', id: input.formId },
-      payload: { formId: input.formId, versionId: version.id, version: version.version },
-    });
-    return version;
-  },
-  revalidate: (input) => ['/admin/request-forms', `/admin/request-forms/${input.formId}`],
-});
-
-/** Saves the fields as the draft and publishes it as the form's new current version. */
-export const publishFormAction = defineAction({
-  input: saveFormFieldsSchema,
-  side: 'agency',
-  permission: 'request_forms:manage',
-  async handler({ input, tx, ctx }) {
-    if (input.fields.length === 0) throw new ActionFailure('validation', { fields: ['fields_min'] });
-    const draft = await saveDraft(tx, ctx, input.formId, input.fields as RequestFormField[]);
-    await tx.update(requestFormVersions).set({ publishedAt: new Date() }).where(eq(requestFormVersions.id, draft.id));
-    const [row] = await tx
-      .update(requestForms)
-      .set({ currentVersionId: draft.id, status: 'published' })
-      .where(eq(requestForms.id, input.formId))
-      .returning({ id: requestForms.id });
-    if (!row) throw new ActionFailure('not_found');
-    await emitEvent(tx, {
-      type: 'request_form.published',
-      organizationId: ctx.organization.id,
-      actorId: ctx.session.userId,
-      aggregate: { type: 'request_form', id: input.formId },
-      payload: { formId: input.formId, versionId: draft.id, version: draft.version },
-    });
-    return draft;
-  },
-  revalidate: (input) => ['/admin/request-forms', `/admin/request-forms/${input.formId}`, '/portal/requests'],
-});
-
-export const discardFormDraftAction = defineAction({
-  input: z.object({ formId: z.uuid() }),
-  side: 'agency',
-  permission: 'request_forms:manage',
-  async handler({ input, tx }) {
-    const [form] = await tx.select().from(requestForms).where(eq(requestForms.id, input.formId));
-    if (!form) throw new ActionFailure('not_found');
-    // A form that was never published has nothing to fall back to.
-    if (!form.currentVersionId) throw new ActionFailure('conflict');
-    await tx.delete(requestFormVersions).where(and(eq(requestFormVersions.formId, input.formId), isNull(requestFormVersions.publishedAt)));
-    return null;
-  },
-  revalidate: (input) => [`/admin/request-forms/${input.formId}`],
-});
-
-export const setFormArchivedAction = defineAction({
-  input: z.object({ formId: z.uuid(), archived: z.boolean() }),
-  side: 'agency',
-  permission: 'request_forms:manage',
-  async handler({ input, tx, ctx }) {
-    const [form] = await tx.select().from(requestForms).where(eq(requestForms.id, input.formId));
-    if (!form) throw new ActionFailure('not_found');
-    const status = input.archived ? 'archived' : form.currentVersionId ? 'published' : 'draft';
-    await tx.update(requestForms).set({ status }).where(eq(requestForms.id, input.formId));
-    await emitEvent(tx, {
-      type: 'request_form.archived',
-      organizationId: ctx.organization.id,
-      actorId: ctx.session.userId,
-      aggregate: { type: 'request_form', id: input.formId },
-      payload: { formId: input.formId, archived: input.archived },
-    });
-    return { status };
-  },
-  revalidate: (input) => ['/admin/request-forms', `/admin/request-forms/${input.formId}`, '/portal/requests'],
-});
-
-// ---------------------------------------------------------------------------
-// Requests
-// ---------------------------------------------------------------------------
-
-export const submitRequestAction = defineAction({
-  input: submitRequestSchema,
-  side: 'any',
-  rateLimit: { key: 'request_submit', max: 30, windowSeconds: 3600 },
-  async handler({ input, tx, ctx }) {
-    let clientId: string;
-    if (ctx.side === 'client') {
-      if (!can(ctx.permissions, 'portal_requests:create')) throw new ActionFailure('forbidden');
-      clientId = ctx.client.id;
-    } else {
-      if (!can(ctx.permissions, 'requests:triage') || !input.clientId) throw new ActionFailure('forbidden');
-      clientId = input.clientId;
-    }
-    // RLS: client users only see published forms; the insert trigger re-checks the version is current.
-    const [form] = await tx
-      .select({ f: requestForms, v: requestFormVersions })
-      .from(requestForms)
-      .innerJoin(requestFormVersions, eq(requestFormVersions.id, requestForms.currentVersionId))
-      .where(and(eq(requestForms.id, input.formId), eq(requestForms.status, 'published')));
-    if (!form) throw new ActionFailure('form_not_published');
-
-    const parsed = buildAnswersSchema(form.v.fields).safeParse(input.answers);
-    if (!parsed.success) {
-      const fieldErrors: Record<string, string[]> = {};
-      for (const issue of parsed.error.issues) {
-        const key = `answers.${String(issue.path[0] ?? '')}`;
-        (fieldErrors[key] ??= []).push(issue.message);
-      }
-      throw new ActionFailure('validation', fieldErrors);
-    }
-
-    // Client users choose normal or high ("urgent" toggle); the form's default applies otherwise.
-    const fallback =
-      ctx.side === 'agency'
-        ? form.f.defaultPriority
-        : clientPriorities.includes(form.f.defaultPriority as RequestPriority)
-          ? form.f.defaultPriority
-          : 'normal';
-    const priority = input.urgent ? 'high' : fallback;
-    const [row] = await tx
-      .insert(requests)
+      .insert(requestTypes)
       .values({
         organizationId: ctx.organization.id,
-        clientId,
-        formId: form.f.id,
-        formVersionId: form.v.id,
-        title: input.title,
-        answers: parsed.data,
-        priority,
-        desiredDate: input.desiredDate || null,
-        submittedBy: ctx.session.userId,
+        key: typeKey(input.name),
+        ...input,
+        formSchema: { fields: starterFields },
+        sortOrder: n,
+        createdBy: ctx.session.userId,
       })
-      .returning({ id: requests.id, number: requests.number });
+      .returning({ id: requestTypes.id });
     if (!row) throw new ActionFailure('forbidden');
+    await emitEvent(tx, {
+      type: 'request_type.created',
+      organizationId: ctx.organization.id,
+      actorId: ctx.session.userId,
+      aggregate: { type: 'request_type', id: row.id },
+      payload: { typeId: row.id },
+    });
+    return { typeId: row.id };
+  },
+  revalidate: ['/admin/request-types'],
+});
 
-    if (input.attachmentIds.length) {
-      const owned = await tx
-        .select({ id: files.id })
-        .from(files)
-        .where(
-          and(
-            inArray(files.id, input.attachmentIds),
-            eq(files.uploadedBy, ctx.session.userId),
-            eq(files.clientId, clientId),
-            eq(files.source, 'attachment'),
-            eq(files.visibility, 'client'),
-            isNull(files.deletedAt),
-          ),
-        );
-      if (owned.length !== input.attachmentIds.length) throw new ActionFailure('forbidden');
-      await tx
-        .insert(requestAttachments)
-        .values(input.attachmentIds.map((fileId) => ({ requestId: row.id, fileId, organizationId: ctx.organization.id, clientId })));
-    }
+export const updateRequestTypeAction = defineAction({
+  input: typeSettingsSchema.extend({ typeId: z.uuid() }),
+  side: 'agency',
+  permission: 'request_types:manage',
+  async handler({ input, tx, ctx }) {
+    const { typeId, ...patch } = input;
+    const [row] = await tx.update(requestTypes).set(patch).where(eq(requestTypes.id, typeId)).returning({ id: requestTypes.id });
+    if (!row) throw new ActionFailure('not_found');
+    await emitEvent(tx, {
+      type: 'request_type.updated',
+      organizationId: ctx.organization.id,
+      actorId: ctx.session.userId,
+      aggregate: { type: 'request_type', id: typeId },
+      payload: { typeId, fields: Object.keys(patch) },
+    });
+    return { typeId };
+  },
+  revalidate: (input) => ['/admin/request-types', `/admin/request-types/${input.typeId}`, '/portal/requests'],
+});
 
-    // The submitter has "read" their own request conversation.
+/** Saves the brief form. The DB bumps `schema_version`; submitted requests keep their own snapshot. */
+export const saveRequestTypeFormAction = defineAction({
+  input: saveTypeFormSchema,
+  side: 'agency',
+  permission: 'request_types:manage',
+  async handler({ input, tx, ctx }) {
+    const [row] = await tx
+      .update(requestTypes)
+      .set({ formSchema: input.formSchema as { fields: RequestFormField[] } })
+      .where(eq(requestTypes.id, input.typeId))
+      .returning({ id: requestTypes.id, schemaVersion: requestTypes.schemaVersion });
+    if (!row) throw new ActionFailure('not_found');
+    await emitEvent(tx, {
+      type: 'request_type.updated',
+      organizationId: ctx.organization.id,
+      actorId: ctx.session.userId,
+      aggregate: { type: 'request_type', id: input.typeId },
+      payload: { typeId: input.typeId, fields: ['form_schema'] },
+    });
+    return row;
+  },
+  revalidate: (input) => ['/admin/request-types', `/admin/request-types/${input.typeId}`, '/portal/requests'],
+});
+
+// ---------------------------------------------------------------------------
+// Client: drafts, submission, needs-info updates
+// ---------------------------------------------------------------------------
+
+function clientOnly(ctx: { side: string; permissions: ReadonlySet<string> }) {
+  if (ctx.side !== 'client' || !can(ctx.permissions, 'portal_requests:create')) throw new ActionFailure('forbidden');
+}
+
+function normalizeLinks(links: string[], strict: boolean) {
+  const out: string[] = [];
+  for (const raw of links) {
+    const v = raw.trim();
+    if (!v) continue;
+    const url = /^https?:\/\//i.test(v) ? v : `https://${v}`;
+    if (z.url().safeParse(url).success) out.push(url);
+    else if (strict) throw new ActionFailure('validation', { referenceLinks: ['invalid_url'] });
+  }
+  return [...new Set(out)];
+}
+
+/** Links general attachments and brief-field files to the request (only the caller's own client uploads). */
+async function syncAttachments(tx: Tx, ctx: ClientContext, requestId: string, entries: { fileId: string; fieldId: string | null }[]) {
+  const ids = [...new Set(entries.map((e) => e.fileId))];
+  if (ids.length) {
+    const owned = await tx
+      .select({ id: files.id })
+      .from(files)
+      .where(
+        and(
+          inArray(files.id, ids),
+          eq(files.uploadedBy, ctx.session.userId),
+          eq(files.clientId, ctx.client.id),
+          eq(files.source, 'attachment'),
+          eq(files.visibility, 'client'),
+          isNull(files.deletedAt),
+        ),
+      );
+    if (owned.length !== ids.length) throw new ActionFailure('forbidden');
+  }
+  // Attachment rows are immutable (no UPDATE grant): drop rows that changed or went away, insert the new ones.
+  const wanted = new Map(entries.map((e) => [e.fileId, e.fieldId]));
+  const existing = await tx
+    .select({ fileId: requestAttachments.fileId, fieldId: requestAttachments.fieldId })
+    .from(requestAttachments)
+    .where(eq(requestAttachments.requestId, requestId));
+  const stale = existing.filter((r) => !wanted.has(r.fileId) || wanted.get(r.fileId) !== r.fieldId).map((r) => r.fileId);
+  if (stale.length) {
+    await tx.delete(requestAttachments).where(and(eq(requestAttachments.requestId, requestId), inArray(requestAttachments.fileId, stale)));
+  }
+  const kept = new Set(existing.map((r) => r.fileId).filter((id) => !stale.includes(id)));
+  const fresh = [...wanted].filter(([fileId]) => !kept.has(fileId));
+  if (fresh.length) {
+    await tx
+      .insert(requestAttachments)
+      .values(
+        fresh.map(([fileId, fieldId]) => ({ requestId, fileId, fieldId, organizationId: ctx.organization.id, clientId: ctx.client.id })),
+      );
+  }
+}
+
+async function activeType(tx: Tx, typeId: string) {
+  const [type] = await tx
+    .select()
+    .from(requestTypes)
+    .where(and(eq(requestTypes.id, typeId), eq(requestTypes.isActive, true)));
+  if (!type) throw new ActionFailure('request_type_inactive');
+  return type;
+}
+
+function briefErrors(errors: Record<string, string>) {
+  return Object.fromEntries(Object.entries(errors).map(([k, v]) => [`brief.${k}`, [v]]));
+}
+
+/** Writes the draft row (insert or update) with a brief validated in the given mode. */
+async function writeDraft(tx: Tx, ctx: ClientContext, input: RequestDraftInput, mode: 'draft' | 'submit') {
+  const type = await activeType(tx, input.typeId);
+  const fields = type.formSchema.fields ?? [];
+  const result = validateBrief(fields, input.brief, mode);
+  const fieldErrors: Record<string, string[]> = result.ok ? {} : briefErrors(result.errors);
+  if (mode === 'submit') {
+    const title = requestTitleSchema.safeParse(input.title);
+    if (!title.success) fieldErrors.title = [title.error.issues[0]!.message];
+  }
+  if (Object.keys(fieldErrors).length) throw new ActionFailure('validation', fieldErrors);
+  const values = {
+    requestTypeId: type.id,
+    title: input.title,
+    brief: result.data,
+    referenceLinks: normalizeLinks(input.referenceLinks, mode === 'submit'),
+    desiredDate: input.desiredDate || null,
+    priority: input.priority,
+  };
+
+  let requestId = input.requestId;
+  if (requestId) {
+    const [row] = await tx
+      .update(requests)
+      .set(values)
+      .where(and(eq(requests.id, requestId), eq(requests.status, 'draft'), eq(requests.createdBy, ctx.session.userId)))
+      .returning({ id: requests.id });
+    if (!row) throw new ActionFailure('not_found');
+  } else {
+    const [row] = await tx
+      .insert(requests)
+      .values({ ...values, organizationId: ctx.organization.id, clientId: ctx.client.id, status: 'draft', createdBy: ctx.session.userId })
+      .returning({ id: requests.id });
+    if (!row) throw new ActionFailure('forbidden');
+    requestId = row.id;
+  }
+  await syncAttachments(tx, ctx, requestId, [
+    ...input.attachmentIds.map((fileId) => ({ fileId, fieldId: null })),
+    ...briefFileIds(fields, result.data),
+  ]);
+  return { requestId, type };
+}
+
+export const saveRequestDraftAction = defineAction({
+  input: requestDraftSchema,
+  side: 'client',
+  rateLimit: { key: 'request_draft', max: 300, windowSeconds: 3600 },
+  async handler({ input, tx, ctx }) {
+    clientOnly(ctx);
+    const { requestId } = await writeDraft(tx, ctx, input, 'draft');
+    return { requestId };
+  },
+  revalidate: ['/portal/requests'],
+});
+
+export const submitRequestAction = defineAction({
+  input: requestDraftSchema,
+  side: 'client',
+  rateLimit: { key: 'request_submit', max: 30, windowSeconds: 3600 },
+  async handler({ input, tx, ctx }) {
+    clientOnly(ctx);
+    const { requestId, type } = await writeDraft(tx, ctx, input, 'submit');
+    // The trigger numbers it, sets the due date and the "extra" flag, and opens the discussion thread.
+    const [row] = await tx
+      .update(requests)
+      .set({ status: 'submitted' })
+      .where(eq(requests.id, requestId))
+      .returning({ reference: requests.reference, isExtra: requests.isExtra });
+    if (!row) throw new ActionFailure('forbidden');
     const [thread] = await tx
       .select({ id: threads.id })
       .from(threads)
-      .where(and(eq(threads.subjectType, 'request'), eq(threads.subjectId, row.id)));
+      .where(and(eq(threads.subjectType, 'request'), eq(threads.subjectId, requestId)));
     if (thread) {
       await tx
         .insert(threadReads)
-        .values({ threadId: thread.id, userId: ctx.session.userId, organizationId: ctx.organization.id, clientId });
+        .values({ threadId: thread.id, userId: ctx.session.userId, organizationId: ctx.organization.id, clientId: ctx.client.id })
+        .onConflictDoNothing();
     }
-
     await emitEvent(tx, {
       type: 'request.submitted',
       organizationId: ctx.organization.id,
       actorId: ctx.session.userId,
-      aggregate: { type: 'request', id: row.id },
-      clientId,
-      payload: { requestId: row.id, clientId, number: row.number, formId: form.f.id, side: ctx.side },
+      aggregate: { type: 'request', id: requestId },
+      clientId: ctx.client.id,
+      payload: { requestId, clientId: ctx.client.id, reference: row.reference ?? '', typeId: type.id, isExtra: row.isExtra },
     });
-    return { requestId: row.id, number: row.number, clientId };
+    return { requestId, reference: row.reference ?? '', isExtra: row.isExtra };
   },
-  revalidate: (_input, r) => ['/requests', '/portal/requests', '/portal', `/clients/${r.clientId}`],
+  revalidate: ['/requests', '/portal/requests', '/portal'],
 });
 
-/** Moves a request through its lifecycle. Client users can only cancel; the DB enforces the same rules. */
+/** Needs info → the client edits the brief (against the snapshot it was submitted with) and sends it back for review. */
+export const resubmitRequestAction = defineAction({
+  input: requestDraftSchema.extend({ requestId: z.uuid(), note: z.string().trim().max(2000).optional() }),
+  side: 'client',
+  async handler({ input, tx, ctx }) {
+    clientOnly(ctx);
+    const [current] = await tx.select().from(requests).where(eq(requests.id, input.requestId));
+    if (!current || current.clientId !== ctx.client.id) throw new ActionFailure('not_found');
+    if (current.status !== 'needs_info') throw new ActionFailure('invalid_transition');
+    const fields = current.formSnapshot;
+    const result = validateBrief(fields, input.brief, 'submit');
+    const fieldErrors: Record<string, string[]> = result.ok ? {} : briefErrors(result.errors);
+    const title = requestTitleSchema.safeParse(input.title);
+    if (!title.success) fieldErrors.title = [title.error.issues[0]!.message];
+    if (Object.keys(fieldErrors).length) throw new ActionFailure('validation', fieldErrors);
+    await tx.execute(sql`select set_config('app.transition_reason', ${input.note ?? ''}, true)`);
+    const [row] = await tx
+      .update(requests)
+      .set({
+        title: input.title,
+        brief: result.data,
+        referenceLinks: normalizeLinks(input.referenceLinks, true),
+        desiredDate: input.desiredDate || null,
+        priority: input.priority,
+        status: 'under_review',
+      })
+      .where(eq(requests.id, current.id))
+      .returning({ id: requests.id });
+    if (!row) throw new ActionFailure('forbidden');
+    await syncAttachments(tx, ctx, current.id, [
+      ...input.attachmentIds.map((fileId) => ({ fileId, fieldId: null })),
+      ...briefFileIds(fields, result.data),
+    ]);
+    if (input.note) await postToThread(tx, ctx.organization.id, current.clientId, current.id, ctx.session.userId, 'client', input.note);
+    await emitEvent(tx, {
+      type: 'request.brief_updated',
+      organizationId: ctx.organization.id,
+      actorId: ctx.session.userId,
+      aggregate: { type: 'request', id: current.id },
+      clientId: current.clientId,
+      payload: { requestId: current.id, clientId: current.clientId },
+    });
+    await emitEvent(tx, {
+      type: 'request.status_changed',
+      organizationId: ctx.organization.id,
+      actorId: ctx.session.userId,
+      aggregate: { type: 'request', id: current.id },
+      clientId: current.clientId,
+      payload: { requestId: current.id, clientId: current.clientId, from: 'needs_info', to: 'under_review', reason: input.note ?? null },
+    });
+    return { requestId: current.id };
+  },
+  revalidate: (input) => [
+    '/requests',
+    `/requests/${input.requestId}`,
+    '/portal/requests',
+    `/portal/requests/${input.requestId}`,
+    '/portal',
+  ],
+});
+
+export const deleteDraftAction = defineAction({
+  input: z.object({ requestId: z.uuid() }),
+  side: 'client',
+  async handler({ input, tx, ctx }) {
+    clientOnly(ctx);
+    const [row] = await tx
+      .delete(requests)
+      .where(and(eq(requests.id, input.requestId), eq(requests.status, 'draft'), eq(requests.createdBy, ctx.session.userId)))
+      .returning({ id: requests.id });
+    if (!row) throw new ActionFailure('not_found');
+    return null;
+  },
+  revalidate: ['/portal/requests'],
+});
+
+// ---------------------------------------------------------------------------
+// Lifecycle & triage
+// ---------------------------------------------------------------------------
+
+/**
+ * A reason / note that goes with a transition is also posted to the discussion so the conversation stays in one
+ * place. No `comment.created` event: the status notification already carries it (no double emails).
+ */
+async function postToThread(
+  tx: Tx,
+  orgId: string,
+  clientId: string,
+  requestId: string,
+  authorId: string,
+  side: 'agency' | 'client',
+  body: string,
+) {
+  const [thread] = await tx
+    .select({ id: threads.id })
+    .from(threads)
+    .where(and(eq(threads.subjectType, 'request'), eq(threads.subjectId, requestId)));
+  if (!thread) return;
+  await tx
+    .insert(comments)
+    .values({ organizationId: orgId, clientId, threadId: thread.id, authorId, authorSide: side, body, visibility: 'client' });
+}
+
+/** Moves a request through its lifecycle; the DB enforces the same per-role rules and required reasons. */
 export const changeRequestStatusAction = defineAction({
   input: changeStatusSchema,
   side: 'any',
@@ -327,68 +398,38 @@ export const changeRequestStatusAction = defineAction({
     const [current] = await tx.select().from(requests).where(eq(requests.id, input.requestId));
     if (!current) throw new ActionFailure('not_found');
     const from = current.status as RequestStatus;
-    if (from === input.status) return { requestId: current.id, clientId: current.clientId, status: from };
     if (ctx.side === 'client') {
       if (current.clientId !== ctx.client.id || !can(ctx.permissions, 'portal_requests:create')) throw new ActionFailure('forbidden');
-    } else if (
-      !can(ctx.permissions, 'requests:triage') &&
-      !(can(ctx.permissions, 'requests:update') && current.assigneeId === ctx.session.userId)
-    ) {
-      throw new ActionFailure('forbidden');
+    } else {
+      const triage = can(ctx.permissions, 'requests:triage');
+      const assignee = can(ctx.permissions, 'requests:update') && current.assigneeId === ctx.session.userId;
+      if (!triage && !(assignee && !triageOnlyTargets.includes(input.status))) throw new ActionFailure('forbidden');
     }
-    if (!canTransition(ctx.side, from, input.status)) throw new ActionFailure('invalid_transition');
+    if (from === 'draft' || !canTransition(ctx.side, from, input.status)) throw new ActionFailure('invalid_transition');
 
+    await tx.execute(sql`select set_config('app.transition_reason', ${input.reason ?? ''}, true)`);
     const [row] = await tx.update(requests).set({ status: input.status }).where(eq(requests.id, current.id)).returning({ id: requests.id });
     if (!row) throw new ActionFailure('forbidden');
-
-    let commentId: string | null = null;
-    if (input.message) {
-      const [thread] = await tx
-        .select({ id: threads.id })
-        .from(threads)
-        .where(and(eq(threads.subjectType, 'request'), eq(threads.subjectId, current.id)));
-      if (thread) {
-        commentId = crypto.randomUUID();
-        await tx.insert(comments).values({
-          id: commentId,
-          organizationId: ctx.organization.id,
-          clientId: current.clientId,
-          threadId: thread.id,
-          authorId: ctx.session.userId,
-          authorSide: ctx.side,
-          body: input.message,
-          visibility: 'client',
-        });
-        await emitEvent(tx, {
-          type: 'comment.created',
-          organizationId: ctx.organization.id,
-          actorId: ctx.session.userId,
-          aggregate: { type: 'comment', id: commentId },
-          clientId: current.clientId,
-          payload: { commentId, threadId: thread.id, clientId: current.clientId, visibility: 'client', mentions: [] },
-        });
-      }
-    }
+    if (input.reason) await postToThread(tx, ctx.organization.id, current.clientId, current.id, ctx.session.userId, ctx.side, input.reason);
     await emitEvent(tx, {
       type: 'request.status_changed',
       organizationId: ctx.organization.id,
       actorId: ctx.session.userId,
       aggregate: { type: 'request', id: current.id },
       clientId: current.clientId,
-      payload: { requestId: current.id, clientId: current.clientId, from, to: input.status, commentId },
+      payload: { requestId: current.id, clientId: current.clientId, from, to: input.status, reason: input.reason ?? null },
     });
-    return { requestId: current.id, clientId: current.clientId, status: input.status };
+    return { requestId: current.id, status: input.status };
   },
   revalidate: (_i, r) => ['/requests', `/requests/${r.requestId}`, '/portal/requests', `/portal/requests/${r.requestId}`, '/portal'],
 });
 
-/** Assign and/or prioritize one or many requests (inbox bulk actions and the detail panel). */
+/** Assign, prioritize, set due date and billing flags on one or many requests (inbox bulk actions and the detail panel). */
 export const triageRequestsAction = defineAction({
   input: triageSchema,
   side: 'agency',
   permission: 'requests:triage',
   async handler({ input, tx, ctx }) {
-    if (input.assigneeId === undefined && input.priority === undefined) return { updated: 0 };
     const rows = await tx.select().from(requests).where(inArray(requests.id, input.requestIds));
     if (rows.length !== input.requestIds.length) throw new ActionFailure('not_found');
     let updated = 0;
@@ -396,7 +437,11 @@ export const triageRequestsAction = defineAction({
       const patch: Partial<typeof requests.$inferInsert> = {};
       if (input.assigneeId !== undefined && input.assigneeId !== current.assigneeId) patch.assigneeId = input.assigneeId;
       if (input.priority !== undefined && input.priority !== current.priority) patch.priority = input.priority;
-      if (Object.keys(patch).length === 0) continue;
+      if (input.dueDate !== undefined && input.dueDate !== current.dueDate) patch.dueDate = input.dueDate;
+      if (input.isExtra !== undefined && input.isExtra !== current.isExtra) patch.isExtra = input.isExtra;
+      if (input.isBillable !== undefined && input.isBillable !== current.isBillable) patch.isBillable = input.isBillable;
+      const changed = Object.keys(patch);
+      if (!changed.length) continue;
       const [row] = await tx.update(requests).set(patch).where(eq(requests.id, current.id)).returning({ id: requests.id });
       if (!row) throw new ActionFailure('forbidden');
       updated++;
@@ -415,18 +460,31 @@ export const triageRequestsAction = defineAction({
           },
         });
       }
-      if ('priority' in patch) {
+      const other = changed.filter((k) => k !== 'assigneeId');
+      if (other.length) {
         await emitEvent(tx, {
-          type: 'request.priority_changed',
+          type: 'request.triaged',
           organizationId: ctx.organization.id,
           actorId: ctx.session.userId,
           aggregate: { type: 'request', id: current.id },
           clientId: current.clientId,
-          payload: { requestId: current.id, clientId: current.clientId, from: current.priority, to: patch.priority! },
+          payload: { requestId: current.id, clientId: current.clientId, fields: other },
         });
       }
     }
     return { updated };
   },
   revalidate: (input) => ['/requests', ...input.requestIds.map((id) => `/requests/${id}`), '/portal/requests'],
+});
+
+/** Inbox quick-preview drawer: the request with its brief (RLS-scoped read). */
+export const previewRequestAction = defineAction({
+  input: z.object({ requestId: z.uuid() }),
+  side: 'agency',
+  permission: 'requests:read',
+  async handler({ input }): Promise<RequestDetail> {
+    const request = await getRequest(input.requestId);
+    if (!request) throw new ActionFailure('not_found');
+    return request;
+  },
 });

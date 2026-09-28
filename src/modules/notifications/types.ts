@@ -12,6 +12,7 @@ export const notificationTypes = {
   request_submitted: 'requests',
   request_assigned: 'requests',
   request_status_changed: 'requests',
+  request_needs_info: 'requests',
 } as const satisfies Record<string, NotificationCategory>;
 
 export type NotificationType = keyof typeof notificationTypes;

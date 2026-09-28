@@ -36,7 +36,7 @@ export const agencyPermissions = [
   'requests:read',
   'requests:update',
   'requests:triage',
-  'request_forms:manage',
+  'request_types:manage',
 ] as const;
 
 export const clientPermissions = [

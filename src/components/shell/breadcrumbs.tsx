@@ -33,7 +33,7 @@ const segmentKeys: Record<string, string> = {
   clients: 'nav.clients',
   messages: 'nav.messages',
   requests: 'nav.requests',
-  'request-forms': 'nav.requestForms',
+  'request-types': 'nav.requestTypes',
   admin: 'nav.sectionAdmin',
   users: 'nav.users',
   roles: 'nav.roles',

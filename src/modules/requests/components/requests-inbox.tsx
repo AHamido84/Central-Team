@@ -1,26 +1,27 @@
 'use client';
 
 import type { ColumnDef } from '@tanstack/react-table';
-import { AlarmClock, ClipboardList, Inbox, MessageSquare, UserRoundX } from 'lucide-react';
+import { AlarmClock, ArrowUpRight, ClipboardList, Hourglass, Inbox, MessageSquare, UserRoundX } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { EmptyState, StatCard } from '@/components/patterns';
+import { DirIcon, EmptyState, SectionTitle, StatCard } from '@/components/patterns';
 import { DataTable } from '@/components/patterns/data-table';
 import { useFormat } from '@/components/providers';
 import { Button } from '@/components/ui/button';
-import { Avatar, Badge, NativeSelect } from '@/components/ui/primitives';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/overlays';
+import { Avatar, Badge, NativeSelect, Skeleton } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
 import { localized, type Locale } from '@/lib/i18n/localized';
 import { publicAssetUrl } from '@/lib/storage';
 import { cn } from '@/lib/utils/cn';
-import { FormIcon, PriorityBadge, RequestStatusBadge, SlaBadge } from '@/modules/requests/components/badges';
+import { ExtraBadge, PriorityBadge, RequestStatusBadge, SlaBadge, TypeIcon } from '@/modules/requests/components/badges';
+import { BriefView } from '@/modules/requests/components/brief-fields';
+import { agencyAllowed, StatusActionButtons } from '@/modules/requests/components/request-detail';
 import {
-  closedStatuses,
-  formatRequestNumber,
   inboxViews,
+  inInboxView,
   openStatuses,
   requestPriorities,
   requestStatuses,
@@ -28,35 +29,121 @@ import {
   type InboxView,
   type RequestPriority,
 } from '@/modules/requests/constants';
-import { triageRequestsAction } from '@/modules/requests/server/actions';
-import type { RequestListItem } from '@/modules/requests/server/queries';
+import { previewRequestAction, triageRequestsAction } from '@/modules/requests/server/actions';
+import type { RequestDetail, RequestListItem } from '@/modules/requests/server/queries';
 
 const priorityRank: Record<RequestPriority, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
+const slaRank = { overdue: 0, at_risk: 1, on_track: 2, missed: 3, met: 4, none: 5 } as const;
 
-function inView(r: RequestListItem, view: InboxView, me: string) {
-  switch (view) {
-    case 'open':
-      return openStatuses.includes(r.status);
-    case 'mine':
-      return openStatuses.includes(r.status) && r.assignee?.id === me;
-    case 'unassigned':
-      return openStatuses.includes(r.status) && !r.assignee;
-    case 'closed':
-      return closedStatuses.includes(r.status);
-    case 'all':
-      return true;
-  }
+function PreviewDrawer({
+  request,
+  onOpenChange,
+  me,
+  canTriage,
+}: {
+  request: RequestListItem | null;
+  onOpenChange: (open: boolean) => void;
+  me: string;
+  canTriage: boolean;
+}) {
+  const t = useTranslations();
+  const locale = useLocale() as Locale;
+  const f = useFormat();
+  const [detail, setDetail] = useState<RequestDetail | null>(null);
+  const requestId = request?.id;
+  useEffect(() => {
+    if (!requestId) return;
+    let cancelled = false;
+    void previewRequestAction({ requestId }).then((res) => {
+      if (!cancelled && res.ok) setDetail(res.data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [requestId]);
+  const current = detail && detail.id === request?.id ? detail : null;
+  return (
+    <Sheet open={Boolean(request)} onOpenChange={onOpenChange}>
+      <SheetContent closeLabel={t('common.close')} className="w-[min(96vw,34rem)]" data-testid="request-preview">
+        {request ? (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="border-b border-border p-5 pe-12">
+              <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span dir="ltr" className="tabular">
+                  {request.reference}
+                </span>
+                · {localized(request.clientName, locale)}
+              </p>
+              <SheetTitle className="mt-1 text-lg">
+                <bdi>{request.title}</bdi>
+              </SheetTitle>
+              <SheetDescription className="mt-2 flex flex-wrap items-center gap-1.5">
+                <RequestStatusBadge status={request.status} />
+                <PriorityBadge priority={request.priority} />
+                <SlaBadge request={request} />
+                {request.isExtra ? <ExtraBadge /> : null}
+              </SheetDescription>
+            </div>
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
+              <dl className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <dt className="text-xs text-muted-foreground">{t('requests.submittedBy')}</dt>
+                  <dd className="truncate">{request.author?.name ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">{t('requests.submittedAt')}</dt>
+                  <dd>{request.submittedAt ? f.relative(request.submittedAt) : '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">{t('requests.fields.desiredDate')}</dt>
+                  <dd>{request.desiredDate ? f.date(`${request.desiredDate}T12:00:00`, 'medium') : '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">{t('requests.assignee')}</dt>
+                  <dd className="truncate">{request.assignee?.name ?? t('requests.unassigned')}</dd>
+                </div>
+              </dl>
+              <section>
+                <SectionTitle title={t('requests.brief')} />
+                {current ? (
+                  <BriefView fields={current.fields} brief={current.brief} files={current.attachments} />
+                ) : (
+                  <div className="grid gap-3">
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-16 w-full" />
+                  </div>
+                )}
+              </section>
+            </div>
+            <div className="grid gap-3 border-t border-border p-4">
+              <StatusActionButtons
+                request={request}
+                side="agency"
+                allowed={agencyAllowed(request.status, canTriage, request.assigneeId === me)}
+              />
+              <Button asChild variant="ghost" size="sm" className="justify-self-start">
+                <Link href={`/requests/${request.id}`} data-testid="open-request">
+                  {t('requests.openFull')}
+                  <DirIcon icon={ArrowUpRight} />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </SheetContent>
+    </Sheet>
+  );
 }
 
-/** Agency triage inbox: headline stats, saved views, filters, bulk assign/prioritize and SLA state per row. */
+/** Agency triage inbox: stats, views, filters, sort by age / SLA / priority, preview drawer, bulk triage. */
 export function RequestsInbox({
   requests,
   me,
   people,
   canTriage,
   showClient = true,
-  initialView = 'open',
-  basePath = '/requests',
+  initialView = 'new',
 }: {
   requests: RequestListItem[];
   me: string;
@@ -64,40 +151,43 @@ export function RequestsInbox({
   canTriage: boolean;
   showClient?: boolean;
   initialView?: InboxView;
-  basePath?: string;
 }) {
   const t = useTranslations();
   const locale = useLocale() as Locale;
   const f = useFormat();
-  const router = useRouter();
   const [view, setView] = useState<InboxView>(initialView);
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const triage = useAction(triageRequestsAction, { successMessage: t('requests.saved') });
 
   const open = requests.filter((r) => openStatuses.includes(r.status));
   const stats = {
-    open: open.length,
-    unassigned: open.filter((r) => !r.assignee).length,
-    overdue: open.filter((r) => slaState(r).state === 'breached').length,
-    atRisk: open.filter((r) => slaState(r).state === 'at_risk').length,
+    new: requests.filter((r) => r.status === 'submitted').length,
+    unassigned: open.filter((r) => !r.assigneeId).length,
+    overdue: open.filter((r) => slaState(r) === 'overdue').length,
+    atRisk: open.filter((r) => slaState(r) === 'at_risk').length,
   };
-  const counts = Object.fromEntries(inboxViews.map((v) => [v, requests.filter((r) => inView(r, v, me)).length])) as Record<
+  const counts = Object.fromEntries(inboxViews.map((v) => [v, requests.filter((r) => inInboxView(r, v, me)).length])) as Record<
     InboxView,
     number
   >;
+  // Default order: most urgent SLA first, then priority, then oldest.
   const rows = useMemo(
     () =>
       requests
-        .filter((r) => inView(r, view, me))
+        .filter((r) => inInboxView(r, view, me))
         .sort((a, b) =>
           view === 'closed' || view === 'all'
             ? b.lastActivityAt.localeCompare(a.lastActivityAt)
-            : priorityRank[a.priority] - priorityRank[b.priority] || a.createdAt.localeCompare(b.createdAt),
+            : slaRank[slaState(a)] - slaRank[slaState(b)] ||
+              priorityRank[a.priority] - priorityRank[b.priority] ||
+              (a.submittedAt ?? '').localeCompare(b.submittedAt ?? ''),
         ),
     [requests, view, me],
   );
+  const preview = requests.find((r) => r.id === previewId) ?? null;
 
   const clients = [...new Map(requests.map((r) => [r.clientId, localized(r.clientName, locale)])).entries()];
-  const forms = [...new Map(requests.map((r) => [r.formId, localized(r.formName, locale)])).entries()];
+  const types = [...new Map(requests.map((r) => [r.typeId, localized(r.typeName, locale)])).entries()];
   const assignees = [...new Map(requests.filter((r) => r.assignee).map((r) => [r.assignee!.id, r.assignee!.name])).entries()];
 
   const columns = useMemo<ColumnDef<RequestListItem, unknown>[]>(
@@ -110,10 +200,10 @@ export function RequestsInbox({
           const r = row.original;
           return (
             <div className="flex min-w-64 items-center gap-3">
-              <FormIcon icon={r.formIcon} size="sm" />
+              <TypeIcon icon={r.typeIcon} size="sm" />
               <div className="min-w-0">
                 <Link
-                  href={`${basePath}/${r.id}`}
+                  href={`/requests/${r.id}`}
                   className="block truncate font-medium hover:underline"
                   onClick={(e) => e.stopPropagation()}
                   data-testid="request-link"
@@ -122,10 +212,11 @@ export function RequestsInbox({
                 </Link>
                 <p className="flex items-center gap-1.5 truncate text-xs text-subtle-foreground">
                   <span className="tabular" dir="ltr">
-                    {formatRequestNumber(r.number)}
+                    {r.reference}
                   </span>
+                  {r.isExtra ? <ExtraBadge /> : null}
                   {r.unread > 0 ? (
-                    <Badge tone="danger" className="ms-1">
+                    <Badge tone="danger">
                       <MessageSquare />
                       {f.number(r.unread)}
                     </Badge>
@@ -170,9 +261,26 @@ export function RequestsInbox({
         cell: ({ row }) => <PriorityBadge priority={row.original.priority} />,
       },
       {
+        id: 'sla',
+        header: t('requests.sla.title'),
+        accessorFn: (r) => r.dueDate ?? '9999',
+        cell: ({ row }) => <SlaBadge request={row.original} />,
+      },
+      {
+        id: 'age',
+        header: t('requests.age'),
+        accessorFn: (r) => r.submittedAt ?? '',
+        sortingFn: (a, b) => (a.original.submittedAt ?? '').localeCompare(b.original.submittedAt ?? ''),
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap text-muted-foreground">
+            {row.original.submittedAt ? f.relative(row.original.submittedAt) : '—'}
+          </span>
+        ),
+      },
+      {
         id: 'assignee',
         header: t('requests.assignee'),
-        accessorFn: (r) => r.assignee?.id ?? '',
+        accessorFn: (r) => r.assigneeId ?? '',
         cell: ({ row }) =>
           row.original.assignee ? (
             <span className="flex items-center gap-2">
@@ -184,32 +292,20 @@ export function RequestsInbox({
           ),
       },
       {
-        id: 'form',
-        header: t('requests.form'),
-        accessorFn: (r) => r.formId,
-        cell: ({ row }) => <span className="whitespace-nowrap text-muted-foreground">{localized(row.original.formName, locale)}</span>,
-      },
-      {
-        id: 'sla',
-        header: t('requests.sla.title'),
-        accessorFn: (r) => slaState(r).dueAt ?? '',
-        cell: ({ row }) => <SlaBadge request={row.original} />,
-      },
-      {
-        id: 'activity',
-        header: t('requests.lastActivity'),
-        accessorFn: (r) => r.lastActivityAt,
-        cell: ({ row }) => <span className="whitespace-nowrap text-muted-foreground">{f.relative(row.original.lastActivityAt)}</span>,
+        id: 'type',
+        header: t('requests.type'),
+        accessorFn: (r) => r.typeId,
+        cell: ({ row }) => <span className="whitespace-nowrap text-muted-foreground">{localized(row.original.typeName, locale)}</span>,
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [locale, showClient, basePath],
+    [locale, showClient],
   );
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="request-stats">
-        <StatCard label={t('requests.stats.open')} value={f.number(stats.open)} icon={Inbox} />
+        <StatCard label={t('requests.stats.new')} value={f.number(stats.new)} icon={Inbox} />
         <StatCard label={t('requests.stats.unassigned')} value={f.number(stats.unassigned)} icon={UserRoundX} />
         <StatCard
           label={t('requests.stats.overdue')}
@@ -217,7 +313,7 @@ export function RequestsInbox({
           icon={AlarmClock}
           className={cn(stats.overdue > 0 && 'border-danger/40')}
         />
-        <StatCard label={t('requests.stats.atRisk')} value={f.number(stats.atRisk)} icon={AlarmClock} />
+        <StatCard label={t('requests.stats.atRisk')} value={f.number(stats.atRisk)} icon={Hourglass} />
       </div>
 
       <nav aria-label={t('requests.views.label')} className="-mx-(--gutter) overflow-x-auto px-(--gutter)">
@@ -249,23 +345,20 @@ export function RequestsInbox({
         data={rows}
         columns={columns}
         getRowId={(r) => r.id}
-        onRowClick={(r) => router.push(`${basePath}/${r.id}`)}
+        onRowClick={(r) => setPreviewId(r.id)}
         searchFn={(r, q) =>
           r.title.toLowerCase().includes(q) ||
-          formatRequestNumber(r.number).toLowerCase().includes(q) ||
-          String(r.number) === q ||
+          (r.reference ?? '').toLowerCase().includes(q) ||
           localized(r.clientName, locale).toLowerCase().includes(q)
         }
         searchPlaceholder={t('requests.searchPlaceholder')}
         filters={[
-          ...(view === 'open' || view === 'all'
+          ...(view === 'all'
             ? [
                 {
                   id: 'status',
                   label: t('common.status'),
-                  options: requestStatuses
-                    .filter((s) => view === 'all' || openStatuses.includes(s))
-                    .map((s) => ({ value: s, label: t(`requests.statuses.${s}`) })),
+                  options: requestStatuses.filter((s) => s !== 'draft').map((s) => ({ value: s, label: t(`requests.statuses.${s}`) })),
                 },
               ]
             : []),
@@ -277,10 +370,10 @@ export function RequestsInbox({
           ...(showClient
             ? [{ id: 'client', label: t('clients.client'), options: clients.map(([value, label]) => ({ value, label })) }]
             : []),
-          ...(view !== 'unassigned' && view !== 'mine'
+          ...(view !== 'mine'
             ? [{ id: 'assignee', label: t('requests.assignee'), options: assignees.map(([value, label]) => ({ value, label })) }]
             : []),
-          { id: 'form', label: t('requests.form'), options: forms.map(([value, label]) => ({ value, label })) },
+          { id: 'type', label: t('requests.type'), options: types.map(([value, label]) => ({ value, label })) },
         ]}
         bulkActions={
           canTriage
@@ -342,14 +435,14 @@ export function RequestsInbox({
           />
         }
         mobileCard={(r) => (
-          <div className="flex items-start gap-3 px-4 py-3">
-            <FormIcon icon={r.formIcon} size="sm" />
+          <div className="flex items-start gap-3 px-4 py-3" data-testid="request-card">
+            <TypeIcon icon={r.typeIcon} size="sm" />
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">
                 <bdi>{r.title}</bdi>
               </p>
               <p className="truncate text-xs text-subtle-foreground">
-                <span dir="ltr">{formatRequestNumber(r.number)}</span>
+                <span dir="ltr">{r.reference}</span>
                 {showClient ? ` · ${localized(r.clientName, locale)}` : ''}
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -362,6 +455,7 @@ export function RequestsInbox({
           </div>
         )}
       />
+      <PreviewDrawer request={preview} onOpenChange={(o) => !o && setPreviewId(null)} me={me} canTriage={canTriage} />
     </div>
   );
 }

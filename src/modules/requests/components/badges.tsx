@@ -5,19 +5,19 @@ import {
   AlarmClock,
   ArrowDown,
   ArrowUp,
-  Calendar,
   Camera,
   CheckCircle2,
   Clapperboard,
   ClipboardList,
   Flame,
+  GalleryHorizontal,
+  Globe,
   Image,
   Megaphone,
   Minus,
   Palette,
   PenLine,
-  Repeat,
-  Sparkles,
+  Smartphone,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -29,30 +29,26 @@ import {
   requestStatusTone,
   slaState,
   slaTone,
-  type FormIcon as FormIconKey,
   type RequestPriority,
   type RequestStatus,
+  type TypeIcon as TypeIconKey,
 } from '@/modules/requests/constants';
 
-const formIconMap: Record<FormIconKey, LucideIcon> = {
-  'clipboard-list': ClipboardList,
+export const typeIconMap: Record<TypeIconKey, LucideIcon> = {
   image: Image,
+  'gallery-horizontal': GalleryHorizontal,
   clapperboard: Clapperboard,
-  'pen-line': PenLine,
+  smartphone: Smartphone,
   megaphone: Megaphone,
   camera: Camera,
+  globe: Globe,
   palette: Palette,
-  sparkles: Sparkles,
-  calendar: Calendar,
-  repeat: Repeat,
+  'pen-line': PenLine,
+  'clipboard-list': ClipboardList,
 };
 
-export function formIconComponent(icon: FormIconKey): LucideIcon {
-  return formIconMap[icon] ?? ClipboardList;
-}
-
-export function FormIcon({ icon, className, size = 'md' }: { icon: FormIconKey; className?: string; size?: 'sm' | 'md' | 'lg' }) {
-  const Icon = formIconMap[icon] ?? ClipboardList;
+export function TypeIcon({ icon, className, size = 'md' }: { icon: TypeIconKey; className?: string; size?: 'sm' | 'md' | 'lg' }) {
+  const Icon = typeIconMap[icon] ?? ClipboardList;
   return (
     <span
       className={cn(
@@ -90,25 +86,28 @@ export function PriorityBadge({ priority, className }: { priority: RequestPriori
 
 type SlaInput = Parameters<typeof slaState>[0];
 
-/** Next SLA milestone (first response, then resolution) with a tone for on track / at risk / breached. */
+/** On track / at risk / overdue against the due date (from the type's SLA days, agency-editable). */
 export function SlaBadge({ request, className }: { request: SlaInput; className?: string }) {
   const t = useTranslations('requests');
   const f = useFormat();
-  const sla = slaState(request);
-  if (sla.state === 'none' || !sla.dueAt || !sla.milestone) return <span className="text-subtle-foreground">—</span>;
-  const Icon = sla.state === 'met' ? CheckCircle2 : AlarmClock;
-  const label =
-    sla.state === 'met'
-      ? t('sla.met')
-      : sla.state === 'breached'
-        ? t('sla.overdue', { when: f.relative(sla.dueAt) })
-        : t('sla.due', { when: f.relative(sla.dueAt) });
+  const state = slaState(request);
+  if (state === 'none' || !request.dueDate) return <span className="text-subtle-foreground">—</span>;
+  const Icon = state === 'met' ? CheckCircle2 : AlarmClock;
   return (
-    <Tooltip content={`${t(`sla.${sla.milestone}`)} · ${f.dateTime(sla.dueAt)}`}>
-      <Badge tone={slaTone[sla.state]} className={className} data-testid="request-sla" data-sla={sla.state}>
+    <Tooltip content={t('sla.dueOn', { date: f.date(`${request.dueDate}T12:00:00`, 'long') })}>
+      <Badge tone={slaTone[state]} className={className} data-testid="request-sla" data-sla={state}>
         <Icon aria-hidden />
-        {label}
+        {t(`sla.states.${state}`)}
       </Badge>
     </Tooltip>
+  );
+}
+
+export function ExtraBadge() {
+  const t = useTranslations('requests');
+  return (
+    <Badge tone="accent" data-testid="request-extra">
+      {t('extra')}
+    </Badge>
   );
 }
