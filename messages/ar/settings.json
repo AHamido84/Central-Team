@@ -1,0 +1,39 @@
+{
+  "title": "الإعدادات",
+  "description": "ملفك الشخصي وتفضيلاتك وإشعاراتك.",
+  "emailChangeSent": "أرسلنا رابط تأكيد إلى البريد الجديد.",
+  "emailChanged": "تم تأكيد بريدك الجديد.",
+  "profileSection": "الملف الشخصي",
+  "profileSectionHint": "يظهر لزملائك والعملاء الذين تعمل معهم.",
+  "emailSection": "البريد الإلكتروني",
+  "emailSectionHint": "بريدك الحالي {email}. التغيير يتطلب التأكيد من البريد الجديد.",
+  "newEmail": "البريد الجديد",
+  "sendConfirmation": "إرسال رابط التأكيد",
+  "passwordSection": "كلمة المرور",
+  "displaySection": "العرض",
+  "displaySectionHint": "لغة الواجهة والمظهر.",
+  "regionSection": "المنطقة والتاريخ",
+  "regionSectionHint": "تُعرض الأوقات والتواريخ حسب هذه الإعدادات.",
+  "timezone": "المنطقة الزمنية",
+  "calendar": "التقويم",
+  "calendarHint": "الأرقام تُعرض دائمًا بالأرقام اللاتينية.",
+  "gregorian": "ميلادي",
+  "hijri": "هجري (أم القرى)",
+  "category": "النوع",
+  "inApp": "داخل المنصة",
+  "emailChannel": "البريد",
+  "categories": {
+    "account": {
+      "title": "الحساب والفريق",
+      "body": "انضمام الأعضاء وتغيير الصلاحيات."
+    },
+    "messages": {
+      "title": "الرسائل",
+      "body": "الرسائل الجديدة والإشارات إليك."
+    },
+    "files": {
+      "title": "الملفات",
+      "body": "الملفات المشاركة أو المرفوعة حديثًا."
+    }
+  }
+}

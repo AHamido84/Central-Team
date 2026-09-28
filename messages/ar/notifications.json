@@ -1,0 +1,42 @@
+{
+  "title": "الإشعارات",
+  "inboxTitle": "الإشعارات",
+  "inboxDescription": "كل التحديثات المتعلقة بك في مكان واحد.",
+  "bellUnread": "الإشعارات، {count} غير مقروءة",
+  "markAllRead": "تعليم الكل كمقروء",
+  "openInbox": "عرض كل الإشعارات",
+  "unread": "غير مقروء",
+  "newNotification": "لديك إشعار جديد",
+  "emptyTitle": "لا إشعارات بعد",
+  "emptyBody": "ستظهر هنا التحديثات المهمة فور حدوثها.",
+  "emptyUnreadTitle": "أنت مطّلع على كل شيء",
+  "emptyUnreadBody": "لا توجد إشعارات غير مقروءة.",
+  "filterAll": "الكل",
+  "filterUnread": "غير المقروءة",
+  "types": {
+    "invitation_accepted": {
+      "title": "انضم {name}",
+      "body": "قبل {name} دعوتك وأنشأ حسابه."
+    },
+    "roles_changed": {
+      "title": "تم تحديث صلاحياتك",
+      "body": "غيّر {actor} أدوارك في المنصة."
+    },
+    "message_new": {
+      "title": "رسالة جديدة من {actor}",
+      "body": "في «{thread}»: {preview}"
+    },
+    "mention": {
+      "title": "أشار إليك {actor}",
+      "body": "في «{thread}»: {preview}"
+    },
+    "file_shared": {
+      "title": "ملف جديد: {file}",
+      "body": "شارك {actor} ملفًا جديدًا معك."
+    },
+    "file_uploaded_by_client": {
+      "title": "رفع {client} ملفًا",
+      "body": "رفع {actor} الملف «{file}»."
+    }
+  }
+}

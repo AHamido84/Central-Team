@@ -1,0 +1,16 @@
+{
+  "required": "This field is required.",
+  "too_long": "This is longer than allowed.",
+  "invalid_email": "Enter a valid email address.",
+  "password_min": "At least 8 characters.",
+  "password_letters_digits": "Must contain letters and numbers.",
+  "passwords_mismatch": "Passwords don't match.",
+  "invalid_phone": "Enter a valid mobile number, e.g. 05XXXXXXXX.",
+  "invalid_url": "Enter a valid link.",
+  "required_one_language": "Enter the name in at least one language.",
+  "invalid_date": "Enter a valid date.",
+  "period_end_before_start": "End date must be after the start date.",
+  "min_one": "Choose at least one.",
+  "invalid_slug": "Use lowercase English letters, numbers and dashes only.",
+  "positive_number": "Enter a number greater than zero."
+}

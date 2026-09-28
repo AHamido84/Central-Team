@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+<body style="margin:0;padding:0;background:#F1F3F6;font-family:'IBM Plex Sans Arabic',Inter,Segoe UI,Tahoma,Arial,sans-serif;color:#161A22">
+{{ if eq .Data.locale "en" }}
+<div dir="ltr" lang="en" style="max-width:520px;margin:32px auto;background:#ffffff;border-radius:12px;padding:32px;border:1px solid #E4E7EC">
+  <div style="font-weight:700;font-size:18px;color:#5140E0;margin-bottom:24px">Central</div>
+  <h1 style="font-size:20px;margin:0 0 12px">Reset your password</h1>
+  <p style="font-size:15px;line-height:1.6;color:#4D5566;margin:0 0 24px">We received a request to reset your password. The link expires in one hour.</p>
+  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery&amp;next=/reset-password" style="display:inline-block;background:#5140E0;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">Choose a new password</a>
+  <p style="font-size:13px;line-height:1.6;color:#6B7485;margin:24px 0 0">If you didn't request this, your password stays the same.</p>
+</div>
+{{ else }}
+<div dir="rtl" lang="ar" style="max-width:520px;margin:32px auto;background:#ffffff;border-radius:12px;padding:32px;border:1px solid #E4E7EC;text-align:right">
+  <div style="font-weight:700;font-size:18px;color:#5140E0;margin-bottom:24px">سنترال · Central</div>
+  <h1 style="font-size:20px;margin:0 0 12px">إعادة تعيين كلمة المرور</h1>
+  <p style="font-size:15px;line-height:1.8;color:#4D5566;margin:0 0 24px">تلقينا طلبًا لإعادة تعيين كلمة المرور. ينتهي الرابط خلال ساعة.</p>
+  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery&amp;next=/reset-password" style="display:inline-block;background:#5140E0;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">اختيار كلمة مرور جديدة</a>
+  <p style="font-size:13px;line-height:1.8;color:#6B7485;margin:24px 0 0">إذا لم تطلب ذلك، ستبقى كلمة المرور كما هي.</p>
+</div>
+{{ end }}
+</body>
+</html>

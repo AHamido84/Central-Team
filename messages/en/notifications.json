@@ -1,0 +1,42 @@
+{
+  "title": "Notifications",
+  "inboxTitle": "Notifications",
+  "inboxDescription": "Every update that concerns you, in one place.",
+  "bellUnread": "Notifications, {count} unread",
+  "markAllRead": "Mark all as read",
+  "openInbox": "View all notifications",
+  "unread": "Unread",
+  "newNotification": "You have a new notification",
+  "emptyTitle": "No notifications yet",
+  "emptyBody": "Important updates will show up here as they happen.",
+  "emptyUnreadTitle": "You're all caught up",
+  "emptyUnreadBody": "There are no unread notifications.",
+  "filterAll": "All",
+  "filterUnread": "Unread",
+  "types": {
+    "invitation_accepted": {
+      "title": "{name} joined",
+      "body": "{name} accepted your invitation and created an account."
+    },
+    "roles_changed": {
+      "title": "Your access was updated",
+      "body": "{actor} changed your roles."
+    },
+    "message_new": {
+      "title": "New message from {actor}",
+      "body": "In “{thread}”: {preview}"
+    },
+    "mention": {
+      "title": "{actor} mentioned you",
+      "body": "In “{thread}”: {preview}"
+    },
+    "file_shared": {
+      "title": "New file: {file}",
+      "body": "{actor} shared a new file with you."
+    },
+    "file_uploaded_by_client": {
+      "title": "{client} uploaded a file",
+      "body": "{actor} uploaded “{file}”."
+    }
+  }
+}

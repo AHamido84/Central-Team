@@ -1,0 +1,11 @@
+{
+  "footer": "This email was sent by {brand} via Central.",
+  "openInApp": "Open in Central",
+  "manageNotifications": "You can control these emails in your notification settings.",
+  "inviteTeamHeading": "Join the {org} team",
+  "inviteTeamBody": "{inviter} invited you to join the team workspace.",
+  "invitePortalHeading": "Your {client} portal is ready",
+  "invitePortalBody": "{inviter} from {org} invited you to the client portal to follow files, messages and updates.",
+  "inviteCta": "Accept invitation",
+  "inviteNote": "This invitation expires in {days} days. If you weren't expecting it, you can ignore it."
+}

@@ -1,0 +1,11 @@
+{
+  "footer": "أُرسلت هذه الرسالة من {brand} عبر منصة سنترال.",
+  "openInApp": "فتح في المنصة",
+  "manageNotifications": "يمكنك التحكم في رسائل البريد من إعدادات الإشعارات.",
+  "inviteTeamHeading": "انضم إلى فريق {org}",
+  "inviteTeamBody": "دعاك {inviter} للانضمام إلى مساحة عمل الفريق.",
+  "invitePortalHeading": "بوابة {client} جاهزة لك",
+  "invitePortalBody": "دعاك {inviter} من {org} إلى بوابة العميل لمتابعة الملفات والرسائل والتحديثات.",
+  "inviteCta": "قبول الدعوة",
+  "inviteNote": "تنتهي صلاحية هذه الدعوة خلال {days} أيام. إذا لم تتوقعها يمكنك تجاهلها."
+}

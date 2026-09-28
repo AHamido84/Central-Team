@@ -1,0 +1,259 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ==========================================================================
+   Design tokens (docs/UI.md §4). Brand: "Najd Indigo" + Sand (ADR-016).
+   Components use semantic tokens only — never raw hex.
+   ========================================================================== */
+
+:root {
+  /* Brand scale */
+  --indigo-50: #eef0ff;
+  --indigo-100: #e0e3ff;
+  --indigo-200: #c6cbfe;
+  --indigo-300: #a3a9fb;
+  --indigo-400: #7e80f6;
+  --indigo-500: #625dee;
+  --indigo-600: #5140e0;
+  --indigo-700: #4433c5;
+  --indigo-800: #382c9f;
+  --indigo-900: #312a7e;
+  --indigo-950: #1e1a4a;
+  --sand-100: #f5ebd7;
+  --sand-300: #dfbc7f;
+  --sand-500: #c98e42;
+  --sand-700: #91572f;
+
+  /* Surfaces & text */
+  --background: #f8f9fb;
+  --foreground: #161a22;
+  --surface: #ffffff;
+  --surface-muted: #f1f3f6;
+  --surface-raised: #ffffff;
+  --overlay: rgb(13 16 22 / 0.45);
+  --muted-foreground: #4d5566;
+  --subtle-foreground: #6b7485;
+
+  /* Brand — overridable per organization via --brand */
+  --brand: var(--indigo-600);
+  --primary: var(--brand);
+  --primary-foreground: #ffffff;
+  --primary-soft: color-mix(in oklab, var(--brand) 10%, white);
+  --primary-soft-foreground: color-mix(in oklab, var(--brand) 85%, black);
+  --accent: var(--sand-100);
+  --accent-foreground: var(--sand-700);
+  --link: var(--brand);
+
+  /* Semantic */
+  --success: #157f3d;
+  --success-soft: #e8f7ee;
+  --warning: #a15c07;
+  --warning-soft: #fef6e6;
+  --danger: #c52a2a;
+  --danger-soft: #fdecec;
+  --info: #1d5fd1;
+  --info-soft: #eaf2fe;
+
+  /* Lines */
+  --border: #e4e7ec;
+  --border-strong: #cdd2da;
+  --input: #cdd2da;
+  --ring: color-mix(in oklab, var(--brand) 80%, white);
+
+  /* Sidebar */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #373e4d;
+  --sidebar-active: color-mix(in oklab, var(--brand) 9%, white);
+  --sidebar-active-foreground: var(--brand);
+  --sidebar-border: #e4e7ec;
+
+  /* Shape, depth, motion */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --shadow-xs: 0 1px 2px rgb(22 26 34 / 0.05);
+  --shadow-sm: 0 1px 3px rgb(22 26 34 / 0.06), 0 1px 2px rgb(22 26 34 / 0.04);
+  --shadow-md: 0 8px 24px -6px rgb(22 26 34 / 0.12), 0 2px 6px rgb(22 26 34 / 0.05);
+  --shadow-lg: 0 24px 48px -12px rgb(22 26 34 / 0.2);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 260ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --row-h: 44px;
+  --gutter: 16px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --gutter: 24px;
+  }
+}
+@media (min-width: 1280px) {
+  :root {
+    --gutter: 32px;
+  }
+}
+
+.dark {
+  --background: #0d1016;
+  --foreground: #eef0f4;
+  --surface: #161a22;
+  --surface-muted: #1c212b;
+  --surface-raised: #1c212b;
+  --overlay: rgb(0 0 0 / 0.6);
+  --muted-foreground: #aab2c0;
+  --subtle-foreground: #8791a2;
+
+  --primary: color-mix(in oklab, var(--brand) 70%, white);
+  --primary-foreground: var(--indigo-950);
+  --primary-soft: color-mix(in oklab, var(--brand) 22%, #161a22);
+  --primary-soft-foreground: color-mix(in oklab, var(--brand) 45%, white);
+  --accent: #2a2116;
+  --accent-foreground: var(--sand-300);
+  --link: color-mix(in oklab, var(--brand) 55%, white);
+
+  --success: #4ade80;
+  --success-soft: #0f2a1b;
+  --warning: #fbbf24;
+  --warning-soft: #2e2008;
+  --danger: #f87171;
+  --danger-soft: #301314;
+  --info: #60a5fa;
+  --info-soft: #0f1d35;
+
+  --border: rgb(255 255 255 / 0.08);
+  --border-strong: rgb(255 255 255 / 0.14);
+  --input: rgb(255 255 255 / 0.14);
+  --ring: color-mix(in oklab, var(--brand) 60%, white);
+
+  --sidebar: #11141b;
+  --sidebar-foreground: #c3c9d4;
+  --sidebar-active: color-mix(in oklab, var(--brand) 20%, #11141b);
+  --sidebar-active-foreground: color-mix(in oklab, var(--brand) 40%, white);
+  --sidebar-border: rgb(255 255 255 / 0.06);
+
+  --shadow-xs: 0 0 0 1px rgb(255 255 255 / 0.03);
+  --shadow-sm: 0 0 0 1px rgb(255 255 255 / 0.04);
+  --shadow-md: 0 12px 32px -8px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.05);
+  --shadow-lg: 0 24px 56px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-raised: var(--surface-raised);
+  --color-overlay: var(--overlay);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-soft-foreground: var(--primary-soft-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-link: var(--link);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-active-foreground: var(--sidebar-active-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
+  --font-sans: var(--font-stack);
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  --text-display: 2.25rem;
+  --text-display--line-height: 1.25;
+  --text-h1: 1.75rem;
+  --text-h1--line-height: 1.3;
+  --text-h2: 1.375rem;
+  --text-h2--line-height: 1.35;
+  --text-h3: 1.125rem;
+  --text-h3--line-height: 1.45;
+
+  --ease-out-soft: var(--ease-out);
+  --animate-fade-in: fade-in var(--duration-base) var(--ease-out);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+html[lang='ar'] {
+  --font-stack: var(--font-plex-arabic), var(--font-inter), system-ui, sans-serif;
+}
+html[lang='en'] {
+  --font-stack: var(--font-inter), var(--font-plex-arabic), system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-stack);
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  html[lang='ar'] body {
+    line-height: 1.75;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--brand) 25%, transparent);
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

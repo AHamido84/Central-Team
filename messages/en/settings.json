@@ -1,0 +1,39 @@
+{
+  "title": "Settings",
+  "description": "Your profile, preferences and notifications.",
+  "emailChangeSent": "We sent a confirmation link to the new address.",
+  "emailChanged": "Your new email is confirmed.",
+  "profileSection": "Profile",
+  "profileSectionHint": "Visible to teammates and the clients you work with.",
+  "emailSection": "Email",
+  "emailSectionHint": "Your current email is {email}. Changing it requires confirmation from the new address.",
+  "newEmail": "New email",
+  "sendConfirmation": "Send confirmation link",
+  "passwordSection": "Password",
+  "displaySection": "Display",
+  "displaySectionHint": "Interface language and theme.",
+  "regionSection": "Region & dates",
+  "regionSectionHint": "Times and dates are shown using these settings.",
+  "timezone": "Time zone",
+  "calendar": "Calendar",
+  "calendarHint": "Numbers always use Latin digits.",
+  "gregorian": "Gregorian",
+  "hijri": "Hijri (Umm al-Qura)",
+  "category": "Type",
+  "inApp": "In app",
+  "emailChannel": "Email",
+  "categories": {
+    "account": {
+      "title": "Account & team",
+      "body": "Members joining and permission changes."
+    },
+    "messages": {
+      "title": "Messages",
+      "body": "New messages and mentions."
+    },
+    "files": {
+      "title": "Files",
+      "body": "Newly shared or uploaded files."
+    }
+  }
+}

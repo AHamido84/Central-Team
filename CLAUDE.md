@@ -1,3 +1,5 @@
+@AGENTS.md
+
 # CLAUDE.md — Central Team Platform
 
 > Persistent memory for every contributor (human or AI). Read this first, keep it current.
