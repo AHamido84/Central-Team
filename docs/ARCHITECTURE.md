@@ -506,3 +506,41 @@ sequenceDiagram
 - Access: agency `requests:read` + client access; `requests:triage` (accept / needs info / reject, assign, priority,
   due date, extra/billable) or `requests:update` (work statuses of requests assigned to you); `request_types:manage`.
   Client `portal_requests:create` (Owner, Member); Viewers read only. Drafts are visible only to their author.
+
+## 18. Phase 3 — tasks, deliverables & approvals
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor AM as Account manager
+  actor D as Designer
+  actor TL as Team lead
+  actor C as Client approver
+  participant DB as Postgres (RLS + triggers)
+  participant S as Storage (TUS)
+  AM->>DB: convertRequestToTasksAction → accept + tasks/deps/deliverables (generateWorkflow) → request in_progress
+  D->>DB: createVersionAction (draft) · requestVersionUploadAction (signed token)
+  D->>S: TUS upload (6 MB chunks, resumable) + preview image
+  D->>DB: finalizeVersionFileAction · submitVersionAction → trigger picks internal_review
+  TL->>DB: decideVersionAction(internal, approved) → approvals trigger → client_review (file now visible to client)
+  C->>DB: addAnnotationAction (pin / timestamp) · decideVersionAction(client, changes) → revision round used
+  D->>DB: new version → review restarts → … → client approved → task done → request delivered
+  DB-->>C: Realtime (deliverables, versions, annotations) → live review screen
+```
+
+- Modules: `src/modules/workflows` (templates, steps, statuses, `generate.ts`, convert dialog, progress stepper),
+  `src/modules/tasks` (queries/actions/consumers/reminders, board/list/table/calendar, drawer, My Work, `filter.ts`),
+  `src/modules/deliverables` (queries/actions/consumers, review screen, viewers, resumable upload hook, approvals list,
+  content calendar).
+- Routes: agency `/tasks` (`?layout=board|list|table|calendar`, `?task=<id>` opens the drawer, `?view=<saved view>`),
+  `/my-work`, `/deliverables`, `/deliverables/[id]`, `/admin/workflows`, `/admin/workflows/[id]`; the request page and
+  the inbox preview drawer carry "Convert to tasks". Portal `/portal/approvals`, `/portal/approvals/[id]`,
+  `/portal/calendar`, progress + deliverables on `/portal/requests/[id]`, approvals CTA on `/portal`.
+- Access: `tasks:read/create/update/delete`, `workflows:manage`, `deliverables:manage`, `deliverables:review`,
+  `time:read_all`; client decisions need `client_users.can_approve`. Flags: `module.tasks`, `module.approvals`,
+  `module.calendar` (on by default).
+- Board: dnd-kit (pointer, touch, keyboard with localized announcements; Left/Right jump columns), fractional
+  `position`, optimistic cache updates rolled back on error, realtime refetch debounced (400 ms).
+- Reminders: `runReminderSweep()` in `/api/cron/dispatch-events` emits `task.due_soon`, `task.overdue`,
+  `deliverable.approval_reminder` once per marker (ADR-043).
+

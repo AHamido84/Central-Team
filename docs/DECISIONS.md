@@ -231,6 +231,76 @@ Drafts are saved server-side (resume from any device) but RLS shows them only to
 client and never to the agency, which sees a request only once it is submitted. Drafts have no number, due date or
 thread; only the author can delete one.
 
+### ADR-036 — Task statuses are organization-defined; behaviour keys off a fixed category
+2026-09-29 · Accepted
+Agencies rename, add and reorder task statuses (`task_statuses`), but every status belongs to one of six categories
+(`todo · active · review · changes · blocked · done`). Completion stamps, unblocking notifications, My Work buckets,
+"due soon" reminders and the deliverable ↔ task sync use the category, never a status name. The category is copied onto
+`tasks.status_category` by trigger for fast filters. At least one `done` status must exist (deferred constraint trigger).
+
+### ADR-037 — Workflow steps carry review/approval flags instead of being separate review tasks
+2026-09-29 · Accepted
+A template step says whether it produces a deliverable and whether that deliverable needs internal review and/or
+client approval; "Internal review" and "Client approval" are stages of the deliverable, not tasks of their own. So the
+Social post example becomes Copywriting → Design (internal review + client approval) → Scheduling, and the request page
+still shows the review stages. *Rejected*: explicit review steps — they duplicate state (a review task and a deliverable
+status that must agree) and need auto-completion rules. "Convert to tasks" runs in one transaction: accept the request
+if needed (package consumption, ADR-034) → one task per step with dependencies, assignee (client account manager / the
+client-team member with a role, preferring the step's department / a fixed person), reviewer (client account manager),
+due dates chained in working days (`scheduleSteps`) → deliverables → request `in_progress`; `converted_at` makes it
+one-off. Tasks are numbered per organization (`T-123`).
+
+### ADR-038 — The approval state machine lives in triggers; the task and the request follow the deliverable
+2026-09-29 · Accepted
+Submitting a version is an update to `status` that the trigger turns into the first stage the deliverable needs;
+decisions are rows in `approvals` (insert-only, one per stage per version) whose trigger moves the version, the
+deliverable (`in_progress → internal_review ⇄ internal_changes → client_review ⇄ client_changes → approved`), the
+task's status category, and — when every deliverable of the request is approved — the request to `delivered` (a
+system transition in `request_status_history`). Feedback is required for "changes requested". A new version restarts
+the review; undecided older versions become `superseded`, decided ones keep their decision for the history. The TS
+mirror (`submitTarget`, `applyDecision`) is unit-tested; the SQL is tested in `tests/db/rls-tasks.test.ts`.
+
+### ADR-039 — Client revision rounds count against the package, with a warning, never a block
+2026-09-29 · Accepted
+Each client "changes requested" writes one `package_usage_entries` row (`revision_round`, `source_type = 'approval'`)
+into the client's current package and increments `deliverables.revision_rounds`. The portal shows how many rounds are
+left before the client sends feedback and warns when they're used up, but still lets them ask (the agency decides on
+billing). Internal changes never count.
+
+### ADR-040 — Deliverable files: resumable uploads to signed URLs, visible to the client only through a sent version
+2026-09-29 · Accepted
+Deliverable files are `files` rows with `source = 'deliverable'` and `visibility = 'internal'`; `files_select` lets a
+client user read one only when it belongs to a version with `sent_to_client_at`, so nothing leaks before the internal
+review and nothing appears in the client's files library. Uploads use TUS (6 MB chunks, retries, resume after a
+reload via a stored ticket) against Supabase Storage's `/upload/resumable/sign` with the server-issued signed token, so
+the server still chooses every path (ADR-020) and files never pass through Next.js. The browser makes the preview (a
+640px WebP for images, the ~1 s frame for videos) and uploads it next to the file; the server records dimensions and
+duration. Limits: images 50 MB, videos 2 GB (bucket raised to 2 GB), documents 100 MB.
+
+### ADR-041 — Tasks always belong to a client; internal collaboration reuses existing building blocks
+2026-09-29 · Accepted
+`tasks.client_id` is required, so every task inherits the client-access rules (`agency_can_access_client`) and
+specialists only see work for their clients; internal agency work (not tied to a client) is deferred. Task comments are
+an internal `threads` row per task (`subject_type = 'task'`) reusing the messaging UI, @mentions and read receipts;
+task-thread notifications go to the task's assignees, watchers, reviewer and commenters, and any agency member can be
+mentioned. Time tracking is internal (`time_entries`, one running timer per person, only your own entries, everyone's
+with `time:read_all`).
+
+### ADR-042 — Annotations are their own threads, positioned on the picture, internal until the client sees the version
+2026-09-29 · Accepted
+`annotations` (+ `annotation_replies`) store a point as fractions of the image (0–1, physical left/top, so pins land on
+the same spot at any zoom or page direction), a video moment in seconds, or a general comment. Agency annotations are
+forced internal while the version hasn't been sent; client annotations are always client-visible and allowed only
+while the version awaits them. Kept separate from `threads/comments` because they're positional, per version and
+resolvable.
+
+### ADR-043 — Time-based reminders come from a sweep that emits events
+2026-09-29 · Accepted
+Due soon (today/tomorrow), overdue and "still waiting for your approval" (every `organizations.approval_reminder_days`,
+default 2) are emitted as domain events by `runReminderSweep()` from the cron route (every 5 minutes, before the
+dispatcher), with per-task/per-deliverable markers so each reminder fires once. It uses the service connection because
+it scans every organization (listed in CLAUDE.md §6); notifications still come only from consumers (ADR-028).
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)
