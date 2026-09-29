@@ -324,7 +324,49 @@ Data model: `docs/DATA_MODEL.md` §3e.
 - [ ] Human QA pass on real devices (screens were checked in AR/EN × light/dark × 390px/1440px with screenshots)
 
 ## Phase 5 — Agency Operations
-Internal ops dashboard, Client 360, team views, SLA policies & breach alerts.
+
+The agency's control room: one dashboard across every client the viewer can access, a Client 360 page with a
+health score, team workload views, and SLA policies (business hours, holidays, pause while waiting on the client)
+with at-risk / breach alerts. Mostly read models over Phases 1–4; new tables only for SLA.
+Data model: `docs/DATA_MODEL.md` §3f.
+
+### 5.1 Data & security
+- [ ] Tables: `sla_policies` (match on client / request type / priority, response business hours, resolution working days, pause on client, at-risk %, escalation contact), `holidays`, `sla_breaches` (response/resolution × at_risk/breached, acknowledge + note)
+- [ ] Columns: `organizations.business_hours_start/end`; `requests.sla_policy_id`, `response_due_at`, `sla_paused_at`, `sla_paused_days`
+- [ ] Permissions: `operations:read` (ops dashboard, team, SLA monitor), `sla:manage` (policies, business hours, holidays)
+- [ ] SQL: org working days with holidays, business-hour arithmetic, policy resolution (most specific wins), `requests_sla` trigger (targets at submit, pause in Needs info, due date extended on resume)
+- [ ] RLS: policies/holidays agency-only (write `sla:manage`); breaches readable with request access, only acknowledgement is writable; nothing reaches the portal
+
+### 5.2 SLA policies admin (`/admin/sla`)
+- [ ] Policies: list, create / edit / delete, active toggle, match criteria, targets, pause, at-risk threshold, escalation person
+- [ ] Business hours (start / end, Sunday–Thursday) and holidays (add / remove; Saudi public holidays seeded)
+
+### 5.3 SLA monitoring & alerts
+- [ ] Response (first agency reply or move) and resolution (delivery) targets on every submitted request; SLA card on the request page and response state in the triage inbox
+- [ ] Sweep: at-risk and breached rows once per request × kind × level, resolved when met or closed; `sla.at_risk` / `sla.breached` events
+- [ ] Notifications: at risk → assignee; breached → assignee + account manager + policy escalation contact
+- [ ] SLA monitor (`/sla`): open issues (live), breach log with filters and acknowledge, compliance (response / resolution) for 30 / 90 days per client
+
+### 5.4 Operations dashboard (`/dashboard`)
+- [ ] Scope: all accessible clients / my clients / one account manager
+- [ ] Tiles: open requests, awaiting triage, SLA overdue / at risk, overdue tasks, waiting on client approval, waiting on internal review, campaigns at risk / off track, unanswered client messages
+- [ ] Needs attention (ranked), client portfolio with health, workload by department, SLA compliance
+- [ ] Viewers without `operations:read` keep the personal dashboard
+
+### 5.5 Client 360
+- [ ] Health (healthy / watch / at risk) with reasons, computed from SLA, overdue work, waiting approvals, campaign health and unanswered messages
+- [ ] Overview: KPI tiles, SLA compliance, upcoming deadlines (14 days), unified activity timeline (requests, deliverables, reports, messages); health on the clients list
+
+### 5.6 Team
+- [ ] `/team`: members with departments, open / overdue / due this week tasks, reviews waiting, assigned requests, clients managed, hours logged (with `time:read_all`), load bar; department filter and search
+- [ ] `/team/[userId]`: stats, tasks by bucket, assigned requests, clients, hours per day (14 days)
+
+### 5.7 Quality
+- [ ] Seed: default + client + urgent policies, holidays, requests with breaches (acknowledged and open), paused request
+- [ ] Unit: business-hours / working-day math, policy matching, SLA states, client health
+- [ ] DB: SQL ↔ TS calendar parity, trigger targets + pause/resume, RLS (allow + deny, portal denied), sweep idempotency and notifications
+- [ ] Playwright: admin creates a policy → client submits → targets shown → sweep flags breach → assignee notified → ops acknowledges; ops dashboard, Client 360 and team pages render
+- [ ] Docs: ROADMAP, DATA_MODEL, ARCHITECTURE, DECISIONS, HANDOFF, CLAUDE.md
 
 ## Phase 6 — CRM & Capacity
 Leads, pipelines, deals, activities, won-deal → client, team capacity planning & utilization.

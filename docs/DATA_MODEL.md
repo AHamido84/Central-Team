@@ -706,6 +706,48 @@ Changes to existing tables: `requests.campaign_id` and `deliverables.campaign_id
 | `reports`, `report_sections` | read `campaigns:read`; write `reports:manage` (published reports only unpublish → draft) | `status = 'published'` only |
 | `report_schedules` | read `campaigns:read`; write `reports:manage` | — |
 
+## 3f. Phase 5 — agency operations & SLA
+
+```mermaid
+erDiagram
+  organizations ||--o{ sla_policies : ""
+  organizations ||--o{ holidays : "working calendar"
+  clients ||--o{ sla_policies : "optional scope"
+  request_types ||--o{ sla_policies : "optional scope"
+  sla_policies ||--o{ requests : "applied at submit"
+  requests ||--o{ sla_breaches : "at risk / breached"
+  profiles ||--o{ sla_breaches : acknowledged_by
+```
+
+| Table / column | Key columns | Notes |
+|---|---|---|
+| `organizations` (+) | `business_hours_start` (`09:00`), `business_hours_end` (`17:00`) | Working days stay Sunday–Thursday (Saudi week, CLAUDE.md §7); holidays come from `holidays`. |
+| `sla_policies` | `name` (AR/EN), `client_id?`, `request_type_id?`, `priority?`, `response_hours` (business hours, 1–240), `resolution_days?` (working days, 1–90; null = the request type's `sla_days`), `pause_on_client` (default true), `at_risk_percent` (50–95, default 75), `escalate_to?` (agency member), `is_active`, `sort_order` | Matching: every non-null criterion must equal the request's; the most specific wins (client 4 + type 2 + priority 1), ties by `sort_order`. A policy without criteria is the org default. No match → type SLA only, no response target. |
+| `holidays` | `date`, `name` (AR/EN) | Unique (org, date). Skipped by working-day and business-hour math. |
+| `requests` (+) | `sla_policy_id?`, `response_due_at?`, `sla_paused_at?`, `sla_paused_days` | Server-owned (trigger `requests_sla`). `due_date` stays the resolution target (existing SLA UI keeps working); pausing adds the paused working days to it on resume. |
+| `sla_breaches` | `client_id`, `request_id`, `policy_id?`, `kind` (`response · resolution`), `level` (`at_risk · breached`), `due_at`, `detected_at`, `resolved_at?`, `acknowledged_at?`, `acknowledged_by?`, `note?` | Written by the sweep (service connection) once per (request, kind, level); `resolved_at` when the target is met late or the request ends. Users may only acknowledge (column grant + trigger stamps who/when). |
+
+**SLA math** (`app.org_add_working_days`, `app.org_add_business_hours`; TS mirror `src/modules/sla/calendar.ts`)
+- Resolution: `due_date = org_add_working_days(submitted date in org tz, resolution_days)` — Fridays, Saturdays and holidays skipped.
+- Response: `response_due_at = org_add_business_hours(submitted_at, response_hours)` — counts only minutes between
+  business start/end on working days in the org time zone; a request submitted at night starts counting next morning.
+- Pause (policy `pause_on_client`): entering `needs_info` sets `sla_paused_at`; leaving it adds the working days spent
+  waiting to `due_date` (and to `response_due_at` if not yet answered), accumulates `sla_paused_days`, logs a system
+  `due_date_changed` event.
+- States (TS, live): response — `met` / `missed` once `first_response_at` exists, else `on_track` / `at_risk` (elapsed ≥
+  `at_risk_percent`) / `overdue`; resolution — same rule on `due_date` (end of day, org tz), `paused` while in Needs info.
+
+**RLS**
+
+| Table | Agency | Client users |
+|---|---|---|
+| `sla_policies`, `holidays` | read: agency members; write: `sla:manage` | — |
+| `sla_breaches` | read: `requests:read` + client access; update (`acknowledged_*`, `note` only): same + `operations:read` or `requests:triage` | — |
+
+**Read models** (no tables): ops dashboard, Client 360 and team views are RLS-scoped queries in
+`src/modules/operations/server/queries.ts` over requests, tasks, deliverables, campaigns, threads and time entries, so
+every viewer sees only the clients they can access. Client health is a pure function (`operations/health.ts`).
+
 ## 4. Forward-looking sketch (all phases — not built in Phase 0)
 
 ```mermaid
@@ -761,7 +803,7 @@ erDiagram
 | 2 Requests | **Built** — see §3c | Form definition versioned so old requests render correctly |
 | 3 Tasks | `workflow_templates`, `workflow_template_steps`, `tasks`, `task_assignees`, `task_dependencies`, `deliverables`, `deliverable_versions`, `approvals`, `comments`, `time_entries` | Status machines per template; approvals by client users |
 | 4 Campaigns | **Built** — see §3e | Metrics not partitioned (ADR-048); published reports are snapshots |
-| 5 Ops | `sla_policies`, `sla_breaches`, read models/views for Client 360 & dashboard | Mostly views over earlier phases |
+| 5 Ops | **Built** — see §3f | SLA tables + read models over earlier phases |
 | 6 CRM | `leads`, `pipelines`, `pipeline_stages`, `deals`, `deal_activities`, `capacity_plans`, `availability` | Won deal → creates client |
 | 7 Integrations | `integration_connections` (tokens in Supabase Vault), `ad_accounts`, `social_accounts`, `webhook_events`, `sync_jobs`, `automations`, `automation_runs`, `whatsapp_templates` | Automation triggers = `domain_events` types |
 | 8 AI | `ai_insights`, `ai_recommendations`, `ai_conversations`, `ai_messages`, `embeddings` (pgvector) | Every AI output linked to source records for traceability |
