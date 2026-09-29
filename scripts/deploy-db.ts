@@ -56,6 +56,12 @@ async function main() {
       const [row] = await sql<{ count: number }[]>`select count(*)::int as count from auth.users`;
       if ((row?.count ?? 0) > 0) {
         log('database already has users — skipping the demo seed');
+        // Deployments seeded before Phase 4 get the demo campaigns once (the script checks it's the demo agency).
+        const result = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-campaigns-standalone.ts'], {
+          stdio: 'inherit',
+          env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
+        });
+        if (result.status !== 0) throw new Error(`campaign seed failed with exit code ${result.status}`);
       } else {
         const [org] = await sql<{ count: number }[]>`select count(*)::int as count from public.organizations`;
         if ((org?.count ?? 0) === 0) {
