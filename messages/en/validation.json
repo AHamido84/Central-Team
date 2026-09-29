@@ -37,5 +37,11 @@
   "status_done_required": "Keep at least one status in the “Done” category.",
   "status_default_required": "Pick one status for new tasks.",
   "dates_order": "The due date must be after the start date.",
-  "comment_required": "Add your feedback so the team knows what to change."
+  "comment_required": "Add your feedback so the team knows what to change.",
+  "channel_required": "Add at least one channel.",
+  "invalid_channel": "This KPI points at a channel that no longer exists.",
+  "duplicate_kpi": "This KPI is already set for the same scope.",
+  "too_large": "The value is too large.",
+  "duplicate_date": "The file has the same date more than once.",
+  "import_empty": "No days to import."
 }

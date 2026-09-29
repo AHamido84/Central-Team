@@ -31,5 +31,8 @@
   "tasks": "المهام",
   "myWork": "عملي",
   "workflows": "مسارات العمل",
-  "deliverables": "التسليمات"
+  "deliverables": "التسليمات",
+  "campaigns": "الحملات",
+  "reports": "التقارير",
+  "portalCampaigns": "الحملات"
 }

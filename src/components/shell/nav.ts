@@ -21,6 +21,8 @@ import {
   KanbanSquare,
   ListChecks,
   Workflow,
+  Megaphone,
+  FileChartColumn,
 } from 'lucide-react';
 
 import { can, type PermissionSet } from '@/lib/permissions/can';
@@ -56,6 +58,8 @@ export const agencyNav: NavSection[] = [
       { key: 'requests', href: '/requests', icon: ClipboardList, anyOf: ['requests:read'], flag: 'module.requests' },
       { key: 'tasks', href: '/tasks', icon: KanbanSquare, anyOf: ['tasks:read'], flag: 'module.tasks' },
       { key: 'deliverables', href: '/deliverables', icon: FileCheck2, anyOf: ['tasks:read'], flag: 'module.tasks' },
+      { key: 'campaigns', href: '/campaigns', icon: Megaphone, anyOf: ['campaigns:read'], flag: 'module.campaigns' },
+      { key: 'reports', href: '/reports', icon: FileChartColumn, anyOf: ['campaigns:read'], flag: 'module.campaigns' },
       { key: 'clients', href: '/clients', icon: Briefcase, anyOf: ['clients:read_all', 'clients:read_assigned'], flag: 'module.clients' },
       {
         key: 'messages',
@@ -88,6 +92,7 @@ export const portalNav: NavItem[] = [
   { key: 'approvals', href: '/portal/approvals', icon: CheckCheck, flag: 'module.approvals' },
   { key: 'files', href: '/portal/files', icon: FolderOpen, flag: 'module.files' },
   { key: 'calendar', href: '/portal/calendar', icon: CalendarDays, flag: 'module.calendar' },
+  { key: 'portalCampaigns', href: '/portal/campaigns', icon: Megaphone, flag: 'module.campaigns' },
   { key: 'messages', href: '/portal/messages', icon: MessagesSquare, flag: 'module.messages' },
   { key: 'company', href: '/portal/company', icon: Building2 },
 ];

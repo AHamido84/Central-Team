@@ -31,5 +31,8 @@
   "tasks": "Tasks",
   "myWork": "My work",
   "workflows": "Workflows",
-  "deliverables": "Deliverables"
+  "deliverables": "Deliverables",
+  "campaigns": "Campaigns",
+  "reports": "Reports",
+  "portalCampaigns": "Campaigns"
 }

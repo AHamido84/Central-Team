@@ -298,10 +298,18 @@ export async function getCampaign(campaignId: string, side: 'agency' | 'client' 
   };
 }
 
+export type CampaignOption = {
+  id: string;
+  number: number;
+  name: string;
+  clientId: string;
+  status: CampaignStatus;
+  startDate: string;
+  endDate: string;
+};
+
 /** Light list for pickers (link a request or deliverable, report scope). */
-export async function listCampaignOptions(
-  clientId?: string,
-): Promise<{ id: string; number: number; name: string; clientId: string; status: CampaignStatus }[]> {
+export async function listCampaignOptions(clientId?: string): Promise<CampaignOption[]> {
   return withRls(async (tx) =>
     (
       await tx
@@ -311,6 +319,8 @@ export async function listCampaignOptions(
           name: campaigns.name,
           clientId: campaigns.clientId,
           status: campaigns.status,
+          startDate: campaigns.startDate,
+          endDate: campaigns.endDate,
         })
         .from(campaigns)
         .where(and(clientId ? eq(campaigns.clientId, clientId) : undefined, sql`${campaigns.status} <> 'archived'`))

@@ -11,6 +11,8 @@ import { localized } from '@/lib/i18n/localized';
 import { getFormatters } from '@/lib/i18n/server-format';
 import { can } from '@/lib/permissions/can';
 import { publicAssetUrl } from '@/lib/storage';
+import { PortalCampaignsSummary } from '@/modules/campaigns/components/portal-campaigns';
+import { listCampaigns, listReports } from '@/modules/campaigns/server/queries';
 import { AccountManagerCard } from '@/modules/clients/components/client-overview';
 import { DeliverableCard } from '@/modules/deliverables/components/deliverables-list';
 import { listDeliverables } from '@/modules/deliverables/server/queries';
@@ -43,12 +45,15 @@ export default async function PortalHomePage() {
   const f = await getFormatters();
   const requestsLive = Boolean(ctx.flags['module.requests']);
   const approvalsLive = Boolean(ctx.flags['module.approvals']);
-  const [home, recentFiles, requests, requestActivity, deliverables] = await Promise.all([
+  const campaignsLive = Boolean(ctx.flags['module.campaigns']);
+  const [home, recentFiles, requests, requestActivity, deliverables, campaigns, reports] = await Promise.all([
     getPortalHome(ctx),
     listRecentFiles(ctx.client.id, 4),
     requestsLive ? listRequests({ clientId: ctx.client.id }) : Promise.resolve([]),
     requestsLive ? listRequestActivity(ctx.client.id, 6) : Promise.resolve([]),
     approvalsLive ? listDeliverables({ clientId: ctx.client.id, clientVisibleOnly: true }) : Promise.resolve([]),
+    campaignsLive ? listCampaigns({ clientId: ctx.client.id, status: ['active', 'paused'] }) : Promise.resolve([]),
+    campaignsLive ? listReports({ clientId: ctx.client.id, status: 'published' }) : Promise.resolve([]),
   ]);
   const awaiting = deliverables.filter((d) => d.status === 'client_review');
   const activeRequests = requests
@@ -245,6 +250,7 @@ export default async function PortalHomePage() {
           <div className="hidden lg:block">
             <AccountManagerCard manager={home.accountManager} title={t('portal.yourAccountManager')} />
           </div>
+          {campaignsLive ? <PortalCampaignsSummary campaigns={campaigns} latest={reports[0] ?? null} /> : null}
           {requestsLive ? (
             <section>
               <SectionTitle title={t('requests.dashboard.updates')} />

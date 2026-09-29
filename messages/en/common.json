@@ -106,5 +106,6 @@
   "saveFailed": "Couldn't save",
   "poweredBy": "Powered by Central",
   "systemRole": "System",
-  "deleted": "Deleted."
+  "deleted": "Deleted.",
+  "select": "Select…"
 }
