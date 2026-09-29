@@ -19,6 +19,7 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset && tsx scripts/seed.ts",
     "db:seed": "tsx scripts/seed.ts",
+    "db:deploy": "tsx scripts/deploy-db.ts",
     "db:generate": "drizzle-kit generate",
     "db:types": "supabase gen types typescript --local > src/lib/db/supabase-types.ts",
     "email:dev": "email dev --dir emails --port 3001",

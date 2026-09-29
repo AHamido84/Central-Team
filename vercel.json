@@ -1,4 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "crons": [{ "path": "/api/cron/dispatch-events", "schedule": "0 5 * * *" }]
+  "buildCommand": "pnpm db:deploy && pnpm build",
+  "crons": [
+    {
+      "path": "/api/cron/dispatch-events",
+      "schedule": "0 5 * * *"
+    }
+  ]
 }

@@ -309,6 +309,16 @@ action (`after()`), so notifications stay immediate; what slows down is the retr
 and the reminder sweep (due soon/overdue/approval reminders arrive with the morning run). On the Pro plan, restore
 `*/5 * * * *` (or call the route from an external scheduler with `CRON_SECRET`).
 
+### ADR-045 — Production migrations run in the Vercel build
+2026-09-29 · Accepted
+The Vercel ↔ Supabase integration stores the database connection strings as sensitive variables that only Vercel
+builds and functions can read, so `vercel.json` runs `pnpm db:deploy` before `next build`. `scripts/deploy-db.ts`
+applies pending files from `supabase/migrations` (production builds only), recording them in
+`supabase_migrations.schema_migrations` like the Supabase CLI, and loads the demo seed once when
+`SEED_ON_DEPLOY=1` and no organization exists. The app accepts the integration's `POSTGRES_URL*` names
+(`src/lib/db/url.ts`). The demo seed on the public URL is a deliberate, temporary choice by the owner: turn
+`SEED_ON_DEPLOY` off and remove or re-password the demo accounts before real client data goes in.
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)
