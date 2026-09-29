@@ -656,6 +656,56 @@ Portal progress on the request page comes from `app.request_progress(request_id)
 state only — never internal tasks, assignees or comments.
 
 
+## 3e. Phase 4 — campaigns, metrics & reports
+
+```mermaid
+erDiagram
+  clients ||--o{ campaigns : ""
+  profiles ||--o{ campaigns : owner
+  campaigns ||--o{ campaign_channels : "platforms + budget split"
+  campaigns ||--o{ campaign_kpis : targets
+  campaign_channels ||--o{ campaign_kpis : "optional scope"
+  campaign_channels ||--o{ metrics_daily : "one row per day"
+  campaigns ||--o{ metric_imports : "CSV import log"
+  campaigns ||--o{ requests : "optional link"
+  campaigns ||--o{ deliverables : "creatives"
+  clients ||--o{ reports : ""
+  campaigns ||--o{ reports : "optional scope"
+  reports ||--o{ report_sections : ordered
+  clients ||--o{ report_schedules : ""
+  report_schedules ||--o{ reports : generates
+```
+
+| Table | Key columns | Notes |
+|---|---|---|
+| `campaigns` | `client_id`, `number` (per org, shown `C-12`), `name`, `objective` (`awareness · traffic · engagement · leads · sales · app_installs · video_views`), `status` (`draft · planned · active · paused · completed · archived`), `start_date`, `end_date`, `budget_minor` + `currency`, `owner_id`, `description`, `visibility` (`internal · client`), `health` (`on_track · at_risk · off_track · no_data`), `health_notified`, `metrics_through` | Drafts are always internal (trigger). `health` is recomputed by the sweep and after metric writes so lists stay cheap. |
+| `campaign_channels` | `campaign_id`, `platform` (`meta · instagram · facebook · tiktok · snapchat · google · youtube · x · linkedin · other`), `name`, `budget_minor`, `external_ref` (platform campaign id — Phase 7 sync), `sort_order` | |
+| `campaign_kpis` | `campaign_id`, `channel_id?` (null = whole campaign), `metric` (catalog key), `target` numeric, `sort_order` | Direction comes from the metric catalog (volume ↑, cost ↓). Unique per (campaign, channel, metric). |
+| `metrics_daily` | `campaign_id`, `channel_id`, `client_id`, `date`, `impressions`, `reach`, `clicks`, `spend_minor`, `conversions`, `leads`, `video_views`, `engagements`, `revenue_minor`, `source` (`manual · import · api`), `import_id?`, `updated_by` | Unique (channel, date) → imports upsert. Not partitioned (ADR-048). Derived metrics (CTR, CPC, CPM, CPA, CPL, ROAS, frequency, engagement rate) are computed, never stored. |
+| `metric_imports` | `campaign_id`, `channel_id`, `file_name`, `preset` (`meta · tiktok · snapchat · google · custom`), `row_count`, `date_from`, `date_to`, `imported_by` | Audit trail of CSV imports. |
+| `reports` | `client_id`, `campaign_id?`, `schedule_id?`, `title`, `period_start`, `period_end`, `locale`, `status` (`draft · published`), `snapshot jsonb`, `published_at`, `published_by` | Drafts compute numbers live; publishing freezes them into `snapshot` so the client always sees what was published (ADR-049). |
+| `report_sections` | `report_id`, `kind` (`kpi_summary · trend · channel_breakdown · top_creatives · commentary · next_steps`), `config jsonb` (metrics, grain), `body` (Markdown, commentary/next steps), `sort_order` | Read-only once the report is published. |
+| `report_schedules` | `client_id`, `campaign_id?`, `cadence` (`weekly · monthly`), `sections` (template), `auto_publish`, `next_run_on`, `last_run_at`, `is_active` | The daily sweep creates the report for the period that just ended. |
+
+Changes to existing tables: `requests.campaign_id` and `deliverables.campaign_id` (nullable, same client — trigger).
+
+**Pacing & health** (pure functions in `src/modules/campaigns/metrics.ts`, mirrored nowhere else)
+- Elapsed share of the flight `e = days elapsed / flight days` (clamped 0–1; uses the last day with metrics).
+- Volume KPI (impressions, clicks, leads…): projected = actual ÷ e; ratio = projected ÷ target.
+  Cost KPI (CPC, CPA, CPL, CPM): ratio = target ÷ actual. Rate KPI (CTR, ROAS, engagement rate): ratio = actual ÷ target.
+- ratio ≥ 1 → on track, ≥ 0.85 → at risk, below → off track. Budget pacing uses spend ÷ (budget × e): > 1.15 or < 0.85 → at risk.
+- Campaign health = the worst of its KPIs and budget pacing; `no_data` before the first metrics.
+
+**RLS**
+
+| Table | Agency | Client users of that client |
+|---|---|---|
+| `campaigns`, `campaign_channels`, `campaign_kpis` | read `campaigns:read` + client access; write `campaigns:manage` | read when the campaign is `visibility = 'client'` and not `draft`/`archived` (flag `module.campaigns`) |
+| `metrics_daily` | read `campaigns:read`; write `metrics:manage` | read for campaigns they can see |
+| `metric_imports` | read `campaigns:read`; insert `metrics:manage` | — |
+| `reports`, `report_sections` | read `campaigns:read`; write `reports:manage` (published reports only unpublish → draft) | `status = 'published'` only |
+| `report_schedules` | read `campaigns:read`; write `reports:manage` | — |
+
 ## 4. Forward-looking sketch (all phases — not built in Phase 0)
 
 ```mermaid
@@ -710,7 +760,7 @@ erDiagram
 | 1 Portal | `clients` (extended), `client_assignments`, `brands`, `files`, `folders`, `threads`, `messages`, `thread_participants` | Storage bucket per org, path `org/<org>/client/<client>/…`; Realtime for messages |
 | 2 Requests | **Built** — see §3c | Form definition versioned so old requests render correctly |
 | 3 Tasks | `workflow_templates`, `workflow_template_steps`, `tasks`, `task_assignees`, `task_dependencies`, `deliverables`, `deliverable_versions`, `approvals`, `comments`, `time_entries` | Status machines per template; approvals by client users |
-| 4 Campaigns | `campaigns`, `campaign_kpis`, `campaign_channels`, `metrics_daily` (partitioned by month), `reports`, `report_sections` | Metrics are append-heavy → partitioning, materialized views |
+| 4 Campaigns | **Built** — see §3e | Metrics not partitioned (ADR-048); published reports are snapshots |
 | 5 Ops | `sla_policies`, `sla_breaches`, read models/views for Client 360 & dashboard | Mostly views over earlier phases |
 | 6 CRM | `leads`, `pipelines`, `pipeline_stages`, `deals`, `deal_activities`, `capacity_plans`, `availability` | Won deal → creates client |
 | 7 Integrations | `integration_connections` (tokens in Supabase Vault), `ad_accounts`, `social_accounts`, `webhook_events`, `sync_jobs`, `automations`, `automation_runs`, `whatsapp_templates` | Automation triggers = `domain_events` types |
