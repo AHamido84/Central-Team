@@ -93,6 +93,26 @@
     "approval_reminder": {
       "title": "Reminder: waiting for your approval",
       "body": "“⁨{title}⁩” has been waiting for your review for {days} days."
+    },
+    "campaign_started": {
+      "title": "Your campaign is live",
+      "body": "“⁨{campaign}⁩” started today. Follow its numbers in the portal."
+    },
+    "campaign_at_risk": {
+      "title": "“⁨{campaign}⁩” needs attention",
+      "body": "{health, select, off_track {It is off track} other {It is at risk}} for {client}. Check its KPIs and budget pacing."
+    },
+    "campaign_metrics_stale": {
+      "title": "No new numbers for “⁨{campaign}⁩”",
+      "body": "No metrics have been entered for {client} in {days} days."
+    },
+    "report_published": {
+      "title": "A new report is ready",
+      "body": "“⁨{report}⁩” is ready for you to read."
+    },
+    "report_ready": {
+      "title": "A scheduled report is ready for review",
+      "body": "“⁨{report}⁩” for {client} was generated and waits for your review before publishing."
     }
   }
 }

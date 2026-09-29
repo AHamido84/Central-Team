@@ -34,6 +34,10 @@ export function createFormatters({ locale, timeZone = 'Asia/Riyadh', calendar = 
     monthYear(value: Date | string | number) {
       return new Intl.DateTimeFormat(tag, { month: 'long', year: 'numeric', timeZone }).format(toDate(value));
     },
+    /** "29 Sep" — compact axis labels. */
+    dayMonth(value: Date | string | number) {
+      return new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'short', timeZone }).format(toDate(value));
+    },
     weekday(value: Date | string | number) {
       return new Intl.DateTimeFormat(tag, { weekday: 'long', timeZone }).format(toDate(value));
     },

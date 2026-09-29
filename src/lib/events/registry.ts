@@ -90,6 +90,25 @@ export type DomainEventPayloads = {
     visibility: 'internal' | 'client';
     side: 'agency' | 'client';
   };
+  // Campaigns, metrics & reports (Phase 4)
+  'campaign.created': { campaignId: string; clientId: string };
+  'campaign.updated': { campaignId: string; clientId: string; fields: string[] };
+  'campaign.status_changed': { campaignId: string; clientId: string; from: string; to: string };
+  'campaign.deleted': { campaignId: string; clientId: string };
+  /** Health got worse than what the owner was last told (at risk / off track). */
+  'campaign.health_changed': { campaignId: string; clientId: string; from: string; to: string };
+  'campaign.metrics_stale': { campaignId: string; clientId: string; lastDate: string | null; days: number };
+  'metrics.recorded': { campaignId: string; clientId: string; days: number };
+  'metrics.imported': { campaignId: string; clientId: string; importId: string; rows: number; preset: string };
+  'report.created': { reportId: string; clientId: string; scheduleId: string | null };
+  'report.updated': { reportId: string; clientId: string };
+  /** A scheduled report was generated as a draft and waits for the team. */
+  'report.draft_ready': { reportId: string; clientId: string; scheduleId: string };
+  'report.published': { reportId: string; clientId: string };
+  'report.unpublished': { reportId: string; clientId: string };
+  'report.deleted': { reportId: string; clientId: string };
+  'report_schedule.saved': { scheduleId: string; clientId: string };
+  'report_schedule.deleted': { scheduleId: string; clientId: string };
 };
 
 export type DomainEventType = keyof DomainEventPayloads;

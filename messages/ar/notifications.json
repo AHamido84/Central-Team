@@ -93,6 +93,26 @@
     "approval_reminder": {
       "title": "تذكير: بانتظار اعتمادك",
       "body": "«⁨{title}⁩» ينتظر مراجعتك منذ {days} أيام."
+    },
+    "campaign_started": {
+      "title": "انطلقت حملتك",
+      "body": "بدأت حملة “⁨{campaign}⁩” اليوم. تابع أرقامها أولًا بأول من البوابة."
+    },
+    "campaign_at_risk": {
+      "title": "حملة “⁨{campaign}⁩” تحتاج انتباهك",
+      "body": "{health, select, off_track {الحملة خارج المسار} other {الحملة معرّضة للتأخر}} لدى {client}. راجع مؤشراتها وتوزيع الميزانية."
+    },
+    "campaign_metrics_stale": {
+      "title": "لا أرقام جديدة لحملة “⁨{campaign}⁩”",
+      "body": "لم تُدخَل أرقام لحملة {client} منذ {days} أيام."
+    },
+    "report_published": {
+      "title": "تقرير جديد جاهز",
+      "body": "تقرير “⁨{report}⁩” جاهز للاطلاع."
+    },
+    "report_ready": {
+      "title": "تقرير مجدول بانتظار المراجعة",
+      "body": "أُعدّ تقرير “⁨{report}⁩” لـ{client} وينتظر مراجعتك قبل النشر."
     }
   }
 }

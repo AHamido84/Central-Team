@@ -1,0 +1,7 @@
+{
+  "autoTitle": {
+    "monthly": "{period} report",
+    "weekly": "Weekly report, {period}",
+    "campaign": "{campaign} — {title}"
+  }
+}

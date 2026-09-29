@@ -162,7 +162,8 @@ for each row execute function app.tg_campaigns_before();
 
 -- Writes the cached analysis (computed in TypeScript, src/modules/campaigns/metrics.ts) for callers who may
 -- change the campaign or its metrics. Security definer so metric editors without `campaigns:manage` can refresh it.
-create or replace function app.campaign_store_health(p_campaign uuid, p_health text, p_through date)
+-- `p_notified` records the health the owner was last alerted about; new data clears the "metrics stale" marker.
+create or replace function app.campaign_store_health(p_campaign uuid, p_health text, p_through date, p_notified text)
 returns void language plpgsql security definer set search_path = '' as $$
 declare v_campaign public.campaigns;
 begin
@@ -175,11 +176,17 @@ begin
   ) then
     raise exception 'forbidden' using errcode = '42501';
   end if;
-  if p_health not in ('on_track', 'at_risk', 'off_track', 'no_data') then
+  if p_health not in ('on_track', 'at_risk', 'off_track', 'no_data')
+    or (p_notified is not null and p_notified not in ('on_track', 'at_risk', 'off_track', 'no_data')) then
     raise exception 'invalid_health' using errcode = '22023';
   end if;
   perform set_config('app.campaign_health_write', '1', true);
-  update public.campaigns set health = p_health, metrics_through = p_through where id = p_campaign;
+  update public.campaigns set
+    health = p_health,
+    metrics_through = p_through,
+    health_notified = p_notified,
+    stale_notified_at = case when p_through is distinct from v_campaign.metrics_through then null else stale_notified_at end
+  where id = p_campaign;
   perform set_config('app.campaign_health_write', '', true);
 end $$;
 
@@ -204,10 +211,13 @@ begin
   end if;
   new.organization_id := v_campaign.organization_id;
   new.client_id := v_campaign.client_id;
-  if tg_table_name = 'campaign_kpis' and new.channel_id is not null and not exists (
-    select 1 from public.campaign_channels ch where ch.id = new.channel_id and ch.campaign_id = new.campaign_id
-  ) then
-    raise exception 'organization_mismatch' using errcode = '22023';
+  -- Nested IFs: PL/pgSQL doesn't short-circuit, and `new.channel_id` etc. only exist on some of these tables.
+  if tg_table_name = 'campaign_kpis' then
+    if new.channel_id is not null and not exists (
+      select 1 from public.campaign_channels ch where ch.id = new.channel_id and ch.campaign_id = new.campaign_id
+    ) then
+      raise exception 'organization_mismatch' using errcode = '22023';
+    end if;
   end if;
   if tg_table_name = 'metrics_daily' and auth.uid() is not null then
     new.updated_by := auth.uid();

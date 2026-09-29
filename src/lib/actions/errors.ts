@@ -40,6 +40,10 @@ export const actionErrorCodes = [
   'invalid_status',
   'invalid_parent',
   'invalid_file',
+  'report_published',
+  'import_empty',
+  'campaign_not_deletable',
+  'channel_has_metrics',
   'unknown',
 ] as const;
 
@@ -96,6 +100,7 @@ const raisedCodes = new Set<ActionErrorCode>([
   'invalid_status',
   'invalid_parent',
   'invalid_file',
+  'report_published',
 ]);
 
 /** Maps thrown errors (ActionFailure, Postgres errors raised by RLS/triggers) to a safe error code. */

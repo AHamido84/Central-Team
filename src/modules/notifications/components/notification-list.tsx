@@ -19,6 +19,11 @@ import {
   ScanEye,
   Unlock,
   BellRing,
+  Rocket,
+  TriangleAlert,
+  ChartNoAxesColumn,
+  FileChartColumn,
+  FilePen,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -50,6 +55,11 @@ const typeIcon: Record<NotificationType, typeof Bell> = {
   deliverable_changes_requested: PenLine,
   approval_requested: CheckCheck,
   approval_reminder: BellRing,
+  campaign_started: Rocket,
+  campaign_at_risk: TriangleAlert,
+  campaign_metrics_stale: ChartNoAxesColumn,
+  report_published: FileChartColumn,
+  report_ready: FilePen,
 };
 
 export function NotificationRow({

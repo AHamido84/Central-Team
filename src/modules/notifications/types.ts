@@ -1,5 +1,5 @@
 /** Notification catalog. Each type has `notifications.types.<type>.title|body` translations. */
-export const notificationCategories = ['account', 'messages', 'files', 'requests', 'tasks', 'approvals'] as const;
+export const notificationCategories = ['account', 'messages', 'files', 'requests', 'tasks', 'approvals', 'campaigns'] as const;
 export type NotificationCategory = (typeof notificationCategories)[number];
 
 export const notificationTypes = {
@@ -23,6 +23,11 @@ export const notificationTypes = {
   deliverable_changes_requested: 'tasks',
   approval_requested: 'approvals',
   approval_reminder: 'approvals',
+  campaign_started: 'campaigns',
+  campaign_at_risk: 'campaigns',
+  campaign_metrics_stale: 'campaigns',
+  report_published: 'campaigns',
+  report_ready: 'campaigns',
 } as const satisfies Record<string, NotificationCategory>;
 
 export type NotificationType = keyof typeof notificationTypes;

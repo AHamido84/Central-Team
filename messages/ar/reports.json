@@ -1,0 +1,7 @@
+{
+  "autoTitle": {
+    "monthly": "تقرير شهر {period}",
+    "weekly": "تقرير الأسبوع {period}",
+    "campaign": "{campaign} — {title}"
+  }
+}

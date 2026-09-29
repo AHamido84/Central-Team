@@ -46,6 +46,10 @@
     "approvals": {
       "title": "Approvals",
       "body": "Deliverables waiting for your approval, and reminders."
+    },
+    "campaigns": {
+      "title": "Campaigns & reports",
+      "body": "New reports, campaign launches, and alerts when a campaign needs attention."
     }
   }
 }

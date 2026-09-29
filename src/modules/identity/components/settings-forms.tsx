@@ -3,7 +3,7 @@
 import { languageNames } from '@/lib/i18n/localized';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Bell, CheckCheck, ClipboardList, FileUp, KeyRound, ListTodo, Mail, MessageSquare, UserRound } from 'lucide-react';
+import { Bell, CheckCheck, ClipboardList, FileUp, KeyRound, ListTodo, Mail, Megaphone, MessageSquare, UserRound } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
@@ -226,6 +226,7 @@ const categoryIcon: Record<NotificationCategory, typeof Bell> = {
   requests: ClipboardList,
   tasks: ListTodo,
   approvals: CheckCheck,
+  campaigns: Megaphone,
 };
 
 export function NotificationSettings({ defaults }: { defaults: { category: NotificationCategory; inApp: boolean; email: boolean }[] }) {

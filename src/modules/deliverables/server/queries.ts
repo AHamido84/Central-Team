@@ -91,6 +91,7 @@ export type DeliverableSummary = {
   requestTitle: string | null;
   taskId: string | null;
   taskNumber: number | null;
+  campaignId: string | null;
   versionCount: number;
   revisionRounds: number;
   requiresInternalReview: boolean;
@@ -122,7 +123,15 @@ async function sign(paths: string[]): Promise<Map<string, string>> {
   return new Map((data ?? []).flatMap((d) => (d.signedUrl && d.path ? [[d.path, d.signedUrl] as [string, string]] : [])));
 }
 
-type Filter = { requestId?: string; clientId?: string; taskId?: string; ids?: string[]; clientVisibleOnly?: boolean };
+type Filter = {
+  requestId?: string;
+  clientId?: string;
+  taskId?: string;
+  campaignId?: string;
+  ids?: string[];
+  clientVisibleOnly?: boolean;
+  approvedOnly?: boolean;
+};
 
 /** Deliverables the caller can see (RLS: clients only get the ones sent to them), with the current version's cover image. */
 export async function listDeliverables(filter: Filter = {}): Promise<DeliverableSummary[]> {
@@ -131,6 +140,8 @@ export async function listDeliverables(filter: Filter = {}): Promise<Deliverable
       filter.requestId ? eq(deliverables.requestId, filter.requestId) : undefined,
       filter.clientId ? eq(deliverables.clientId, filter.clientId) : undefined,
       filter.taskId ? eq(deliverables.taskId, filter.taskId) : undefined,
+      filter.campaignId ? eq(deliverables.campaignId, filter.campaignId) : undefined,
+      filter.approvedOnly ? eq(deliverables.status, 'approved') : undefined,
       filter.ids ? inArray(deliverables.id, filter.ids.length ? filter.ids : ['00000000-0000-0000-0000-000000000000']) : undefined,
       filter.clientVisibleOnly ? isNotNull(deliverables.clientVisibleAt) : undefined,
     ].filter(Boolean);
@@ -184,6 +195,7 @@ export async function listDeliverables(filter: Filter = {}): Promise<Deliverable
     requestTitle,
     taskId: d.taskId,
     taskNumber,
+    campaignId: d.campaignId,
     versionCount: d.versionCount,
     revisionRounds: d.revisionRounds,
     requiresInternalReview: d.requiresInternalReview,

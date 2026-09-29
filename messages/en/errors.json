@@ -39,5 +39,9 @@
   "workflow_empty": "This workflow has no steps.",
   "invalid_status": "That status isn't valid.",
   "invalid_parent": "That task can't be a subtask here.",
-  "invalid_file": "That file can't be used here."
+  "invalid_file": "That file can't be used here.",
+  "report_published": "This report is published. Move it back to draft to edit it.",
+  "import_empty": "The file has no days with numbers we can import.",
+  "campaign_not_deletable": "Only draft or archived campaigns can be deleted.",
+  "channel_has_metrics": "A channel with recorded numbers can't be removed. Keep it, or clear its numbers first."
 }

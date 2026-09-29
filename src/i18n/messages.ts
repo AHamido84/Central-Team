@@ -22,6 +22,8 @@ export const namespaces = [
   'tasks',
   'workflows',
   'deliverables',
+  'campaigns',
+  'reports',
 ] as const;
 
 export type Namespace = (typeof namespaces)[number];

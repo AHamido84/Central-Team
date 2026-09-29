@@ -163,12 +163,11 @@ export function campaignHealth(statuses: readonly PacingStatus[]): CampaignHealt
   return worst;
 }
 
-export type HealthInput = {
+export type CampaignShape = {
   startDate: string;
   endDate: string;
   budgetMinor: number;
   kpis: readonly { metric: MetricKey; target: number; channelId: string | null }[];
-  rows: readonly MetricRow[];
 };
 
 export type CampaignAnalysis = {
@@ -180,19 +179,31 @@ export type CampaignAnalysis = {
   health: CampaignHealth;
 };
 
-/** Everything the overview, the list health badge and report snapshots need, from raw rows. */
-export function analyzeCampaign(input: HealthInput): CampaignAnalysis {
-  const inFlight = input.rows.filter((r) => r.date >= input.startDate && r.date <= input.endDate);
-  const through = inFlight.reduce<string | null>((max, r) => (max === null || r.date > max ? r.date : max), null);
-  const elapsed = elapsedShare(input.startDate, input.endDate, through);
-  const totals = sumTotals(inFlight);
-  const kpis = input.kpis.map((k) => {
-    const scoped = k.channelId ? sumTotals(inFlight.filter((r) => r.channelId === k.channelId)) : totals;
+/**
+ * Analysis from per-channel totals over the flight and the last day with data — what list pages get from one
+ * grouped SQL query. `analyzeCampaign` is the same from raw rows.
+ */
+export function analyzeTotals(
+  campaign: CampaignShape,
+  byChannel: ReadonlyMap<string, MetricTotals>,
+  through: string | null,
+): CampaignAnalysis {
+  const elapsed = elapsedShare(campaign.startDate, campaign.endDate, through);
+  const totals = sumTotals([...byChannel.values()]);
+  const kpis = campaign.kpis.map((k) => {
+    const scoped = k.channelId ? (byChannel.get(k.channelId) ?? emptyTotals()) : totals;
     return { ...kpiProgress(k.metric, k.target, scoped, elapsed), channelId: k.channelId };
   });
-  const budget = budgetPacing(input.budgetMinor, totals.spend, elapsed);
+  const budget = budgetPacing(campaign.budgetMinor, totals.spend, elapsed);
   const health = campaignHealth([...kpis.map((k) => k.status), ...(budget ? [budget.status] : [])]);
-  return { elapsed, through, totals, kpis, budget, health };
+  return { elapsed, through: elapsed > 0 ? through : null, totals, kpis, budget, health };
+}
+
+/** Everything the overview, the health cache and report snapshots need, from raw rows (only in-flight days count). */
+export function analyzeCampaign(campaign: CampaignShape, rows: readonly MetricRow[]): CampaignAnalysis {
+  const inFlight = rows.filter((r) => r.date >= campaign.startDate && r.date <= campaign.endDate);
+  const through = inFlight.reduce<string | null>((max, r) => (max === null || r.date > max ? r.date : max), null);
+  return analyzeTotals(campaign, totalsByChannel(inFlight), through);
 }
 
 export type SeriesPoint = { key: string } & MetricTotals;
