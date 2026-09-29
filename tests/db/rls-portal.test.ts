@@ -110,7 +110,10 @@ describe('internal items never reach the portal', () => {
     const { clientSees } = (
       await as(
         NAJD_OWNER,
-        (tx) => tx`select count(*)::int as "clientSees" from public.files where client_id = ${najd} and visibility = 'internal'`,
+        // Deliverable files are internal by design and reach the client only through a version sent to them
+        // (covered in rls-tasks.test.ts); every other internal file must stay hidden.
+        (tx) =>
+          tx`select count(*)::int as "clientSees" from public.files where client_id = ${najd} and visibility = 'internal' and source <> 'deliverable'`,
       )
     )[0]!;
     const { folders } = (

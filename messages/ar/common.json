@@ -105,5 +105,6 @@
   "website": "الموقع الإلكتروني",
   "saveFailed": "تعذّر الحفظ",
   "poweredBy": "مدعوم من سنترال",
-  "systemRole": "نظامي"
+  "systemRole": "نظامي",
+  "deleted": "حُذف."
 }
