@@ -319,6 +319,15 @@ applies pending files from `supabase/migrations` (production builds only), recor
 (`src/lib/db/url.ts`). The demo seed on the public URL is a deliberate, temporary choice by the owner: turn
 `SEED_ON_DEPLOY` off and remove or re-password the demo accounts before real client data goes in.
 
+### ADR-046 — App claims are mirrored into app_metadata
+2026-09-29 · Accepted
+On hosted Supabase the custom access token hook (ADR-014) must be switched on in the dashboard; until it is, tokens
+lack `app` and every sign-in is refused. Triggers on `organization_members` and `profiles.onboarded_at` now also
+write the same claims (`app.app_claims_for`, identical logic to the hook) into `auth.users.raw_app_meta_data.app`,
+which Supabase puts in every token as `app_metadata.app`. `readAppClaims` prefers the hook's `app` and falls back to
+the metadata. App metadata is writable only by the service role, so it is as trustworthy as the hook. Keep the hook
+enabled where possible (it reflects changes on the next refresh without relying on the triggers).
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)
