@@ -1,6 +1,6 @@
 /**
  * Deploy-time database step (Vercel build, see `vercel.json`): applies pending SQL migrations from
- * `supabase/migrations` and, when `SEED_ON_DEPLOY=1` and the database has no organization yet, loads the demo seed.
+ * `supabase/migrations` and, when `SEED_ON_DEPLOY=1` and the database has no users yet, loads the demo seed.
  *
  * It runs in the build because the Vercel ↔ Supabase integration stores the connection strings as sensitive
  * variables that only builds and functions can read. Applied versions are recorded in
@@ -51,10 +51,18 @@ async function main() {
     log(`migrations up to date (${files.length} files)`);
 
     if (process.env.SEED_ON_DEPLOY === '1') {
-      const [row] = await sql<{ count: number }[]>`select count(*)::int as count from public.organizations`;
+      // Gate on auth users rather than organizations: the demo organization comes from `supabase/seed.sql`, which
+      // `supabase db reset` runs locally and this step runs here before the TypeScript seed.
+      const [row] = await sql<{ count: number }[]>`select count(*)::int as count from auth.users`;
       if ((row?.count ?? 0) > 0) {
-        log('database already has an organization — skipping the demo seed');
+        log('database already has users — skipping the demo seed');
       } else {
+        const [org] = await sql<{ count: number }[]>`select count(*)::int as count from public.organizations`;
+        if ((org?.count ?? 0) === 0) {
+          log('applying supabase/seed.sql');
+          const seedSql = readFileSync(path.resolve(__dirname, '../supabase/seed.sql'), 'utf8');
+          await sql.begin((tx) => tx.unsafe(seedSql));
+        }
         log('loading the demo seed');
         const result = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed.ts'], {
           stdio: 'inherit',

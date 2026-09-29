@@ -314,8 +314,8 @@ and the reminder sweep (due soon/overdue/approval reminders arrive with the morn
 The Vercel ↔ Supabase integration stores the database connection strings as sensitive variables that only Vercel
 builds and functions can read, so `vercel.json` runs `pnpm db:deploy` before `next build`. `scripts/deploy-db.ts`
 applies pending files from `supabase/migrations` (production builds only), recording them in
-`supabase_migrations.schema_migrations` like the Supabase CLI, and loads the demo seed once when
-`SEED_ON_DEPLOY=1` and no organization exists. The app accepts the integration's `POSTGRES_URL*` names
+`supabase_migrations.schema_migrations` like the Supabase CLI, and loads the demo seed (`supabase/seed.sql`, then
+`scripts/seed.ts`) once when `SEED_ON_DEPLOY=1` and no auth user exists. The app accepts the integration's `POSTGRES_URL*` names
 (`src/lib/db/url.ts`). The demo seed on the public URL is a deliberate, temporary choice by the owner: turn
 `SEED_ON_DEPLOY` off and remove or re-password the demo accounts before real client data goes in.
 
