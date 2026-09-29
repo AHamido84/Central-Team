@@ -16,7 +16,7 @@ import { useAction } from '@/lib/actions/use-action';
 import { localized, type Locale } from '@/lib/i18n/localized';
 import { publicAssetUrl } from '@/lib/storage';
 import { cn } from '@/lib/utils/cn';
-import { ExtraBadge, PriorityBadge, RequestStatusBadge, SlaBadge, TypeIcon } from '@/modules/requests/components/badges';
+import { ExtraBadge, PriorityBadge, RequestStatusBadge, ResponseBadge, SlaBadge, TypeIcon } from '@/modules/requests/components/badges';
 import { BriefView } from '@/modules/requests/components/brief-fields';
 import { agencyAllowed, StatusActionButtons } from '@/modules/requests/components/request-detail';
 import {
@@ -38,7 +38,7 @@ import type { TemplateDetail } from '@/modules/workflows/server/queries';
 export type ConvertOptions = { today: string; canManageWorkflows: boolean };
 
 const priorityRank: Record<RequestPriority, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
-const slaRank = { overdue: 0, at_risk: 1, on_track: 2, missed: 3, met: 4, none: 5 } as const;
+const slaRank = { overdue: 0, at_risk: 1, on_track: 2, paused: 3, missed: 4, met: 5, none: 6 } as const;
 
 function PreviewDrawer({
   request,
@@ -103,6 +103,7 @@ function PreviewDrawer({
                 <RequestStatusBadge status={request.status} />
                 <PriorityBadge priority={request.priority} />
                 <SlaBadge request={request} />
+                <ResponseBadge request={request} />
                 {request.isExtra ? <ExtraBadge /> : null}
               </SheetDescription>
             </div>
@@ -297,7 +298,12 @@ export function RequestsInbox({
         id: 'sla',
         header: t('requests.sla.title'),
         accessorFn: (r) => r.dueDate ?? '9999',
-        cell: ({ row }) => <SlaBadge request={row.original} />,
+        cell: ({ row }) => (
+          <div className="flex flex-wrap items-center gap-1">
+            <SlaBadge request={row.original} />
+            <ResponseBadge request={row.original} />
+          </div>
+        ),
       },
       {
         id: 'age',
@@ -482,6 +488,7 @@ export function RequestsInbox({
                 <RequestStatusBadge status={r.status} />
                 <PriorityBadge priority={r.priority} />
                 <SlaBadge request={r} />
+                <ResponseBadge request={r} />
               </div>
             </div>
             {r.assignee ? <Avatar name={r.assignee.name} src={publicAssetUrl(r.assignee.avatarPath)} size="sm" /> : null}

@@ -82,6 +82,11 @@ export const requests = pgTable(
     /** Optional link to the campaign this work feeds (same client — trigger). */
     campaignId: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
     lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).notNull().defaultNow(),
+    /** SLA (Phase 5) — server-owned, set by the `requests_sla` trigger. `due_date` is the resolution target. */
+    slaPolicyId: uuid('sla_policy_id'),
+    responseDueAt: timestamp('response_due_at', { withTimezone: true }),
+    slaPausedAt: timestamp('sla_paused_at', { withTimezone: true }),
+    slaPausedDays: integer('sla_paused_days').notNull().default(0),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

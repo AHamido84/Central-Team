@@ -12,6 +12,7 @@ import {
   Flag,
   Lock,
   MessageCircleQuestion,
+  MessageSquareReply,
   PackageCheck,
   PencilLine,
   PlayCircle,
@@ -24,7 +25,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState, type ReactNode } from 'react';
 
 import { FileTypeIcon } from '@/components/patterns';
@@ -35,6 +36,7 @@ import { Input, Textarea } from '@/components/ui/input';
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/overlays';
 import { Avatar, Badge, Card, NativeSelect, Switch } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
+import { localized, type Locale } from '@/lib/i18n/localized';
 import { publicAssetUrl } from '@/lib/storage';
 import { ensureRealtimeAuth, getSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { cn } from '@/lib/utils/cn';
@@ -45,6 +47,7 @@ import {
   reasonRequired,
   requestPriorities,
   requestTransitions,
+  responseState,
   slaState,
   slaTone,
   trackerIndex,
@@ -396,32 +399,40 @@ export function SlaCard({ request }: { request: RequestListItem }) {
   const t = useTranslations('requests');
   const f = useFormat();
   const state = slaState(request);
-  if (!request.dueDate) return <p className="text-sm text-subtle-foreground">{t('sla.noTarget')}</p>;
+  const response = responseState(request);
+  const locale = useLocale() as Locale;
+  if (!request.dueDate && !request.responseDueAt) return <p className="text-sm text-subtle-foreground">{t('sla.noTarget')}</p>;
+  const row = (label: string, value: ReactNode, testId?: string) => (
+    <div className="flex items-start justify-between gap-3" data-testid={testId}>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="text-end">{value}</dd>
+    </div>
+  );
   return (
     <div className="grid gap-3" data-testid="sla-card">
-      {state !== 'none' ? (
-        <Badge tone={slaTone[state]} className="w-fit">
-          <AlarmClock />
-          {t(`sla.states.${state}`)}
-        </Badge>
-      ) : null}
+      <div className="flex flex-wrap gap-1.5">
+        {state !== 'none' ? (
+          <Badge tone={slaTone[state]} className="w-fit" data-testid="sla-resolution-state" data-sla={state}>
+            <AlarmClock />
+            {t(`sla.states.${state}`)}
+          </Badge>
+        ) : null}
+        {response !== 'none' ? (
+          <Badge tone={slaTone[response]} className="w-fit" data-testid="sla-response-state" data-sla={response}>
+            <MessageSquareReply />
+            {t(`sla.responseStates.${response}`)}
+          </Badge>
+        ) : null}
+      </div>
       <dl className="grid gap-2 text-sm">
-        <div className="flex items-start justify-between gap-3">
-          <dt className="text-muted-foreground">{t('dueDate')}</dt>
-          <dd className="text-end">{f.date(`${request.dueDate}T12:00:00`, 'long')}</dd>
-        </div>
-        {request.submittedAt ? (
-          <div className="flex items-start justify-between gap-3">
-            <dt className="text-muted-foreground">{t('submittedAt')}</dt>
-            <dd className="text-end">{f.dateTime(request.submittedAt)}</dd>
-          </div>
-        ) : null}
-        {request.deliveredAt ? (
-          <div className="flex items-start justify-between gap-3">
-            <dt className="text-muted-foreground">{t('deliveredAt')}</dt>
-            <dd className="text-end">{f.dateTime(request.deliveredAt)}</dd>
-          </div>
-        ) : null}
+        {request.slaPolicyName ? row(t('sla.policy'), localized(request.slaPolicyName, locale), 'sla-policy') : null}
+        {request.responseDueAt ? row(t('sla.responseTarget'), f.dateTime(request.responseDueAt), 'sla-response-due') : null}
+        {request.firstResponseAt ? row(t('sla.firstResponse'), f.dateTime(request.firstResponseAt)) : null}
+        {request.dueDate ? row(t('dueDate'), f.date(`${request.dueDate}T12:00:00`, 'long'), 'sla-due') : null}
+        {request.submittedAt ? row(t('submittedAt'), f.dateTime(request.submittedAt)) : null}
+        {request.deliveredAt ? row(t('deliveredAt'), f.dateTime(request.deliveredAt)) : null}
+        {request.slaPausedAt ? row(t('sla.pausedSince'), f.dateTime(request.slaPausedAt), 'sla-paused') : null}
+        {request.slaPausedDays > 0 ? row(t('sla.pausedDays'), t('sla.days', { count: request.slaPausedDays })) : null}
       </dl>
       <p className="text-xs text-subtle-foreground">{t('sla.workingDays')}</p>
     </div>

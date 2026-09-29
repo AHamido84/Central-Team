@@ -295,14 +295,31 @@
     "title": "SLA",
     "dueOn": "Due {date}",
     "noTarget": "No SLA target",
-    "workingDays": "Counted in working days (Sunday–Thursday).",
+    "workingDays": "Working days are Sunday–Thursday, excluding holidays; replies count business hours only.",
     "states": {
       "none": "No SLA",
       "met": "Delivered on time",
       "missed": "Delivered late",
       "on_track": "On track",
       "at_risk": "At risk",
-      "overdue": "Overdue"
+      "overdue": "Overdue",
+      "paused": "Paused — waiting on client"
+    },
+    "responseDue": "First reply due {when}",
+    "policy": "Policy",
+    "responseTarget": "First reply due",
+    "firstResponse": "First reply",
+    "pausedSince": "Paused since",
+    "pausedDays": "Time waiting on the client",
+    "days": "{count, plural, one {# working day} other {# working days}}",
+    "responseStates": {
+      "none": "No reply target",
+      "met": "Replied on time",
+      "missed": "Replied late",
+      "on_track": "Reply on track",
+      "at_risk": "Reply due soon",
+      "overdue": "Reply overdue",
+      "paused": "Reply paused"
     }
   },
   "timeline": {

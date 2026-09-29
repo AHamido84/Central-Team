@@ -7,6 +7,7 @@ import {
   ArrowUp,
   Camera,
   CheckCircle2,
+  CirclePause,
   Clapperboard,
   ClipboardList,
   Flame,
@@ -14,6 +15,7 @@ import {
   Globe,
   Image,
   Megaphone,
+  MessageSquareReply,
   Minus,
   Palette,
   PenLine,
@@ -27,6 +29,7 @@ import { cn } from '@/lib/utils/cn';
 import {
   requestPriorityTone,
   requestStatusTone,
+  responseState,
   slaState,
   slaTone,
   type RequestPriority,
@@ -92,12 +95,30 @@ export function SlaBadge({ request, className }: { request: SlaInput; className?
   const f = useFormat();
   const state = slaState(request);
   if (state === 'none' || !request.dueDate) return <span className="text-subtle-foreground">—</span>;
-  const Icon = state === 'met' ? CheckCircle2 : AlarmClock;
+  const Icon = state === 'met' ? CheckCircle2 : state === 'paused' ? CirclePause : AlarmClock;
   return (
     <Tooltip content={t('sla.dueOn', { date: f.date(`${request.dueDate}T12:00:00`, 'long') })}>
       <Badge tone={slaTone[state]} className={className} data-testid="request-sla" data-sla={state}>
         <Icon aria-hidden />
         {t(`sla.states.${state}`)}
+      </Badge>
+    </Tooltip>
+  );
+}
+
+type ResponseInput = Parameters<typeof responseState>[0];
+
+/** First-response target (agency only): shown while the reply is at risk or overdue. */
+export function ResponseBadge({ request, className }: { request: ResponseInput; className?: string }) {
+  const t = useTranslations('requests');
+  const f = useFormat();
+  const state = responseState(request);
+  if (state !== 'at_risk' && state !== 'overdue') return null;
+  return (
+    <Tooltip content={t('sla.responseDue', { when: f.dateTime(request.responseDueAt!) })}>
+      <Badge tone={slaTone[state]} className={className} data-testid="request-response-sla" data-sla={state}>
+        <MessageSquareReply aria-hidden />
+        {t(`sla.responseStates.${state}`)}
       </Badge>
     </Tooltip>
   );

@@ -54,6 +54,13 @@ export type RequestListItem = {
   comments: number;
   /** The agency's latest question while the request is in Needs info. */
   needsInfoReason: string | null;
+  /** SLA (Phase 5). Response fields are only filled for agency viewers (policies are agency-only under RLS). */
+  firstResponseAt: string | null;
+  responseDueAt: string | null;
+  slaPausedAt: string | null;
+  slaPausedDays: number;
+  slaPolicyName: LocalizedText | null;
+  atRiskPercent: number | null;
 };
 
 const iso = (d: Date | string | null) => (d ? new Date(d).toISOString() : null);
@@ -79,6 +86,9 @@ async function selectRequests(where: { clientId?: string; ids?: string[]; limit?
         needsInfoReason: sql<
           string | null
         >`(select h.reason from public.request_status_history h where h.request_id = requests.id and h.to_status = 'needs_info' order by h.created_at desc limit 1)`,
+        // RLS on sla_policies: null for client users, so the portal never sees internal targets.
+        slaPolicyName: sql<LocalizedText | null>`(select p.name from public.sla_policies p where p.id = requests.sla_policy_id)`,
+        atRiskPercent: sql<number | null>`(select p.at_risk_percent from public.sla_policies p where p.id = requests.sla_policy_id)`,
       })
       .from(requests)
       .innerJoin(clients, eq(clients.id, requests.clientId))
@@ -123,6 +133,12 @@ async function selectRequests(where: { clientId?: string; ids?: string[]; limit?
       unread: x.unread,
       comments: x.comments,
       needsInfoReason: x.r.status === 'needs_info' ? x.needsInfoReason : null,
+      firstResponseAt: iso(x.r.firstResponseAt),
+      responseDueAt: x.atRiskPercent === null ? null : iso(x.r.responseDueAt),
+      slaPausedAt: iso(x.r.slaPausedAt),
+      slaPausedDays: x.r.slaPausedDays,
+      slaPolicyName: x.slaPolicyName,
+      atRiskPercent: x.atRiskPercent,
     }));
   });
 }

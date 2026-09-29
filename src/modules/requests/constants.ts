@@ -170,26 +170,60 @@ export function inInboxView(r: { status: RequestStatus; assigneeId: string | nul
   }
 }
 
-export type SlaState = 'none' | 'met' | 'missed' | 'on_track' | 'at_risk' | 'overdue';
+export type SlaState = 'none' | 'met' | 'missed' | 'on_track' | 'at_risk' | 'overdue' | 'paused';
 
 const DAY = 86_400_000;
+/** Default at-risk threshold (share of the window elapsed) when no SLA policy applies. */
+export const DEFAULT_AT_RISK_PERCENT = 75;
 
 /**
- * SLA state from the due date (a calendar date, due by the end of that day in Riyadh).
- * At risk = one day or less left, or under a quarter of the window.
+ * Resolution SLA state from the due date (a calendar date, due by the end of that day in Riyadh).
+ * At risk = one day or less left, or `atRiskPercent` of the window elapsed (default 75 %).
+ * Paused while the request waits on the client under a policy that pauses (Phase 5).
  */
 export function slaState(
-  r: { status: RequestStatus; submittedAt: string | null; dueDate: string | null; deliveredAt: string | null },
+  r: {
+    status: RequestStatus;
+    submittedAt: string | null;
+    dueDate: string | null;
+    deliveredAt: string | null;
+    slaPausedAt?: string | null;
+    atRiskPercent?: number | null;
+  },
   now: Date = new Date(),
 ): SlaState {
   if (!r.dueDate || !r.submittedAt || r.status === 'draft' || r.status === 'cancelled' || r.status === 'rejected') return 'none';
   const dueEnd = new Date(`${r.dueDate}T23:59:59+03:00`).getTime();
   if (r.deliveredAt) return new Date(r.deliveredAt).getTime() <= dueEnd ? 'met' : 'missed';
   if (r.status === 'closed') return 'none';
+  if (r.status === 'needs_info' && r.slaPausedAt) return 'paused';
   const left = dueEnd - now.getTime();
   if (left < 0) return 'overdue';
   const window = dueEnd - new Date(r.submittedAt).getTime();
-  return left <= Math.max(DAY, window * 0.25) ? 'at_risk' : 'on_track';
+  const share = 1 - (r.atRiskPercent ?? DEFAULT_AT_RISK_PERCENT) / 100;
+  return left <= Math.max(DAY, window * share) ? 'at_risk' : 'on_track';
+}
+
+/** First-response SLA state (response target in business hours, from the request's SLA policy). */
+export function responseState(
+  r: {
+    status: RequestStatus;
+    submittedAt: string | null;
+    responseDueAt: string | null;
+    firstResponseAt: string | null;
+    atRiskPercent?: number | null;
+  },
+  now: Date = new Date(),
+): SlaState {
+  if (!r.responseDueAt || !r.submittedAt || r.status === 'draft') return 'none';
+  const due = new Date(r.responseDueAt).getTime();
+  if (r.firstResponseAt) return new Date(r.firstResponseAt).getTime() <= due ? 'met' : 'missed';
+  if (r.status === 'cancelled' || r.status === 'rejected' || r.status === 'closed') return 'none';
+  const left = due - now.getTime();
+  if (left < 0) return 'overdue';
+  const window = due - new Date(r.submittedAt).getTime();
+  const share = 1 - (r.atRiskPercent ?? DEFAULT_AT_RISK_PERCENT) / 100;
+  return left <= window * share ? 'at_risk' : 'on_track';
 }
 
 export const slaTone = {
@@ -199,6 +233,7 @@ export const slaTone = {
   on_track: 'success',
   at_risk: 'warning',
   overdue: 'danger',
+  paused: 'info',
 } as const satisfies Record<SlaState, string>;
 
 /** Adds working days (Sunday–Thursday) to a date string — mirrors `app.add_working_days()` for previews. */

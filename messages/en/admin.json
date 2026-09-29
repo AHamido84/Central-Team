@@ -19,7 +19,9 @@
     "requests": "Requests",
     "tasks": "Tasks & deliverables",
     "approvals": "Approvals",
-    "calendar": "Calendar"
+    "calendar": "Calendar",
+    "campaigns": "Campaigns & reports",
+    "operations": "Operations & SLA"
   },
   "users": {
     "title": "Team & invitations",

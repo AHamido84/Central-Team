@@ -29,6 +29,13 @@
       "when": 1790704433831,
       "tag": "20260929175353_campaigns",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790710940162,
+      "tag": "20260929194220_operations_sla",
+      "breakpoints": true
     }
   ]
 }

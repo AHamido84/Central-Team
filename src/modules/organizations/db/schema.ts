@@ -19,6 +19,9 @@ export const organizations = pgTable('organizations', {
   supportWhatsapp: text('support_whatsapp'),
   /** Days a deliverable may wait for client approval before the client is reminded. */
   approvalReminderDays: integer('approval_reminder_days').notNull().default(2),
+  /** Business hours for SLA response targets, minutes after midnight in the org time zone (Sunday–Thursday). */
+  businessHoursStart: integer('business_hours_start').notNull().default(540),
+  businessHoursEnd: integer('business_hours_end').notNull().default(1020),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
