@@ -50,6 +50,10 @@
     "campaigns": {
       "title": "Campaigns & reports",
       "body": "New reports, campaign launches, and alerts when a campaign needs attention."
+    },
+    "sla": {
+      "title": "SLA alerts",
+      "body": "Requests close to or past their response and delivery targets."
     }
   }
 }

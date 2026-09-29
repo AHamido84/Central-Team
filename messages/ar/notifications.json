@@ -113,6 +113,14 @@
     "report_ready": {
       "title": "تقرير مجدول بانتظار المراجعة",
       "body": "أُعدّ تقرير “⁨{report}⁩” لـ{client} وينتظر مراجعتك قبل النشر."
+    },
+    "sla_at_risk": {
+      "title": "{reference} يقترب من موعد مستوى الخدمة",
+      "body": "{kind, select, response {الرد الأول} other {التسليم}} على «⁨{title}⁩» ({client}) مستحق قريبًا."
+    },
+    "sla_breached": {
+      "title": "تجاوز مستوى الخدمة في {reference}",
+      "body": "{kind, select, response {الرد الأول} other {التسليم}} على «⁨{title}⁩» ({client}) تجاوز الموعد المستهدف."
     }
   }
 }

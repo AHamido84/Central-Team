@@ -113,6 +113,14 @@
     "report_ready": {
       "title": "A scheduled report is ready for review",
       "body": "“⁨{report}⁩” for {client} was generated and waits for your review before publishing."
+    },
+    "sla_at_risk": {
+      "title": "{reference} is close to its SLA",
+      "body": "{kind, select, response {The first reply} other {Delivery}} for “⁨{title}⁩” ({client}) is due soon."
+    },
+    "sla_breached": {
+      "title": "SLA breached on {reference}",
+      "body": "{kind, select, response {The first reply} other {Delivery}} for “⁨{title}⁩” ({client}) is past its target."
     }
   }
 }

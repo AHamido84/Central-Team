@@ -8,6 +8,7 @@ import { invitationNotifications } from '@/modules/invitations/server/consumers'
 import { messageNotifications } from '@/modules/messaging/server/consumers';
 import { roleNotifications } from '@/modules/rbac/server/consumers';
 import { requestNotifications } from '@/modules/requests/server/consumers';
+import { slaNotifications } from '@/modules/sla/server/consumers';
 import { taskNotifications } from '@/modules/tasks/server/consumers';
 
 /**
@@ -23,4 +24,5 @@ export const consumers: readonly Consumer[] = [
   taskNotifications,
   deliverableNotifications,
   campaignNotifications,
+  slaNotifications,
 ];

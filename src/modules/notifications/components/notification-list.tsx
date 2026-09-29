@@ -20,6 +20,8 @@ import {
   Unlock,
   BellRing,
   Rocket,
+  Timer,
+  Siren,
   TriangleAlert,
   ChartNoAxesColumn,
   FileChartColumn,
@@ -60,6 +62,8 @@ const typeIcon: Record<NotificationType, typeof Bell> = {
   campaign_metrics_stale: ChartNoAxesColumn,
   report_published: FileChartColumn,
   report_ready: FilePen,
+  sla_at_risk: Timer,
+  sla_breached: Siren,
 };
 
 export function NotificationRow({

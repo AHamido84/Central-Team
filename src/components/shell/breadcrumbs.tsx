@@ -40,6 +40,8 @@ const segmentKeys: Record<string, string> = {
   deliverables: 'nav.deliverables',
   campaigns: 'nav.campaigns',
   reports: 'nav.reports',
+  sla: 'nav.sla',
+  team: 'nav.team',
   approvals: 'nav.approvals',
   calendar: 'nav.calendar',
   admin: 'nav.sectionAdmin',

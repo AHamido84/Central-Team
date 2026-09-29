@@ -23,6 +23,9 @@ import {
   Workflow,
   Megaphone,
   FileChartColumn,
+  Timer,
+  UsersRound,
+  Gauge,
 } from 'lucide-react';
 
 import { can, type PermissionSet } from '@/lib/permissions/can';
@@ -50,12 +53,14 @@ export const agencyNav: NavSection[] = [
       { key: 'dashboard', href: '/dashboard', icon: LayoutDashboard },
       { key: 'myWork', href: '/my-work', icon: ListChecks, anyOf: ['tasks:read'], flag: 'module.tasks' },
       { key: 'inbox', href: '/notifications', icon: Inbox },
+      { key: 'team', href: '/team', icon: UsersRound, anyOf: ['operations:read'] },
     ],
   },
   {
     key: 'sectionClients',
     items: [
       { key: 'requests', href: '/requests', icon: ClipboardList, anyOf: ['requests:read'], flag: 'module.requests' },
+      { key: 'slaMonitor', href: '/sla', icon: Gauge, anyOf: ['operations:read'], flag: 'module.requests' },
       { key: 'tasks', href: '/tasks', icon: KanbanSquare, anyOf: ['tasks:read'], flag: 'module.tasks' },
       { key: 'deliverables', href: '/deliverables', icon: FileCheck2, anyOf: ['tasks:read'], flag: 'module.tasks' },
       { key: 'campaigns', href: '/campaigns', icon: Megaphone, anyOf: ['campaigns:read'], flag: 'module.campaigns' },
@@ -77,6 +82,7 @@ export const agencyNav: NavSection[] = [
       { key: 'roles', href: '/admin/roles', icon: ShieldCheck, anyOf: ['roles:read'] },
       { key: 'departments', href: '/admin/departments', icon: Network, anyOf: ['departments:manage'] },
       { key: 'requestTypes', href: '/admin/request-types', icon: FileSliders, anyOf: ['request_types:manage'], flag: 'module.requests' },
+      { key: 'slaPolicies', href: '/admin/sla', icon: Timer, anyOf: ['sla:manage'], flag: 'module.requests' },
       { key: 'workflows', href: '/admin/workflows', icon: Workflow, anyOf: ['workflows:manage'], flag: 'module.tasks' },
       { key: 'packages', href: '/admin/packages', icon: Package, anyOf: ['packages:manage'], flag: 'module.clients' },
       { key: 'features', href: '/admin/features', icon: Blocks, anyOf: ['feature_flags:manage'] },

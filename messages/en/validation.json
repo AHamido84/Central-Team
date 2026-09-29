@@ -43,5 +43,7 @@
   "duplicate_kpi": "This KPI is already set for the same scope.",
   "too_large": "The value is too large.",
   "duplicate_date": "The file has the same date more than once.",
-  "import_empty": "No days to import."
+  "import_empty": "No days to import.",
+  "invalid_time": "Enter a time as HH:MM.",
+  "time_order": "The end must be after the start."
 }

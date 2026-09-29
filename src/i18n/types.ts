@@ -20,6 +20,8 @@ import type workflows from '@messages/ar/workflows.json';
 import type campaigns from '@messages/ar/campaigns.json';
 import type deliverables from '@messages/ar/deliverables.json';
 import type validation from '@messages/ar/validation.json';
+import type sla from '@messages/ar/sla.json';
+import type operations from '@messages/ar/operations.json';
 
 /** Arabic (the default locale) is the source of truth for message keys; scripts/check-i18n.ts enforces parity. */
 export type AppMessages = {
@@ -45,6 +47,8 @@ export type AppMessages = {
   campaigns: typeof campaigns;
   reports: typeof reports;
   validation: typeof validation;
+  sla: typeof sla;
+  operations: typeof operations;
 };
 
 declare module 'next-intl' {

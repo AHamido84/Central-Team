@@ -34,5 +34,9 @@
   "deliverables": "التسليمات",
   "campaigns": "الحملات",
   "reports": "التقارير",
-  "portalCampaigns": "الحملات"
+  "portalCampaigns": "الحملات",
+  "sla": "مستوى الخدمة",
+  "slaMonitor": "متابعة مستوى الخدمة",
+  "slaPolicies": "سياسات مستوى الخدمة",
+  "team": "الفريق"
 }

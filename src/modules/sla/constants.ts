@@ -52,3 +52,41 @@ export function windowUsed(startIso: string, dueIso: string, now: Date = new Dat
   if (due <= start) return 1;
   return Math.min(1, Math.max(0, (now.getTime() - start) / (due - start)));
 }
+
+export type ComplianceRow = {
+  submittedAt: string | null;
+  responseDueAt: string | null;
+  firstResponseAt: string | null;
+  dueDate: string | null;
+  deliveredAt: string | null;
+};
+
+export type Compliance = { met: number; total: number; rate: number | null };
+
+const rateOf = (met: number, total: number): Compliance => ({ met, total, rate: total ? met / total : null });
+
+/**
+ * Response compliance counts requests whose reply target has passed or been answered (met = answered in time);
+ * resolution compliance counts delivered requests with a due date (met = delivered by the end of the due day).
+ * Requests still inside their window don't count yet.
+ */
+export function compliance(rows: readonly ComplianceRow[], now: Date = new Date()): { response: Compliance; resolution: Compliance } {
+  let rMet = 0;
+  let rTotal = 0;
+  let dMet = 0;
+  let dTotal = 0;
+  for (const r of rows) {
+    if (r.responseDueAt) {
+      const due = new Date(r.responseDueAt).getTime();
+      if (r.firstResponseAt) {
+        rTotal++;
+        if (new Date(r.firstResponseAt).getTime() <= due) rMet++;
+      } else if (due < now.getTime()) rTotal++;
+    }
+    if (r.dueDate && r.deliveredAt) {
+      dTotal++;
+      if (new Date(r.deliveredAt).getTime() <= new Date(`${r.dueDate}T23:59:59+03:00`).getTime()) dMet++;
+    }
+  }
+  return { response: rateOf(rMet, rTotal), resolution: rateOf(dMet, dTotal) };
+}

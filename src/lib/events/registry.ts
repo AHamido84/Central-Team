@@ -109,6 +109,16 @@ export type DomainEventPayloads = {
   'report.deleted': { reportId: string; clientId: string };
   'report_schedule.saved': { scheduleId: string; clientId: string };
   'report_schedule.deleted': { scheduleId: string; clientId: string };
+  // Operations & SLA (Phase 5)
+  'sla_policy.saved': { policyId: string };
+  'sla_policy.deleted': { policyId: string };
+  'business_hours.updated': { start: number; end: number };
+  'holiday.saved': { holidayId: string; date: string };
+  'holiday.deleted': { holidayId: string; date: string };
+  /** Recorded once per request × kind by the SLA sweep. */
+  'sla.at_risk': { breachId: string; requestId: string; clientId: string; kind: 'response' | 'resolution'; dueAt: string };
+  'sla.breached': { breachId: string; requestId: string; clientId: string; kind: 'response' | 'resolution'; dueAt: string };
+  'sla_breach.acknowledged': { breachId: string; requestId: string; clientId: string };
 };
 
 export type DomainEventType = keyof DomainEventPayloads;
