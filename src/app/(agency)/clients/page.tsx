@@ -9,6 +9,7 @@ import { requireAgencyAny } from '@/lib/auth/context';
 import { can } from '@/lib/permissions/can';
 import { ClientsTable } from '@/modules/clients/components/clients-table';
 import { listClients } from '@/modules/clients/server/queries';
+import { getClientsHealth } from '@/modules/operations/server/queries';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('nav');
@@ -18,7 +19,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ClientsPage() {
   const ctx = await requireAgencyAny(['clients:read_all', 'clients:read_assigned']);
   const t = await getTranslations('clients');
-  const clients = await listClients(ctx);
+  const [clients, health] = await Promise.all([
+    listClients(ctx),
+    can(ctx.permissions, 'operations:read') ? getClientsHealth(ctx) : undefined,
+  ]);
   const canCreate = can(ctx.permissions, 'clients:create');
   return (
     <>
@@ -36,7 +40,7 @@ export default async function ClientsPage() {
           ) : null
         }
       />
-      <ClientsTable clients={clients} canCreate={canCreate} />
+      <ClientsTable clients={clients} canCreate={canCreate} health={health} />
     </>
   );
 }

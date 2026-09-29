@@ -332,10 +332,10 @@ export function SlaMonitor({ data, view, canAcknowledge }: { data: SlaMonitorDat
                     <Badge tone={c.breaches ? 'danger' : 'neutral'}>{t('sla.monitor.breachesCount', { count: c.breaches })}</Badge>
                   </div>
                   {(['response', 'resolution'] as const).map((k) => (
-                    <div key={k} className="grid grid-cols-[7rem_minmax(0,1fr)_3rem] items-center gap-2 text-xs">
+                    <div key={k} className="grid grid-cols-[6rem_minmax(0,1fr)_3.5rem] items-center gap-2 text-xs">
                       <span className="text-muted-foreground">{t(`sla.monitor.kinds.${k}`)}</span>
                       <Progress value={(c[k].rate ?? 0) * 100} aria-label={t(`sla.monitor.kinds.${k}`)} />
-                      <span className="tabular text-end">{rateLabel(f, noData, c[k])}</span>
+                      <span className="tabular text-end">{rateLabel(f, '—', c[k])}</span>
                     </div>
                   ))}
                 </Link>

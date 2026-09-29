@@ -27,6 +27,8 @@ import { ThreadsView } from '@/modules/messaging/components/threads-view';
 import { getThread, listThreads } from '@/modules/messaging/server/queries';
 import { CampaignList } from '@/modules/campaigns/components/campaign-list';
 import { listCampaigns } from '@/modules/campaigns/server/queries';
+import { Client360View } from '@/modules/operations/components/client-360';
+import { getClient360 } from '@/modules/operations/server/queries';
 import { RequestsInbox } from '@/modules/requests/components/requests-inbox';
 import { listRequests } from '@/modules/requests/server/queries';
 
@@ -68,6 +70,7 @@ export default async function ClientPage({
   const c = detail.client;
   const name = localized(c.name, locale);
   const canEdit = can(ctx.permissions, 'clients:update');
+  const c360 = tab === 'overview' && can(ctx.permissions, 'operations:read') ? await getClient360(ctx, clientId) : null;
 
   return (
     <div className="space-y-6">
@@ -125,8 +128,11 @@ export default async function ClientPage({
       </nav>
 
       {tab === 'overview' ? (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          <div className="min-w-0 space-y-6">
+            {c360 ? (
+              <Client360View data={c360} canSla={Boolean(ctx.flags['module.requests']) && can(ctx.permissions, 'requests:read')} />
+            ) : null}
             <PackageUsageCard usage={detail.usage} compact />
             <section>
               <SectionTitle title={t('clients.company')} />

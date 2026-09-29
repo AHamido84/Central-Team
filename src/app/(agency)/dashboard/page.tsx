@@ -12,6 +12,8 @@ import { getFormatters } from '@/lib/i18n/server-format';
 import { can } from '@/lib/permissions/can';
 import { publicAssetUrl } from '@/lib/storage';
 import { getAgencyDashboard } from '@/modules/dashboard/server/queries';
+import { OpsDashboard } from '@/modules/operations/components/ops-dashboard';
+import { getOpsOverview, type OpsScope } from '@/modules/operations/server/queries';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('nav');
@@ -24,11 +26,19 @@ function greetingKey(hour: number) {
   return 'greetingEvening' as const;
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ scope?: string }> }) {
   const ctx = await requireAgency();
   const t = await getTranslations();
   const f = await getFormatters();
-  const data = await getAgencyDashboard(ctx);
+  const { scope: scopeParam } = await searchParams;
+  const ops = can(ctx.permissions, 'operations:read');
+  const scope: OpsScope =
+    scopeParam === 'mine'
+      ? { kind: 'mine' }
+      : scopeParam && /^[0-9a-f-]{36}$/.test(scopeParam)
+        ? { kind: 'manager', userId: scopeParam }
+        : { kind: 'all' };
+  const [data, opsData] = await Promise.all([getAgencyDashboard(ctx), ops ? getOpsOverview(ctx, scope) : null]);
   const firstName = ctx.profile.fullName.split(' ')[0] ?? '';
   const hour = Number(
     new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: ctx.profile.timezone }).format(new Date()),
@@ -66,41 +76,49 @@ export default async function DashboardPage() {
         </div>
       </PageHeader>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {canSeeClients ? (
-          <StatCard
-            label={t('dashboard.statClients')}
-            value={f.number(data.clients.filter((c) => c.status !== 'archived').length)}
-            icon={Briefcase}
-            footer={t('dashboard.statClientsFooter', { count: data.myClients.length })}
-          />
-        ) : null}
-        <StatCard
-          label={t('dashboard.statTeam')}
-          value={f.number(data.teamCount)}
-          icon={Users}
-          footer={t('dashboard.statTeamFooter', { count: data.team.length })}
+      {opsData ? (
+        <OpsDashboard
+          data={opsData}
+          scopeValue={scope.kind === 'manager' ? scope.userId : scope.kind}
+          canSla={Boolean(ctx.flags['module.requests']) && can(ctx.permissions, 'requests:read')}
         />
-        {canSeeClients ? (
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {canSeeClients ? (
+            <StatCard
+              label={t('dashboard.statClients')}
+              value={f.number(data.clients.filter((c) => c.status !== 'archived').length)}
+              icon={Briefcase}
+              footer={t('dashboard.statClientsFooter', { count: data.myClients.length })}
+            />
+          ) : null}
           <StatCard
-            label={t('dashboard.statWaiting')}
-            value={f.number(data.waitingOnUs)}
-            icon={MessageCircleWarning}
-            footer={t('dashboard.statWaitingFooter')}
+            label={t('dashboard.statTeam')}
+            value={f.number(data.teamCount)}
+            icon={Users}
+            footer={t('dashboard.statTeamFooter', { count: data.team.length })}
           />
-        ) : null}
-        {data.pendingInvitations ? (
-          <StatCard
-            label={t('dashboard.statInvitations')}
-            value={f.number(data.pendingInvitations.length)}
-            icon={MailPlus}
-            footer={t('dashboard.statInvitationsFooter')}
-          />
-        ) : null}
-      </div>
+          {canSeeClients ? (
+            <StatCard
+              label={t('dashboard.statWaiting')}
+              value={f.number(data.waitingOnUs)}
+              icon={MessageCircleWarning}
+              footer={t('dashboard.statWaitingFooter')}
+            />
+          ) : null}
+          {data.pendingInvitations ? (
+            <StatCard
+              label={t('dashboard.statInvitations')}
+              value={f.number(data.pendingInvitations.length)}
+              icon={MailPlus}
+              footer={t('dashboard.statInvitationsFooter')}
+            />
+          ) : null}
+        </div>
+      )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="min-w-0 space-y-6">
           {canSeeClients ? (
             <section>
               <SectionTitle
@@ -182,7 +200,7 @@ export default async function DashboardPage() {
           </section>
         </div>
 
-        <aside className="space-y-6">
+        <aside className="min-w-0 space-y-6">
           {data.myClients.length > 0 ? (
             <section>
               <SectionTitle title={t('dashboard.myClients')} />
