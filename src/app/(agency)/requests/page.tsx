@@ -9,6 +9,7 @@ import { listAgencyPeople } from '@/modules/clients/server/queries';
 import { RequestsInbox } from '@/modules/requests/components/requests-inbox';
 import { inboxViews, type InboxView } from '@/modules/requests/constants';
 import { listRequests } from '@/modules/requests/server/queries';
+import { dayInZone } from '@/modules/tasks/constants';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('nav');
@@ -30,6 +31,14 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
         people={people.map((p) => ({ id: p.id, name: p.name, avatarPath: p.avatar_path }))}
         canTriage={can(ctx.permissions, 'requests:triage')}
         initialView={inboxViews.includes(view as InboxView) ? (view as InboxView) : 'new'}
+        convert={
+          ctx.flags['module.tasks'] && can(ctx.permissions, 'tasks:create')
+            ? {
+                today: dayInZone(new Date(), ctx.organization.defaultTimezone),
+                canManageWorkflows: can(ctx.permissions, 'workflows:manage'),
+              }
+            : undefined
+        }
       />
     </>
   );

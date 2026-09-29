@@ -38,6 +38,14 @@
     "requests": {
       "title": "Requests",
       "body": "New requests, assignments and status changes."
+    },
+    "tasks": {
+      "title": "Tasks & reviews",
+      "body": "Task assignments, due dates and internal reviews."
+    },
+    "approvals": {
+      "title": "Approvals",
+      "body": "Deliverables waiting for your approval, and reminders."
     }
   }
 }

@@ -12,6 +12,8 @@ import { getFormatters } from '@/lib/i18n/server-format';
 import { can } from '@/lib/permissions/can';
 import { publicAssetUrl } from '@/lib/storage';
 import { AccountManagerCard } from '@/modules/clients/components/client-overview';
+import { DeliverableCard } from '@/modules/deliverables/components/deliverables-list';
+import { listDeliverables } from '@/modules/deliverables/server/queries';
 import { PackageUsageCard } from '@/modules/clients/components/package-usage-card';
 import { listRecentFiles } from '@/modules/files/server/queries';
 import { RecentFilesGrid } from '@/modules/portal/components/recent-files';
@@ -40,12 +42,15 @@ export default async function PortalHomePage() {
   const t = await getTranslations();
   const f = await getFormatters();
   const requestsLive = Boolean(ctx.flags['module.requests']);
-  const [home, recentFiles, requests, requestActivity] = await Promise.all([
+  const approvalsLive = Boolean(ctx.flags['module.approvals']);
+  const [home, recentFiles, requests, requestActivity, deliverables] = await Promise.all([
     getPortalHome(ctx),
     listRecentFiles(ctx.client.id, 4),
     requestsLive ? listRequests({ clientId: ctx.client.id }) : Promise.resolve([]),
     requestsLive ? listRequestActivity(ctx.client.id, 6) : Promise.resolve([]),
+    approvalsLive ? listDeliverables({ clientId: ctx.client.id, clientVisibleOnly: true }) : Promise.resolve([]),
   ]);
+  const awaiting = deliverables.filter((d) => d.status === 'client_review');
   const activeRequests = requests
     .filter((r) => openStatuses.includes(r.status))
     .sort(
@@ -58,7 +63,6 @@ export default async function PortalHomePage() {
   );
   const firstName = ctx.profile.fullName.split(' ')[0] ?? '';
   const clientName = localized(home.client.name, f.locale);
-  const approvalsLive = Boolean(ctx.flags['module.approvals']);
 
   return (
     <div className="space-y-8">
@@ -85,8 +89,20 @@ export default async function PortalHomePage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {awaiting.length ? (
+              <Button asChild variant="secondary" className="bg-white text-primary shadow-md hover:bg-white/90" data-testid="approvals-cta">
+                <Link href={awaiting.length === 1 ? `/portal/approvals/${awaiting[0]!.id}` : '/portal/approvals'}>
+                  <CheckCheck />
+                  {t('portal.reviewAwaiting', { count: awaiting.length })}
+                </Link>
+              </Button>
+            ) : null}
             {can(ctx.permissions, 'portal_messages:send') ? (
-              <Button asChild variant="secondary" className="bg-white text-primary hover:bg-white/90">
+              <Button
+                asChild
+                variant={awaiting.length ? 'ghost' : 'secondary'}
+                className={awaiting.length ? 'text-primary-foreground hover:bg-white/15' : 'bg-white text-primary hover:bg-white/90'}
+              >
                 <Link href="/portal/messages">
                   <MessageSquare />
                   {t('portal.sendMessage')}
@@ -126,14 +142,24 @@ export default async function PortalHomePage() {
                 ) : null
               }
             />
-            <Card>
-              <EmptyState
-                compact
-                icon={CheckCheck}
-                title={approvalsLive ? t('portal.noApprovals') : t('portal.approvalsSoonTitle')}
-                description={approvalsLive ? t('portal.noApprovalsBody') : t('portal.approvalsSoonBody')}
-              />
-            </Card>
+            {awaiting.length ? (
+              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" data-testid="home-approvals">
+                {awaiting.slice(0, 3).map((d) => (
+                  <li key={d.id} className="min-w-0">
+                    <DeliverableCard d={d} side="client" href={`/portal/approvals/${d.id}`} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Card>
+                <EmptyState
+                  compact
+                  icon={CheckCheck}
+                  title={approvalsLive ? t('portal.noApprovals') : t('portal.approvalsSoonTitle')}
+                  description={approvalsLive ? t('portal.noApprovalsBody') : t('portal.approvalsSoonBody')}
+                />
+              </Card>
+            )}
           </section>
 
           {/* Phase 2 slot: requests */}

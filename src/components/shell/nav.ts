@@ -17,6 +17,10 @@ import {
   ShieldCheck,
   Users,
   ClipboardList,
+  FileCheck2,
+  KanbanSquare,
+  ListChecks,
+  Workflow,
 } from 'lucide-react';
 
 import { can, type PermissionSet } from '@/lib/permissions/can';
@@ -42,6 +46,7 @@ export const agencyNav: NavSection[] = [
     key: 'sectionHome',
     items: [
       { key: 'dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { key: 'myWork', href: '/my-work', icon: ListChecks, anyOf: ['tasks:read'], flag: 'module.tasks' },
       { key: 'inbox', href: '/notifications', icon: Inbox },
     ],
   },
@@ -49,6 +54,8 @@ export const agencyNav: NavSection[] = [
     key: 'sectionClients',
     items: [
       { key: 'requests', href: '/requests', icon: ClipboardList, anyOf: ['requests:read'], flag: 'module.requests' },
+      { key: 'tasks', href: '/tasks', icon: KanbanSquare, anyOf: ['tasks:read'], flag: 'module.tasks' },
+      { key: 'deliverables', href: '/deliverables', icon: FileCheck2, anyOf: ['tasks:read'], flag: 'module.tasks' },
       { key: 'clients', href: '/clients', icon: Briefcase, anyOf: ['clients:read_all', 'clients:read_assigned'], flag: 'module.clients' },
       {
         key: 'messages',
@@ -66,6 +73,7 @@ export const agencyNav: NavSection[] = [
       { key: 'roles', href: '/admin/roles', icon: ShieldCheck, anyOf: ['roles:read'] },
       { key: 'departments', href: '/admin/departments', icon: Network, anyOf: ['departments:manage'] },
       { key: 'requestTypes', href: '/admin/request-types', icon: FileSliders, anyOf: ['request_types:manage'], flag: 'module.requests' },
+      { key: 'workflows', href: '/admin/workflows', icon: Workflow, anyOf: ['workflows:manage'], flag: 'module.tasks' },
       { key: 'packages', href: '/admin/packages', icon: Package, anyOf: ['packages:manage'], flag: 'module.clients' },
       { key: 'features', href: '/admin/features', icon: Blocks, anyOf: ['feature_flags:manage'] },
       { key: 'audit', href: '/admin/audit', icon: ScrollText, anyOf: ['audit_log:read'] },

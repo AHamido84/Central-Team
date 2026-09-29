@@ -26,6 +26,12 @@ import {
   TriagePanel,
 } from '@/modules/requests/components/request-detail';
 import { getRequest } from '@/modules/requests/server/queries';
+import { listDeliverables } from '@/modules/deliverables/server/queries';
+import { RequestWork } from '@/modules/tasks/components/request-work';
+import { dayInZone } from '@/modules/tasks/constants';
+import { listTasks } from '@/modules/tasks/server/queries';
+import { ConvertToTasksButton } from '@/modules/workflows/components/convert-dialog';
+import { getRequestProgress, listTaskStatuses, templatesForRequestType } from '@/modules/workflows/server/queries';
 
 const isUuid = (v: string) => /^[0-9a-f-]{36}$/.test(v);
 
@@ -49,6 +55,24 @@ export default async function AgencyRequestPage({ params }: { params: Promise<{ 
   const isAssignee = can(ctx.permissions, 'requests:update') && request.assigneeId === ctx.session.userId;
   const clientName = localized(request.clientName, f.locale);
   const general = request.attachments.filter((a) => !a.fieldId);
+  const tasksOn = Boolean(ctx.flags['module.tasks']) && can(ctx.permissions, 'tasks:read');
+  const canConvert =
+    tasksOn &&
+    can(ctx.permissions, 'tasks:create') &&
+    !request.convertedAt &&
+    ['submitted', 'under_review', 'accepted'].includes(request.status);
+  const today = dayInZone(new Date(), ctx.organization.defaultTimezone);
+  const [templates, work] = await Promise.all([
+    canConvert ? templatesForRequestType(request.typeId) : Promise.resolve([]),
+    tasksOn && request.convertedAt
+      ? Promise.all([
+          getRequestProgress(request.id),
+          listTasks({ requestId: request.id, includeDoneDays: 36500 }),
+          listDeliverables({ requestId: request.id }),
+          listTaskStatuses(),
+        ])
+      : Promise.resolve(null),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -90,6 +114,15 @@ export default async function AgencyRequestPage({ params }: { params: Promise<{ 
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-6">
+          {work ? (
+            <RequestWork
+              steps={work[0]}
+              tasks={work[1]}
+              deliverables={work[2]}
+              statuses={work[3].map((s) => ({ id: s.id, name: s.name, category: s.category, color: s.color }))}
+              today={today}
+            />
+          ) : null}
           <section>
             <SectionTitle title={t('requests.brief')} />
             <Card className="p-5">
@@ -143,7 +176,16 @@ export default async function AgencyRequestPage({ params }: { params: Promise<{ 
             people={people.map((p) => ({ id: p.id, name: p.name, avatarPath: p.avatar_path }))}
             canTriage={canTriage}
             isAssignee={isAssignee}
-            tasksEnabled={Boolean(ctx.flags['module.tasks'])}
+            convertSlot={
+              canConvert ? (
+                <ConvertToTasksButton
+                  requestId={request.id}
+                  templates={templates}
+                  today={today}
+                  canManageWorkflows={can(ctx.permissions, 'workflows:manage')}
+                />
+              ) : null
+            }
           />
           <section>
             <SectionTitle title={t('requests.sla.title')} />

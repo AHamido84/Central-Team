@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { boolean, check, index, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { boolean, check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { authUsers } from 'drizzle-orm/supabase';
 
 import { createdAt, id, localized, updatedAt } from '@/lib/db/columns';
@@ -17,6 +17,8 @@ export const organizations = pgTable('organizations', {
   brand: jsonb('brand').$type<OrganizationBrand>().notNull().default({}),
   supportEmail: text('support_email'),
   supportWhatsapp: text('support_whatsapp'),
+  /** Days a deliverable may wait for client approval before the client is reminded. */
+  approvalReminderDays: integer('approval_reminder_days').notNull().default(2),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

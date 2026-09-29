@@ -14,6 +14,9 @@ import type onboarding from '@messages/ar/onboarding.json';
 import type portal from '@messages/ar/portal.json';
 import type requests from '@messages/ar/requests.json';
 import type settings from '@messages/ar/settings.json';
+import type tasks from '@messages/ar/tasks.json';
+import type workflows from '@messages/ar/workflows.json';
+import type deliverables from '@messages/ar/deliverables.json';
 import type validation from '@messages/ar/validation.json';
 
 /** Arabic (the default locale) is the source of truth for message keys; scripts/check-i18n.ts enforces parity. */
@@ -34,6 +37,9 @@ export type AppMessages = {
   portal: typeof portal;
   requests: typeof requests;
   settings: typeof settings;
+  tasks: typeof tasks;
+  workflows: typeof workflows;
+  deliverables: typeof deliverables;
   validation: typeof validation;
 };
 

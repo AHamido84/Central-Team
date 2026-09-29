@@ -7,7 +7,8 @@ import type { DomainEventPayloads, DomainEventType } from '@/lib/events/registry
 export type EmitEventInput<T extends DomainEventType> = {
   type: T;
   organizationId: string;
-  actorId: string;
+  /** Null for system events (e.g. the reminder sweep). */
+  actorId: string | null;
   aggregate: { type: string; id?: string | null };
   clientId?: string | null;
   payload: DomainEventPayloads[T];

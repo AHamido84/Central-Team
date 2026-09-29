@@ -37,6 +37,14 @@ export const agencyPermissions = [
   'requests:update',
   'requests:triage',
   'request_types:manage',
+  'tasks:read',
+  'tasks:create',
+  'tasks:update',
+  'tasks:delete',
+  'workflows:manage',
+  'deliverables:manage',
+  'deliverables:review',
+  'time:read_all',
 ] as const;
 
 export const clientPermissions = [

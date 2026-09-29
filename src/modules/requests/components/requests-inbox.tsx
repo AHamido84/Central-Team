@@ -31,6 +31,11 @@ import {
 } from '@/modules/requests/constants';
 import { previewRequestAction, triageRequestsAction } from '@/modules/requests/server/actions';
 import type { RequestDetail, RequestListItem } from '@/modules/requests/server/queries';
+import { ConvertToTasksButton } from '@/modules/workflows/components/convert-dialog';
+import { convertTemplatesAction } from '@/modules/workflows/server/actions';
+import type { TemplateDetail } from '@/modules/workflows/server/queries';
+
+export type ConvertOptions = { today: string; canManageWorkflows: boolean };
 
 const priorityRank: Record<RequestPriority, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
 const slaRank = { overdue: 0, at_risk: 1, on_track: 2, missed: 3, met: 4, none: 5 } as const;
@@ -40,11 +45,13 @@ function PreviewDrawer({
   onOpenChange,
   me,
   canTriage,
+  convert,
 }: {
   request: RequestListItem | null;
   onOpenChange: (open: boolean) => void;
   me: string;
   canTriage: boolean;
+  convert?: ConvertOptions;
 }) {
   const t = useTranslations();
   const locale = useLocale() as Locale;
@@ -62,6 +69,21 @@ function PreviewDrawer({
     };
   }, [requestId]);
   const current = detail && detail.id === request?.id ? detail : null;
+  const convertible = Boolean(
+    convert && request && !request.convertedAt && ['submitted', 'under_review', 'accepted'].includes(request.status),
+  );
+  const [templates, setTemplates] = useState<{ typeId: string; list: TemplateDetail[] } | null>(null);
+  const typeId = request?.typeId;
+  useEffect(() => {
+    if (!convertible || !typeId) return;
+    let cancelled = false;
+    void convertTemplatesAction({ requestTypeId: typeId }).then((res) => {
+      if (!cancelled && res.ok) setTemplates({ typeId, list: res.data });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [convertible, typeId]);
   return (
     <Sheet open={Boolean(request)} onOpenChange={onOpenChange}>
       <SheetContent closeLabel={t('common.close')} className="w-[min(96vw,34rem)]" data-testid="request-preview">
@@ -122,6 +144,14 @@ function PreviewDrawer({
                 side="agency"
                 allowed={agencyAllowed(request.status, canTriage, request.assigneeId === me)}
               />
+              {convertible && convert && templates?.typeId === request.typeId ? (
+                <ConvertToTasksButton
+                  requestId={request.id}
+                  templates={templates.list}
+                  today={convert.today}
+                  canManageWorkflows={convert.canManageWorkflows}
+                />
+              ) : null}
               <Button asChild variant="ghost" size="sm" className="justify-self-start">
                 <Link href={`/requests/${request.id}`} data-testid="open-request">
                   {t('requests.openFull')}
@@ -144,6 +174,7 @@ export function RequestsInbox({
   canTriage,
   showClient = true,
   initialView = 'new',
+  convert,
 }: {
   requests: RequestListItem[];
   me: string;
@@ -151,6 +182,8 @@ export function RequestsInbox({
   canTriage: boolean;
   showClient?: boolean;
   initialView?: InboxView;
+  /** "Convert to tasks" in the preview drawer (when tasks are enabled and allowed). */
+  convert?: ConvertOptions;
 }) {
   const t = useTranslations();
   const locale = useLocale() as Locale;
@@ -455,7 +488,7 @@ export function RequestsInbox({
           </div>
         )}
       />
-      <PreviewDrawer request={preview} onOpenChange={(o) => !o && setPreviewId(null)} me={me} canTriage={canTriage} />
+      <PreviewDrawer request={preview} onOpenChange={(o) => !o && setPreviewId(null)} me={me} canTriage={canTriage} convert={convert} />
     </div>
   );
 }

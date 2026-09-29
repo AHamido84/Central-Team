@@ -27,5 +27,9 @@
   "switchClient": "Switch company",
   "agencyWorkspace": "Agency workspace",
   "clientPortal": "Client portal",
-  "requestTypes": "Request types"
+  "requestTypes": "Request types",
+  "tasks": "Tasks",
+  "myWork": "My work",
+  "workflows": "Workflows",
+  "deliverables": "Deliverables"
 }

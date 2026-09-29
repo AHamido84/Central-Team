@@ -33,7 +33,7 @@ export const threads = pgTable(
   (t) => [
     index('threads_client_idx').on(t.clientId, t.lastCommentAt),
     index('threads_subject_idx').on(t.subjectType, t.subjectId),
-    check('threads_subject_type_check', sql`${t.subjectType} in ('client','request','deliverable')`),
+    check('threads_subject_type_check', sql`${t.subjectType} in ('client','request','deliverable','task')`),
     check('threads_visibility_check', sql`${t.visibility} in ('internal','client')`),
   ],
 );

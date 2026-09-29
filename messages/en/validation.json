@@ -29,5 +29,13 @@
   "invalid_color": "Enter a color as #RRGGBB.",
   "invalid_dimensions": "Enter a valid width and height in pixels.",
   "invalid_condition": "A condition must depend on an earlier choice or checkbox question and an existing value.",
-  "reason_required": "Add a reason (at least 3 characters)."
+  "reason_required": "Add a reason (at least 3 characters).",
+  "review_needs_deliverable": "Reviews and approvals need a step that produces a deliverable.",
+  "steps_min": "Add at least one step.",
+  "dependency_cycle": "Dependencies form a loop — a step waits for itself.",
+  "duplicate": "Duplicate.",
+  "status_done_required": "Keep at least one status in the “Done” category.",
+  "status_default_required": "Pick one status for new tasks.",
+  "dates_order": "The due date must be after the start date.",
+  "comment_required": "Add your feedback so the team knows what to change."
 }

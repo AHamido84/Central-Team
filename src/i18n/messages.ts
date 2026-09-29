@@ -19,6 +19,9 @@ export const namespaces = [
   'messaging',
   'portal',
   'requests',
+  'tasks',
+  'workflows',
+  'deliverables',
 ] as const;
 
 export type Namespace = (typeof namespaces)[number];

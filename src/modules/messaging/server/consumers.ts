@@ -3,10 +3,11 @@ import 'server-only';
 import { and, eq } from 'drizzle-orm';
 
 import { dbAdmin } from '@/lib/db/client';
-import { clientAssignments, clientUsers, clients, comments, profiles, requests, threads } from '@/lib/db/schema';
+import { clientAssignments, clientUsers, clients, comments, profiles, requests, taskMembers, tasks, threads } from '@/lib/db/schema';
 import { defineConsumer } from '@/lib/events/dispatcher';
 import { preview } from '@/modules/messaging/mentions';
 import { notify } from '@/modules/notifications/server/notify';
+import { taskReference } from '@/modules/tasks/constants';
 
 /** Everyone who should hear about activity in a thread, split by side. Computed server-side from the DB. */
 export async function threadAudience(clientId: string, threadId: string, visibility: 'internal' | 'client') {
@@ -52,7 +53,7 @@ export const messageNotifications = defineConsumer({
       ? await dbAdmin.select({ name: profiles.fullName }).from(profiles).where(eq(profiles.id, event.actorId))
       : [];
 
-    const audience = await threadAudience(clientId, threadId, visibility);
+    let audience = await threadAudience(clientId, threadId, visibility);
     let title = thread.title;
     let links = { agency: `/messages?thread=${threadId}`, client: `/portal/messages?thread=${threadId}` };
     if (thread.subjectType === 'request' && thread.subjectId) {
@@ -66,10 +67,29 @@ export const messageNotifications = defineConsumer({
         if (request.assigneeId && !audience.agency.includes(request.assigneeId)) audience.agency.push(request.assigneeId);
       }
     }
+    if (thread.subjectType === 'task' && thread.subjectId) {
+      // Task conversations reach the task's people (assignees, watchers, reviewer, earlier commenters), not the whole team.
+      const [task] = await dbAdmin
+        .select({ id: tasks.id, number: tasks.number, title: tasks.title, reviewerId: tasks.reviewerId })
+        .from(tasks)
+        .where(eq(tasks.id, thread.subjectId));
+      if (!task) return;
+      const members = await dbAdmin.select({ userId: taskMembers.userId }).from(taskMembers).where(eq(taskMembers.taskId, task.id));
+      const commenters = await dbAdmin.selectDistinct({ userId: comments.authorId }).from(comments).where(eq(comments.threadId, threadId));
+      audience = {
+        agency: [
+          ...new Set([...members.map((m) => m.userId), task.reviewerId, ...commenters.map((c) => c.userId)].filter(Boolean) as string[]),
+        ],
+        client: [],
+      };
+      title = `${taskReference(task.number)} · ${task.title}`;
+      links = { agency: `/tasks?task=${task.id}`, client: `/tasks?task=${task.id}` };
+    }
 
     const author = comment.authorId;
-    // Mentions only reach people who can actually see the message.
+    // Mentions only reach people who can actually see the message (task threads: any agency member).
     const visible = new Set([...audience.agency, ...audience.client]);
+    if (thread.subjectType === 'task') mentions.forEach((id) => visible.add(id));
     const mentioned = mentions.filter((id) => visible.has(id) && id !== author);
     const params = { actor: actor?.name ?? '', thread: title, preview: preview(comment.body, 90) };
     const quote = preview(comment.body, 600);

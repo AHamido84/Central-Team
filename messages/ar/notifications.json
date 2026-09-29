@@ -53,6 +53,46 @@
     "request_needs_info": {
       "title": "نحتاج معلومات إضافية للطلب {reference}",
       "body": "يحتاج {actor} بعض التفاصيل حول «⁨{title}⁩» قبل البدء."
+    },
+    "task_assigned": {
+      "title": "أُسندت إليك مهمة",
+      "body": "تم إسناد «⁨{task}⁩» إليك من {actor} لـ ⁨{client}⁩."
+    },
+    "task_due_soon": {
+      "title": "موعد مهمة يقترب",
+      "body": "تستحق «⁨{task}⁩» بتاريخ {due}."
+    },
+    "task_overdue": {
+      "title": "مهمة متأخرة",
+      "body": "تجاوزت «⁨{task}⁩» موعدها ({due})."
+    },
+    "task_unblocked": {
+      "title": "يمكنك البدء الآن",
+      "body": "اكتملت «⁨{blocker}⁩»، و«⁨{task}⁩» جاهزة لك."
+    },
+    "task_review_requested": {
+      "title": "مهمة بانتظار مراجعتك",
+      "body": "نقل {actor} «⁨{task}⁩» إلى المراجعة."
+    },
+    "review_requested": {
+      "title": "تسليم جاهز للمراجعة الداخلية",
+      "body": "رفع {actor} نسخة جديدة من «⁨{title}⁩» لـ ⁨{client}⁩."
+    },
+    "deliverable_approved": {
+      "title": "اعتُمد «⁨{title}⁩»",
+      "body": "{stage, select, client {اعتمده العميل ⁨{client}⁩.} other {اعتمده {actor} داخليًا.}}"
+    },
+    "deliverable_changes_requested": {
+      "title": "مطلوب تعديلات على «⁨{title}⁩»",
+      "body": "{stage, select, client {طلب العميل ⁨{client}⁩ تعديلات.} other {طلب {actor} تعديلات.}}"
+    },
+    "approval_requested": {
+      "title": "بانتظار اعتمادك",
+      "body": "«⁨{title}⁩» جاهز لمراجعتك واعتمادك."
+    },
+    "approval_reminder": {
+      "title": "تذكير: بانتظار اعتمادك",
+      "body": "«⁨{title}⁩» ينتظر مراجعتك منذ {days} أيام."
     }
   }
 }

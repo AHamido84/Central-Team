@@ -41,6 +41,11 @@ export const storagePaths = {
   /** org/<org>/clients/<client>/requests/<fileId>-<slug> — attached while filling in a request, linked on submit. */
   requestAttachment: (orgId: string, clientId: string, fileId: string, name: string) =>
     `org/${orgId}/clients/${clientId}/requests/${fileId}-${slugifyFileName(name)}`,
+  /** org/<org>/clients/<client>/deliverables/<deliverable>/<fileId>-<slug> (+ `<fileId>-thumb.webp` preview). */
+  deliverableFile: (orgId: string, clientId: string, deliverableId: string, fileId: string, name: string) =>
+    `org/${orgId}/clients/${clientId}/deliverables/${deliverableId}/${fileId}-${slugifyFileName(name)}`,
+  deliverableThumb: (orgId: string, clientId: string, deliverableId: string, fileId: string) =>
+    `org/${orgId}/clients/${clientId}/deliverables/${deliverableId}/${fileId}-thumb.webp`,
 };
 
 export type FileKind = 'image' | 'video' | 'pdf' | 'document' | 'archive' | 'other';

@@ -26,5 +26,18 @@
   "invalid_assignee": "The request can't be assigned to this person.",
   "request_field_restricted": "You can't change this part of the request.",
   "request_type_inactive": "This request type isn't available right now. Refresh and choose another type.",
-  "reason_required": "Add a reason so the client knows why."
+  "reason_required": "Add a reason so the client knows why.",
+  "dependency_cycle": "This dependency would create a loop.",
+  "invalid_dependency": "That task can't be linked — it must belong to the same client.",
+  "version_empty": "Add at least one file (or the copy text) before sending for review.",
+  "version_locked": "This version was sent for review and can't change. Upload a new version.",
+  "version_not_current": "A newer version exists. Refresh the page.",
+  "comment_required": "Add your feedback so the team knows what to change.",
+  "status_in_use": "Tasks still use this status. Move them to another status first.",
+  "status_done_required": "Keep at least one status in the \"Done\" category.",
+  "already_converted": "This request was already converted into tasks.",
+  "workflow_empty": "This workflow has no steps.",
+  "invalid_status": "That status isn't valid.",
+  "invalid_parent": "That task can't be a subtask here.",
+  "invalid_file": "That file can't be used here."
 }

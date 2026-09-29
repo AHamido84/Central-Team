@@ -7,6 +7,10 @@ import { getTranslations } from 'next-intl/server';
 import { PageHeader, SectionTitle } from '@/components/patterns';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/primitives';
+import { DeliverableCard } from '@/modules/deliverables/components/deliverables-list';
+import { listDeliverables } from '@/modules/deliverables/server/queries';
+import { RequestProgress } from '@/modules/workflows/components/request-progress';
+import { getRequestProgress } from '@/modules/workflows/server/queries';
 import { requirePortal } from '@/lib/auth/context';
 import { localized } from '@/lib/i18n/localized';
 import { getFormatters } from '@/lib/i18n/server-format';
@@ -49,6 +53,10 @@ export default async function PortalRequestPage({ params }: { params: Promise<{ 
   // Internal history (assignment, priority, flags) is filtered by RLS; keep only what the client can see.
   const timeline = request.timeline.filter((x) => x.kind === 'status' || x.visibility === 'client');
   const general = request.attachments.filter((a) => !a.fieldId);
+  const [progress, deliverables] = await Promise.all([
+    request.convertedAt ? getRequestProgress(request.id) : Promise.resolve([]),
+    ctx.flags['module.approvals'] ? listDeliverables({ requestId: request.id, clientVisibleOnly: true }) : Promise.resolve([]),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -116,6 +124,18 @@ export default async function PortalRequestPage({ params }: { params: Promise<{ 
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-6">
+          {deliverables.length ? (
+            <section data-testid="request-deliverables">
+              <SectionTitle title={t('deliverables.portal.forRequest')} />
+              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {deliverables.map((d) => (
+                  <li key={d.id} className="min-w-0">
+                    <DeliverableCard d={d} side="client" href={`/portal/approvals/${d.id}`} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
           {thread ? (
             <section>
               <SectionTitle title={t('requests.conversation')} />
@@ -157,6 +177,14 @@ export default async function PortalRequestPage({ params }: { params: Promise<{ 
           </section>
         </div>
         <aside className="space-y-6">
+          {progress.length ? (
+            <section>
+              <SectionTitle title={t('workflows.progress.title')} />
+              <Card className="p-4">
+                <RequestProgress steps={progress} />
+              </Card>
+            </section>
+          ) : null}
           <section>
             <SectionTitle title={t('requests.info')} />
             <Card className="p-4">

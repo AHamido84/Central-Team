@@ -27,5 +27,9 @@
   "switchClient": "تبديل الشركة",
   "agencyWorkspace": "مساحة الوكالة",
   "clientPortal": "بوابة العملاء",
-  "requestTypes": "أنواع الطلبات"
+  "requestTypes": "أنواع الطلبات",
+  "tasks": "المهام",
+  "myWork": "عملي",
+  "workflows": "مسارات العمل",
+  "deliverables": "التسليمات"
 }

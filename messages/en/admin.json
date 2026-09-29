@@ -16,7 +16,10 @@
     "files": "Files",
     "messaging": "Messages",
     "portal": "Portal",
-    "requests": "Requests"
+    "requests": "Requests",
+    "tasks": "Tasks & deliverables",
+    "approvals": "Approvals",
+    "calendar": "Calendar"
   },
   "users": {
     "title": "Team & invitations",

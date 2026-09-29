@@ -76,6 +76,8 @@ export const requests = pgTable(
     acceptedAt: timestamp('accepted_at', { withTimezone: true }),
     deliveredAt: timestamp('delivered_at', { withTimezone: true }),
     closedAt: timestamp('closed_at', { withTimezone: true }),
+    /** Set once when "Convert to tasks" generated the request's workflow (Phase 3). */
+    convertedAt: timestamp('converted_at', { withTimezone: true }),
     lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).notNull().defaultNow(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

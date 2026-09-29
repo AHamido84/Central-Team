@@ -134,7 +134,13 @@ export async function getThread(threadId: string): Promise<ThreadDetail | null> 
       union
       select p.id, p.full_name, p.avatar_path, c.author_side
         from public.comments c join public.profiles p on p.id = c.author_id
-        where c.thread_id = ${threadId}`);
+        where c.thread_id = ${threadId}
+      union
+      -- Task conversations are internal: anyone on the agency team can be mentioned.
+      select p.id, p.full_name, p.avatar_path, 'agency'
+        from public.organization_members m join public.profiles p on p.id = m.user_id
+        where ${thread.subjectType} = 'task' and m.organization_id = ${thread.organizationId}
+          and m.user_type = 'agency' and m.status = 'active'`);
     const sideOf = new Map(participants.map((p) => [p.user_id, p.side]));
     return {
       thread: { id: thread.id, clientId: thread.clientId, title: thread.title, visibility: thread.visibility as 'internal' | 'client' },

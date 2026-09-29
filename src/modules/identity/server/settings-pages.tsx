@@ -82,7 +82,10 @@ export async function NotificationSettingsPage({ base }: { base: Base }) {
       .from(notificationPreferences)
       .where(and(eq(notificationPreferences.userId, ctx.session.userId), eq(notificationPreferences.organizationId, ctx.organization.id))),
   );
-  const categories = ctx.side === 'client' ? notificationCategories.filter((c) => c !== 'account') : notificationCategories;
+  const categories =
+    ctx.side === 'client'
+      ? notificationCategories.filter((c) => c !== 'account' && c !== 'tasks')
+      : notificationCategories.filter((c) => c !== 'approvals');
   return (
     <Shell base={base}>
       <NotificationSettings

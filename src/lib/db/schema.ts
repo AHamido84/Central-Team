@@ -7,3 +7,6 @@ export * from '@/modules/messaging/db/schema';
 export * from '@/modules/organizations/db/schema';
 export * from '@/modules/rbac/db/schema';
 export * from '@/modules/requests/db/schema';
+export * from '@/modules/deliverables/db/schema';
+export * from '@/modules/tasks/db/schema';
+export * from '@/modules/workflows/db/schema';

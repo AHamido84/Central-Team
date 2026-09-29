@@ -17,6 +17,7 @@ import * as schema from '../src/lib/db/schema';
 import { hashInvitationToken } from '../src/modules/invitations/server/tokens';
 import { artworkPng, simplePdf } from './seed-assets';
 import { seedRequestsData } from './seed-requests';
+import { seedTasksData } from './seed-tasks';
 
 config({ path: '.env.local' });
 
@@ -826,6 +827,7 @@ async function main() {
   }
 
   await seedRequests(ids, clientIds);
+  await seedTasksData({ db, ids, clientIds, orgId: ORG_ID, upload, clients: clientSeeds });
 
   // --- Invitations (pending + expired) --------------------------------------
   await db.insert(schema.invitations).values([

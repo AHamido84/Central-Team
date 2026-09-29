@@ -11,6 +11,14 @@ import {
   UserRoundPlus,
   RefreshCw,
   MessageCircleQuestion,
+  AlarmClock,
+  CalendarClock,
+  CheckCheck,
+  ListTodo,
+  PenLine,
+  ScanEye,
+  Unlock,
+  BellRing,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -32,6 +40,16 @@ const typeIcon: Record<NotificationType, typeof Bell> = {
   request_assigned: UserRoundPlus,
   request_status_changed: RefreshCw,
   request_needs_info: MessageCircleQuestion,
+  task_assigned: ListTodo,
+  task_due_soon: CalendarClock,
+  task_overdue: AlarmClock,
+  task_unblocked: Unlock,
+  task_review_requested: ScanEye,
+  review_requested: ScanEye,
+  deliverable_approved: CheckCheck,
+  deliverable_changes_requested: PenLine,
+  approval_requested: CheckCheck,
+  approval_reminder: BellRing,
 };
 
 export function NotificationRow({

@@ -53,6 +53,46 @@
     "request_needs_info": {
       "title": "We need more information on {reference}",
       "body": "{actor} needs a few details about “⁨{title}⁩” before starting."
+    },
+    "task_assigned": {
+      "title": "A task was assigned to you",
+      "body": "{actor} assigned you “⁨{task}⁩” for {client}."
+    },
+    "task_due_soon": {
+      "title": "A task is due soon",
+      "body": "“⁨{task}⁩” is due on {due}."
+    },
+    "task_overdue": {
+      "title": "A task is overdue",
+      "body": "“⁨{task}⁩” was due on {due}."
+    },
+    "task_unblocked": {
+      "title": "You can start now",
+      "body": "“⁨{blocker}⁩” is done, so “⁨{task}⁩” is ready for you."
+    },
+    "task_review_requested": {
+      "title": "A task is waiting for your review",
+      "body": "{actor} moved “⁨{task}⁩” to review."
+    },
+    "review_requested": {
+      "title": "A deliverable is ready for internal review",
+      "body": "{actor} uploaded a new version of “⁨{title}⁩” for {client}."
+    },
+    "deliverable_approved": {
+      "title": "“⁨{title}⁩” was approved",
+      "body": "{stage, select, client {The client ⁨{client}⁩ approved it.} other {{actor} approved it internally.}}"
+    },
+    "deliverable_changes_requested": {
+      "title": "Changes requested on “⁨{title}⁩”",
+      "body": "{stage, select, client {The client ⁨{client}⁩ asked for changes.} other {{actor} asked for changes.}}"
+    },
+    "approval_requested": {
+      "title": "Waiting for your approval",
+      "body": "“⁨{title}⁩” is ready for you to review and approve."
+    },
+    "approval_reminder": {
+      "title": "Reminder: waiting for your approval",
+      "body": "“⁨{title}⁩” has been waiting for your review for {days} days."
     }
   }
 }

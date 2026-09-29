@@ -105,5 +105,6 @@
   "website": "Website",
   "saveFailed": "Couldn't save",
   "poweredBy": "Powered by Central",
-  "systemRole": "System"
+  "systemRole": "System",
+  "deleted": "Deleted."
 }

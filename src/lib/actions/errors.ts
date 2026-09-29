@@ -27,6 +27,19 @@ export const actionErrorCodes = [
   'request_type_inactive',
   'reason_required',
   'request_field_restricted',
+  'dependency_cycle',
+  'invalid_dependency',
+  'version_empty',
+  'version_locked',
+  'version_not_current',
+  'comment_required',
+  'status_in_use',
+  'status_done_required',
+  'already_converted',
+  'workflow_empty',
+  'invalid_status',
+  'invalid_parent',
+  'invalid_file',
   'unknown',
 ] as const;
 
@@ -73,6 +86,16 @@ const raisedCodes = new Set<ActionErrorCode>([
   'request_type_inactive',
   'reason_required',
   'request_field_restricted',
+  'dependency_cycle',
+  'invalid_dependency',
+  'version_empty',
+  'version_locked',
+  'version_not_current',
+  'comment_required',
+  'status_done_required',
+  'invalid_status',
+  'invalid_parent',
+  'invalid_file',
 ]);
 
 /** Maps thrown errors (ActionFailure, Postgres errors raised by RLS/triggers) to a safe error code. */
@@ -85,6 +108,7 @@ export function toActionError(error: unknown): ActionError {
     if (raised) return { code: raised };
     if (pg.code === '42501') return { code: 'forbidden' };
     if (pg.code === '23505') return { code: 'conflict' };
+    if (pg.code === '23503' && message.includes('task_statuses')) return { code: 'status_in_use' };
     if (pg.code === '23503' && message.includes('delete')) return { code: 'role_in_use' };
     if (pg.code === '23503' || pg.code === '22023' || pg.code === '23514') return { code: 'validation' };
   }

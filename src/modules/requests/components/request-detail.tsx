@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   Eye,
   Flag,
-  ListTodo,
   Lock,
   MessageCircleQuestion,
   PackageCheck,
@@ -26,7 +25,7 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import { FileTypeIcon } from '@/components/patterns';
 import { useFormat } from '@/components/providers';
@@ -262,13 +261,14 @@ export function TriagePanel({
   people,
   canTriage,
   isAssignee,
-  tasksEnabled,
+  convertSlot,
 }: {
   request: RequestDetail;
   people: { id: string; name: string; avatarPath: string | null }[];
   canTriage: boolean;
   isAssignee: boolean;
-  tasksEnabled: boolean;
+  /** "Convert to tasks" (Phase 3), rendered by the page when the request can be converted. */
+  convertSlot?: ReactNode;
 }) {
   const t = useTranslations('requests');
   const triage = useAction(triageRequestsAction, { successMessage: t('saved') });
@@ -359,15 +359,7 @@ export function TriagePanel({
           />
         </label>
       </div>
-      {/* Phase 3: turning an accepted request into tasks. Hidden until `module.tasks` ships. */}
-      {tasksEnabled && (request.status === 'accepted' || request.status === 'in_progress') ? (
-        <Button asChild variant="soft">
-          <Link href={`/tasks/new?request=${request.id}`} data-testid="convert-to-tasks">
-            <ListTodo />
-            {t('convertToTasks')}
-          </Link>
-        </Button>
-      ) : null}
+      {convertSlot}
     </Card>
   );
 }

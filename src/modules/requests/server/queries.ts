@@ -44,6 +44,8 @@ export type RequestListItem = {
   isBillable: boolean;
   submittedAt: string | null;
   deliveredAt: string | null;
+  /** When "Convert to tasks" generated the workflow (Phase 3). */
+  convertedAt: string | null;
   createdAt: string;
   lastActivityAt: string;
   threadId: string | null;
@@ -112,6 +114,7 @@ async function selectRequests(where: { clientId?: string; ids?: string[]; limit?
       isBillable: x.r.isBillable,
       submittedAt: iso(x.r.submittedAt),
       deliveredAt: iso(x.r.deliveredAt),
+      convertedAt: iso(x.r.convertedAt),
       createdAt: x.r.createdAt.toISOString(),
       lastActivityAt: x.r.lastActivityAt.toISOString(),
       threadId: x.threadId,

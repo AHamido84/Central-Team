@@ -53,6 +53,43 @@ export type DomainEventPayloads = {
   'request.brief_updated': { requestId: string; clientId: string };
   'request.assigned': { requestId: string; clientId: string; assigneeId: string | null; previousAssigneeId: string | null };
   'request.triaged': { requestId: string; clientId: string; fields: string[] };
+  'request.converted': { requestId: string; clientId: string; templateId: string; taskIds: string[] };
+  // Workflows, tasks & time (Phase 3)
+  'workflow_template.created': { templateId: string };
+  'workflow_template.updated': { templateId: string; fields: string[] };
+  'workflow_template.deleted': { templateId: string };
+  'task_statuses.updated': { statusIds: string[] };
+  'task.created': { taskId: string; clientId: string; parentId: string | null };
+  'task.updated': { taskId: string; clientId: string; fields: string[] };
+  'task.deleted': { taskId: string; clientId: string };
+  'task.assigned': { taskId: string; clientId: string; userIds: string[] };
+  'task.status_changed': { taskId: string; clientId: string; from: string; to: string };
+  'task.due_soon': { taskId: string; clientId: string; dueDate: string };
+  'task.overdue': { taskId: string; clientId: string; dueDate: string };
+  'time_entry.recorded': { taskId: string; clientId: string; minutes: number };
+  // Deliverables & approvals (Phase 3)
+  'deliverable.created': { deliverableId: string; clientId: string; taskId: string | null };
+  'deliverable.updated': { deliverableId: string; clientId: string; fields: string[] };
+  'deliverable.version_created': { deliverableId: string; clientId: string; versionId: string; number: number };
+  /** A version entered a review stage (`internal_review`, `client_review`) or was approved without review. */
+  'deliverable.submitted': { deliverableId: string; clientId: string; versionId: string; status: string };
+  'deliverable.decided': {
+    deliverableId: string;
+    clientId: string;
+    versionId: string;
+    stage: 'internal' | 'client';
+    decision: 'approved' | 'changes_requested';
+    status: string;
+    approvalId: string;
+  };
+  'deliverable.approval_reminder': { deliverableId: string; clientId: string; versionId: string; days: number };
+  'annotation.created': {
+    annotationId: string;
+    deliverableId: string;
+    clientId: string;
+    visibility: 'internal' | 'client';
+    side: 'agency' | 'client';
+  };
 };
 
 export type DomainEventType = keyof DomainEventPayloads;
