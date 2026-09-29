@@ -72,7 +72,7 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 - Answers to open questions in `docs/DECISIONS.md` (brand, logo, domain, sending email, data residency/PDPL).
 - Staging deploy on Vercel + Supabase Cloud with a custom domain; Resend domain verification; production GoTrue SMTP.
 - Full human QA pass (AR/EN × light/dark × mobile/desktop) on every screen.
-- Production: set `CRON_SECRET` (Vercel Cron hits `/api/cron/dispatch-events` every 5 min, see `vercel.json`).
+- Production: set `CRON_SECRET` (Vercel Cron hits `/api/cron/dispatch-events` daily at 05:00 UTC on the Hobby plan, see `vercel.json` and ADR-044; `*/5 * * * *` on Pro).
 
 ## Suggested Phase 4 scope (from the roadmap)
 

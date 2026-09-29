@@ -160,7 +160,7 @@ Consumers (`src/lib/events/consumers.ts`) subscribe to event types. `dispatchPen
 `domain_event_deliveries` row per (event × consumer), claims batches with `for update skip locked` plus a lease
 (`locked_until`), runs handlers, and marks `processed_at` or records `last_error` with exponential backoff
 (30 s → 1 h, 8 attempts). It is kicked with `after()` once every committed `defineAction` (and invitation acceptance)
-has responded, and `/api/cron/dispatch-events` (Bearer `CRON_SECRET`, Vercel Cron every 5 min) is the safety net.
+has responded, and `/api/cron/dispatch-events` (Bearer `CRON_SECRET`, Vercel Cron; daily on Hobby — ADR-044) is the safety net.
 Events older than 2 days when a consumer first sees them are skipped (no surprise backfills when a consumer is added).
 Handlers are idempotent: `notify()` skips recipients that already have a notification for the same event and type.
 *Rejected for now*: Supabase Database Webhooks / `pg_net` → Edge Function (needs the DB to call back into the app,
@@ -297,9 +297,17 @@ resolvable.
 ### ADR-043 — Time-based reminders come from a sweep that emits events
 2026-09-29 · Accepted
 Due soon (today/tomorrow), overdue and "still waiting for your approval" (every `organizations.approval_reminder_days`,
-default 2) are emitted as domain events by `runReminderSweep()` from the cron route (every 5 minutes, before the
-dispatcher), with per-task/per-deliverable markers so each reminder fires once. It uses the service connection because
+default 2) are emitted as domain events by `runReminderSweep()` from the cron route (before the dispatcher; daily
+on the Hobby plan — ADR-044), with per-task/per-deliverable markers so each reminder fires once. It uses the service connection because
 it scans every organization (listed in CLAUDE.md §6); notifications still come only from consumers (ADR-028).
+
+### ADR-044 — Daily safety-net cron on the Vercel Hobby plan
+2026-09-29 · Accepted
+The `centralteam` Vercel project is on the Hobby plan, which only allows daily cron jobs, so `vercel.json` runs
+`/api/cron/dispatch-events` once a day at 05:00 UTC (08:00 Riyadh). Events are still dispatched right after each
+action (`after()`), so notifications stay immediate; what slows down is the retry of events that failed to dispatch
+and the reminder sweep (due soon/overdue/approval reminders arrive with the morning run). On the Pro plan, restore
+`*/5 * * * *` (or call the route from an external scheduler with `CRON_SECRET`).
 
 ---
 
