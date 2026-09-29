@@ -76,13 +76,50 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
     `public.rate_limits` locally.
 21. Dev-only: the Next.js dev indicator ("N" bubble) overlaps the bottom-left of mobile screenshots; it is not in builds.
 
+## Production (live demo)
+
+| | |
+|---|---|
+| URL | https://centralteam.vercel.app (Vercel project `centralteam`, Hobby plan) |
+| Database | Supabase project `udqhetkwsqpyyuurajcb` (created through the Vercel ↔ Supabase integration) |
+| Deployed from | branch `claude/stoic-cray-wud1ib` (Phase 4, commit `ee2e20c` or later) |
+| Data | the demo seed (agency "Ofoq", 5 clients, 23 users, password `Passw0rd!` for all) + Phase 4 demo campaigns |
+
+How it works:
+- **Deploy** = a Vercel production build of the branch. `vercel.json` runs `pnpm db:deploy && pnpm build`:
+  `scripts/deploy-db.ts` applies pending `supabase/migrations` (tracked in `supabase_migrations.schema_migrations`,
+  CLI-compatible) and, while `SEED_ON_DEPLOY=1`, seeds an empty DB once / adds the demo campaigns once (ADR-045).
+  Trigger it from the Vercel dashboard (Redeploy) or the Vercel API with a token — tokens are **not** stored in the
+  repo or the environment; the owner provides one per session.
+- **Env vars on Vercel** (all set): the integration's `SUPABASE_*`, `NEXT_PUBLIC_SUPABASE_*`, `POSTGRES_URL*` (read via
+  `src/lib/db/url.ts`), plus `NEXT_PUBLIC_APP_URL`, `CRON_SECRET`, `SEED_ON_DEPLOY=1`. Not set yet: `EMAIL_PROVIDER` /
+  `RESEND_API_KEY` / `EMAIL_FROM` (so the app's own emails go to the console; Supabase Auth emails still send).
+- **Auth**: the custom access token hook is **not** enabled in the Supabase dashboard; the app works anyway because
+  the claims are mirrored into `app_metadata` (ADR-046). Site URL / redirect URLs in Supabase Auth should be set to the
+  Vercel URL (owner's task) for magic links and password resets.
+- **Cron**: daily at 05:00 UTC (08:00 Riyadh) — dispatcher safety net, reminder sweep, campaign sweep (ADR-044).
+- **Network (cloud sessions)**: `api.vercel.com` must be allowed; direct Postgres (port 5432/6543) to Supabase is
+  blocked from the sandbox, so DB changes only happen through the Vercel build.
+
 ## Open items (need the owner)
 
+- Vercel's **production branch** setting still says `claude/modest-faraday-3u6pzy`; point it at this branch or `main`
+  (a push to that other branch would replace the live deploy).
+- Before real clients: set `SEED_ON_DEPLOY=0`, delete the demo accounts or change their passwords, **rotate the Supabase
+  DB password and the Vercel token** (both were pasted into a chat), enable the auth hook, set Auth URLs.
+- Email: Resend account + verified sending domain, then `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `EMAIL_FROM`.
+- Custom domain (the owner's network blocks some `*.app` hosts — ADR-015) and a Pro plan for a 5-minute cron.
 - Answers to open questions in `docs/DECISIONS.md` (brand, logo, domain, sending email, data residency/PDPL).
-- Staging deploy on Vercel + Supabase Cloud with a custom domain; Resend domain verification; production GoTrue SMTP.
-- Full human QA pass (AR/EN × light/dark × mobile/desktop) on every screen.
-- Production (`centralteam` on Vercel + Supabase integration): migrations run in the build via `pnpm db:deploy` (ADR-045); the demo seed is loaded once while `SEED_ON_DEPLOY=1`. Supabase Auth needs the custom access token hook and the site/redirect URLs set in the dashboard.
-- Production: set `CRON_SECRET` (Vercel Cron hits `/api/cron/dispatch-events` daily at 05:00 UTC on the Hobby plan, see `vercel.json` and ADR-044; `*/5 * * * *` on Pro).
+- Human QA on real devices; deferred items in `docs/ROADMAP.md` §3.9 and §4.9.
+
+## Starting a new session
+
+1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md`; then `bash scripts/bootstrap.sh` (or `pnpm db:start` +
+   `pnpm db:reset` if the stack exists). In cloud sandboxes Docker may need `dockerd &` first, Playwright needs
+   `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`, and `pnpm dev` must be started in the background.
+2. Verify: `pnpm check`, `pnpm test:db`, `pnpm test:e2e` (expect 112 / 101 / 21 green), `pnpm build`.
+3. Work on branch `claude/stoic-cray-wud1ib` (or the one the owner names); Conventional Commits; plan in ROADMAP +
+   DATA_MODEL before building a phase; decisions in DECISIONS (next ADR: **052**).
 
 ## Suggested Phase 5 scope (from the roadmap)
 
