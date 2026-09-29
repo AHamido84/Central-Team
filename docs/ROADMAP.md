@@ -204,9 +204,59 @@ attachments from the first cut are kept.
 - [ ] UI to edit a client's request prefix (column + default exist)
 - [ ] Human QA pass (AR/EN × light/dark × mobile/desktop) on every requests screen
 
-## Phase 3 — Tasks & Deliverables
-Tasks (list/board/calendar), workflow templates per service, deliverables with versions, client approvals with
-annotations, comments & mentions, time tracking.
+## Phase 3 — Tasks & Deliverables (in progress)
+
+Requests turn into tasks through workflow templates, the team produces deliverables with versions, and work passes
+internal review then client approval — visible to the client in the portal. Data model: `docs/DATA_MODEL.md` §3d.
+
+### 3.1 Data & security
+- [ ] Tables: `task_statuses`, `workflow_templates`, `workflow_template_steps`, `tasks`, `task_members`, `task_dependencies`, `task_checklist_items`, `task_attachments`, `time_entries`, `saved_views`
+- [ ] Tables: `deliverables`, `deliverable_versions`, `deliverable_version_files`, `approvals`, `annotations`, `annotation_replies`; `files` thumbnails/dimensions; `threads.subject_type = 'task'`
+- [ ] Permissions: `tasks:read/create/update/delete`, `workflows:manage`, `deliverables:manage`, `deliverables:review`, `time:read_all` (client approvals use `client_users.can_approve`)
+- [ ] Triggers: task numbering + status category, dependency cycles, approval state machine (version → deliverable → task → request delivered), revision-round consumption
+- [ ] RLS: tasks/time/internal review never reach the portal; clients see only deliverables and versions sent to them
+
+### 3.2 Workflow templates
+- [ ] Templates admin linked to request types; visual builder (ordered steps, drag to reorder, dependency picker, department, assignee rule, SLA days, review/approval flags, deliverable type)
+- [ ] Seeded templates for every seeded request type (e.g. Social post: Copywriting → Design → Scheduling with internal review + client approval on Design)
+- [ ] "Convert to tasks" in triage (flag `module.tasks` on): generates the task chain with computed due dates, request → In progress
+
+### 3.3 Tasks
+- [ ] Fields: title, Markdown description, client, request, department, assignees, reviewer, watchers, priority, status, start/due, estimate, tags, checklist, subtasks, blocked-by, attachments, internal comments with @mentions
+- [ ] Configurable statuses per organization (settings)
+- [ ] Views: Kanban (drag & drop, swimlanes by assignee/client), List, Table (sort/filter/group, inline edit, bulk actions), Calendar, My Work (today / overdue / this week / waiting on me)
+- [ ] Saved views (personal and shared)
+- [ ] Task drawer with keyboard shortcuts, realtime updates, optimistic updates
+- [ ] Time tracking: timer + manual entries (internal)
+- [ ] Unblocking: dependency done → next assignee notified
+
+### 3.4 Deliverables & versions
+- [ ] Deliverables linked to task/request/client; versions with files and notes
+- [ ] Resumable uploads with progress (TUS to signed URLs), image thumbnails, video poster frames, type/size limits, signed URLs
+- [ ] Version compare (side by side)
+
+### 3.5 Review & approvals
+- [ ] Internal review (reviewer / `deliverables:review`) → client approval, per workflow step
+- [ ] Annotations: image pins (x/y), video timestamps, document/copy comments; threaded, resolvable
+- [ ] Changes requested → task back to assignee with feedback; new version restarts review
+- [ ] Revision rounds counted against the package with a warning when exceeded
+- [ ] All deliverables approved → request Delivered
+
+### 3.6 Portal
+- [ ] Approvals center + primary CTA on portal home (flag `module.approvals`)
+- [ ] Mobile-first review screen: preview, zoom, annotate, approve / request changes (feedback required), version history
+- [ ] Request page progress (active step) without internal tasks or comments
+- [ ] Content calendar (flag `module.calendar`)
+
+### 3.7 Notifications
+- [ ] Task assigned, mention, due soon / overdue, dependency unblocked, ready for internal review, ready for client approval, client approved / requested changes, pending-approval reminder after N days
+
+### 3.8 Quality
+- [ ] Seed: statuses, templates, converted requests with tasks, deliverables at every stage, hundreds of tasks
+- [ ] Unit: workflow generation, dependency & due-date computation, approval state machine
+- [ ] RLS: client sees only client-visible deliverables and versions; tasks/time/internal annotations hidden
+- [ ] Playwright: request → convert → designer uploads v1 → team lead approves → client annotates + requests changes → v2 → client approves → request Delivered
+- [ ] Docs: ROADMAP, DATA_MODEL, ARCHITECTURE, DECISIONS, HANDOFF, CLAUDE.md
 
 ## Phase 4 — Campaigns
 Campaigns, channels, KPIs & targets, analytics dashboards, scheduled/branded client reports (PDF), metrics storage.

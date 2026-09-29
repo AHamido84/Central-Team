@@ -577,6 +577,85 @@ client package covering today when the type counts against an item the package i
 
 Internal notes are internal comments in the request thread (existing messaging RLS).
 
+## 3d. Phase 3 — tasks, workflows, deliverables & approvals
+
+```mermaid
+erDiagram
+  request_types ||--o{ workflow_templates : "default workflow"
+  workflow_templates ||--o{ workflow_template_steps : "ordered steps"
+  requests ||--o{ tasks : "converted into"
+  workflow_template_steps ||--o{ tasks : "generated from"
+  task_statuses ||--o{ tasks : status
+  tasks ||--o{ tasks : subtasks
+  tasks ||--o{ task_members : "assignees / watchers"
+  tasks ||--o{ task_dependencies : "blocked by"
+  tasks ||--o{ task_checklist_items : ""
+  tasks ||--o{ task_attachments : ""
+  tasks ||--o{ time_entries : ""
+  tasks ||--o{ deliverables : produces
+  requests ||--o{ deliverables : ""
+  deliverables ||--o{ deliverable_versions : ""
+  deliverable_versions ||--o{ deliverable_version_files : files
+  deliverable_versions ||--o{ approvals : decisions
+  deliverable_versions ||--o{ annotations : ""
+  annotations ||--o{ annotation_replies : thread
+  profiles ||--o{ saved_views : ""
+```
+
+| Table | Key columns | Notes |
+|---|---|---|
+| `task_statuses` | `key`, `name` (AR/EN), `category` (`todo · active · review · changes · done · blocked`), `color`, `sort_order`, `is_default` | Per organization, editable. Logic keys off the **category**, never the name. Seeded: To do, In progress, In review, Changes requested, Done, Blocked. |
+| `workflow_templates` | `request_type_id?`, `name`, `description`, `is_active`, `is_default` | One default template per request type (partial unique index). |
+| `workflow_template_steps` | `template_id`, `name`, `department_id?`, `assignee_mode` (`account_manager · role · user · none`), `assignee_role_id?`, `assignee_user_id?`, `sla_days`, `depends_on uuid[]` (step ids), `requires_internal_review`, `requires_client_approval`, `deliverable_type?`, `sort_order` | Dependencies must point to steps of the same template (trigger, no cycles). |
+| `tasks` | `client_id` (required), `request_id?`, `parent_id?` (one level of subtasks), `workflow_step_id?`, `number` (per org, shown `T-123`), `title`, `description` (Markdown), `department_id?`, `status_id` + denormalized `status_category`, `priority`, `start_date`, `due_date`, `estimate_minutes`, `tags text[]`, `reviewer_id?`, `position` (board order), `requires_internal_review`, `requires_client_approval`, `completed_at`, reminder markers | Agency-only. Status category maintained by trigger; `completed_at` set/cleared with `done`. |
+| `task_members` | `task_id`, `user_id`, `role` (`assignee · watcher`) | Active agency members only (trigger). |
+| `task_dependencies` | `task_id`, `depends_on_id` | Same client, no self/cycles (trigger). A task whose blockers are all done is *unblocked* → event. |
+| `task_checklist_items` | `task_id`, `body`, `is_done`, `sort_order`, `done_by`, `done_at` | |
+| `task_attachments` | `task_id`, `file_id` | Files with `source = 'attachment'`, `visibility = 'internal'`. |
+| `time_entries` | `task_id`, `user_id`, `started_at`, `ended_at?`, `minutes`, `note`, `source` (`timer · manual`) | Internal only. One running timer per user (partial unique index). Users write only their own. |
+| `saved_views` | `owner_id`, `is_shared`, `name`, `layout` (`board · list · table · calendar`), `config jsonb` (filters, grouping, swimlanes, sort) | Personal or shared with the agency. |
+| `deliverables` | `client_id`, `request_id?`, `task_id?`, `type` (`design · video · copy · document · other`), `title`, `status`, `requires_internal_review`, `requires_client_approval`, `current_version_id`, `version_count`, `revision_rounds`, `scheduled_for?`, `approved_at`, `client_visible_at`, `reminded_at` | Status: `in_progress → internal_review ⇄ internal_changes → client_review ⇄ client_changes → approved`; stages skipped when not required. |
+| `deliverable_versions` | `deliverable_id`, `number`, `notes`, `status`, `uploaded_by`, `submitted_at`, `sent_to_client_at`, `decided_at` | New version supersedes the previous one and restarts review. |
+| `deliverable_version_files` | `version_id`, `file_id`, `sort_order` | Files with `source = 'deliverable'` (+ `thumbnail_path`, `width`, `height`, `duration_seconds` on `files`). |
+| `approvals` | `deliverable_id`, `version_id`, `stage` (`internal · client`), `decision` (`approved · changes_requested`), `reviewer_id`, `comment` | Insert-only. A trigger validates the stage against the version status, requires a comment for changes, and advances version → deliverable → task (→ request `delivered`). |
+| `annotations` | `version_id`, `file_id?`, `kind` (`point · timestamp · general`), `x`, `y` (0–1), `time_seconds`, `body`, `visibility` (`internal · client`), `author_side`, `resolved_at`, `resolved_by` | Each annotation is a thread (`annotation_replies`), resolvable. |
+| `annotation_replies` | `annotation_id`, `author_id`, `author_side`, `body` | Inherits the annotation's visibility. |
+
+Changes to existing tables: `threads.subject_type` gains `task` (internal task comments), `files.source` gains
+`deliverable`, `requests` gains `workflow_template_id` and `converted_at`.
+
+**Lifecycle rules (triggers)**
+- *Convert to tasks* (action, one transaction): accept the request if needed → one task per template step with
+  dependencies, assignee (account manager / first client-team member with the role / a fixed user), reviewer
+  (client account manager), due dates computed step by step (start = latest due date of its blockers, due = start +
+  `sla_days` working days) and a deliverable for steps that produce one → request `in_progress`. Idempotent
+  (`converted_at`).
+- *Review*: submitting a version moves it to `internal_review` (or straight to `client_review` when the step needs no
+  internal review) and the task to its `review` status. Internal approval sends it to the client if required, else
+  approves. Changes requested (internal or client) → task back to `changes` with the feedback; a new version restarts
+  the review.
+- *Revision rounds*: every client "changes requested" writes one `package_usage_entries` row
+  (`item_type = 'revision_round'`, `source_type = 'approval'`); the portal warns when the package allowance is used up.
+- *Delivered*: when every deliverable of a request is approved, the request moves to `delivered`.
+
+**RLS**
+
+| Table | Agency | Client users of that client |
+|---|---|---|
+| `task_statuses`, `workflow_*` | read: agency members; write: `workflows:manage` | — |
+| `tasks` and task child tables | read `tasks:read` + client access; write `tasks:create/update/delete` | — (never) |
+| `time_entries` | own entries; everyone's with `time:read_all` | — |
+| `saved_views` | own + shared | — |
+| `deliverables` | read with `tasks:read` + client access; write `deliverables:manage` | only once sent for client approval (`client_visible_at`) |
+| `deliverable_versions` / `_files` | same | only versions sent to the client |
+| `files` (`source = 'deliverable'`) | client access | only files of versions sent to the client |
+| `approvals` | all stages; insert internal with `deliverables:review` | `stage = 'client'` only; insert when `can_approve` and the version awaits them |
+| `annotations` / replies | all | `visibility = 'client'` only; insert on versions they can see |
+
+Portal progress on the request page comes from `app.request_progress(request_id)` (security definer): step names and
+state only — never internal tasks, assignees or comments.
+
+
 ## 4. Forward-looking sketch (all phases — not built in Phase 0)
 
 ```mermaid
