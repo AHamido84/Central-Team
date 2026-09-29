@@ -1,6 +1,6 @@
 # Handoff — state of the project
 
-Last updated: 2026-09-28 · Branch: `claude/stoic-cray-wud1ib` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
+Last updated: 2026-09-29 · Branch: `claude/stoic-cray-wud1ib` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
 
 ## Where we are
 
@@ -10,10 +10,11 @@ Last updated: 2026-09-28 · Branch: `claude/stoic-cray-wud1ib` · Read with `CLA
 | 1 — Client Portal | **Built.** Agency client management (clients, portal users, packages + usage ledger, files, messages inbox) and the client portal (home, files, messages, company settings, flag-guarded Requests/Approvals/Calendar) |
 | 2 — Requests | **Built (revision 2).** Request types with a no-code form builder (12 field types, conditions, drag & drop, live preview), portal wizard with drafts and package quota check, per-client references, DB-enforced lifecycle with reasons, triage inbox + preview drawer with SLA states, package consumption on accept, client dashboard (stats, usage chart, activity), notifications via the event dispatcher |
 | 3 — Tasks & Deliverables | **Built.** Workflow templates + visual builder, configurable task statuses, "Convert to tasks", tasks (board with swimlanes, list, table with bulk/inline edit, calendar, My Work, saved views, keyboard drawer, realtime, time tracking), deliverables with resumable uploads and versions, internal review → client approval with image pins / video timestamps, revision rounds, portal approvals center + content calendar + request progress, reminders |
-| 4 — Campaigns | **Next** |
+| 4 — Campaigns | **Built.** Campaigns per client with channels, budgets and KPI targets; daily metrics by hand (week grid) or CSV import with Meta/TikTok/Snapchat/Google detection; analytics (KPI pacing, budget pacing, health, trend + channel charts); report builder with published snapshots, print/PDF and weekly/monthly schedules; portal campaigns + reports; notifications (campaign live, at risk, stale numbers, report ready/published) |
+| 5 — Agency Operations | **Next** |
 
-Verified green on a fresh seed: `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 89 unit tests, 85 DB tests
-(RLS, dispatcher, approval state machine, reminders), 19 Playwright e2e tests, `pnpm build`. The CI workflow (`.github/workflows/ci.yml`) is written but has not run on GitHub yet.
+Verified green on a fresh seed: `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 112 unit tests, 101 DB tests
+(RLS, dispatcher, approval state machine, reminders, campaign sweep), 21 Playwright e2e tests, `pnpm build`. The CI workflow (`.github/workflows/ci.yml`) is written but has not run on GitHub yet.
 
 ## Run it
 
@@ -65,7 +66,15 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
     with the signed token in `x-signature`; the path is still chosen by the server.
 16. **dnd-kit + React compiler lint**: destructure `useSortable`/`useDroppable` results (no `sortable.x` in render) and
     give each `DndContext` a stable `id` (`useId()`), or SSR hydration mismatches on `aria-describedby`.
-17. Dev-only: the Next.js dev indicator ("N" bubble) overlaps the bottom-left of mobile screenshots; it is not in builds.
+17. **PL/pgSQL doesn't short-circuit**: `if tg_table_name = 'x' and new.col …` fails on tables without `col` — nest
+    the IF, or use one trigger function per table.
+18. **ICU differs between Node and the browser** (compact notation, bidi marks in Arabic currency): format compact
+    numbers from translations and strip marks (`campaigns/components/format.ts`), or hydration fails.
+19. **SVG `text-anchor` follows the text direction**: in RTL `start` is the right edge — pick anchors by the side the
+    label grows towards (`grow()` in `charts.tsx`).
+20. **Login is rate-limited** (10 per email per 15 min): repeated screenshot scripts time out on login — clear
+    `public.rate_limits` locally.
+21. Dev-only: the Next.js dev indicator ("N" bubble) overlaps the bottom-left of mobile screenshots; it is not in builds.
 
 ## Open items (need the owner)
 
@@ -75,9 +84,9 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 - Production (`centralteam` on Vercel + Supabase integration): migrations run in the build via `pnpm db:deploy` (ADR-045); the demo seed is loaded once while `SEED_ON_DEPLOY=1`. Supabase Auth needs the custom access token hook and the site/redirect URLs set in the dashboard.
 - Production: set `CRON_SECRET` (Vercel Cron hits `/api/cron/dispatch-events` daily at 05:00 UTC on the Hobby plan, see `vercel.json` and ADR-044; `*/5 * * * *` on Pro).
 
-## Suggested Phase 4 scope (from the roadmap)
+## Suggested Phase 5 scope (from the roadmap)
 
-Campaigns linked to clients (and to the requests/deliverables that feed them), KPIs and analytics, client-facing
-reports in the portal. Reuse: the event dispatcher for new notifications (ADR-028), `MonthCalendar` for campaign
-flights, the deliverable review screen for ad creatives, the package ledger for billable extras. Phase 3 deferred items
-are listed in `docs/ROADMAP.md` §3.9.
+Agency operations: an internal ops dashboard across clients (open requests, overdue tasks, approvals waiting, campaign
+health — `campaigns.health` is cached for exactly this), Client 360 (the client page already has requests, files,
+messages, package and campaigns tabs), team views and SLA policies with breach alerts (request `due_date` and task due
+dates exist; the reminder sweeps are the place for breach detection). Deferred items: `docs/ROADMAP.md` §3.9 and §4.9.

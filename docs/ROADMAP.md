@@ -267,7 +267,7 @@ internal review then client approval — visible to the client in the portal. Da
 - [ ] Virtualized board/table for thousands of tasks (verified smooth with ~320 seeded tasks; done tasks limited to 30 days)
 - [ ] Human QA pass (AR/EN × light/dark × mobile/desktop) on every Phase 3 screen
 
-## Phase 4 — Campaigns
+## Phase 4 — Campaigns (done)
 
 Campaigns per client with channels, budgets and KPI targets; daily metrics entered by hand or imported from the ad
 platforms' CSV exports (live API sync is Phase 7); analytics with pacing and health; branded client reports
@@ -275,45 +275,53 @@ platforms' CSV exports (live API sync is Phase 7); analytics with pacing and hea
 Data model: `docs/DATA_MODEL.md` §3e.
 
 ### 4.1 Data & security
-- [ ] Tables: `campaigns`, `campaign_channels`, `campaign_kpis`, `metrics_daily`, `metric_imports`, `reports`, `report_sections`, `report_schedules`; `requests.campaign_id`, `deliverables.campaign_id`
-- [ ] Permissions: `campaigns:read`, `campaigns:manage`, `metrics:manage`, `reports:manage` (clients: `portal:access` + flag `module.campaigns`)
-- [ ] Triggers: campaign numbering, scope (client/org forced from the parent), channel/KPI/metric consistency, report publish snapshot guard
-- [ ] RLS: clients see only their `client`-visible campaigns (never drafts), their metrics, and **published** reports; agency per client access
+- [x] Tables: `campaigns`, `campaign_channels`, `campaign_kpis`, `metrics_daily`, `metric_imports`, `reports`, `report_sections`, `report_schedules`; `requests.campaign_id`, `deliverables.campaign_id`
+- [x] Permissions: `campaigns:read`, `campaigns:manage`, `metrics:manage`, `reports:manage` (clients: `portal:access` + flag `module.campaigns`)
+- [x] Triggers: campaign numbering, scope (client/org forced from the parent), channel/KPI/metric consistency, report publish snapshot guard
+- [x] RLS: clients see only their `client`-visible campaigns (never drafts), their metrics, and **published** reports; agency per client access
 
 ### 4.2 Campaigns
-- [ ] Campaign list: filters (client, status, platform, owner), flight, budget & spend pacing, headline KPI progress, health
-- [ ] Create / edit: client, name, objective, flight dates, budget (SAR), owner, description, visibility; channels with budget split; KPI targets (campaign-wide or per channel)
-- [ ] Status lifecycle: draft → planned → active ⇄ paused → completed (archived hidden); linked requests and deliverables (creatives)
+- [x] Campaign list: filters (client, status, platform, owner), flight, budget & spend pacing, headline KPI progress, health
+- [x] Create / edit: client, name, objective, flight dates, budget (SAR), owner, description, visibility; channels with budget split; KPI targets (campaign-wide or per channel)
+- [x] Status lifecycle: draft → planned → active ⇄ paused → completed (archived hidden); linked requests and deliverables (creatives)
 
 ### 4.3 Metrics
-- [ ] Daily metrics per channel: impressions, reach, clicks, spend, conversions, leads, video views, engagements, revenue
-- [ ] Manual entry grid (per channel, week at a time, keyboard friendly)
-- [ ] CSV import with auto-detected presets (Meta Ads Manager, TikTok Ads, Snapchat Ads, Google Ads) and manual column mapping; preview, validation, upsert by day; import log
-- [ ] Derived metrics: CTR, CPC, CPM, CPA, CPL, ROAS, frequency, engagement rate
+- [x] Daily metrics per channel: impressions, reach, clicks, spend, conversions, leads, video views, engagements, revenue
+- [x] Manual entry grid (per channel, week at a time, keyboard friendly)
+- [x] CSV import with auto-detected presets (Meta Ads Manager, TikTok Ads, Snapchat Ads, Google Ads) and manual column mapping; preview, validation, upsert by day; import log
+- [x] Derived metrics: CTR, CPC, CPM, CPA, CPL, ROAS, frequency, engagement rate
 
 ### 4.4 Analytics
-- [ ] Campaign overview: KPI tiles vs target with pacing, budget pacing, trend chart (metric picker, daily/weekly), channel breakdown
-- [ ] Health (on track / at risk / off track) from KPI + budget pacing, shown on list, detail and client page
-- [ ] Charts in plain SVG following the dataviz rules (validated palette, one axis, hover tooltips, table fallback, dark mode)
+- [x] Campaign overview: KPI tiles vs target with pacing, budget pacing, trend chart (metric picker, daily/weekly), channel breakdown
+- [x] Health (on track / at risk / off track) from KPI + budget pacing, shown on list, detail and client page
+- [x] Charts in plain SVG following the dataviz rules (validated palette, one axis, hover tooltips, table fallback, dark mode)
 
 ### 4.5 Reports
-- [ ] Report builder: client or campaign scope, period, sections (KPI summary, trend, channel breakdown, top creatives, commentary, next steps), draft preview
-- [ ] Publish = frozen snapshot of the numbers; branded print/PDF view (agency logo + color, AR/EN, RTL)
-- [ ] Schedules: weekly / monthly per client or campaign → draft for review (or auto-publish) from the daily sweep
+- [x] Report builder: client or campaign scope, period, sections (KPI summary, trend, channel breakdown, top creatives, commentary, next steps), draft preview
+- [x] Publish = frozen snapshot of the numbers; branded print/PDF view (agency logo + color, AR/EN, RTL)
+- [x] Schedules: weekly / monthly per client or campaign → draft for review (or auto-publish) from the daily sweep
 
 ### 4.6 Portal
-- [ ] Campaigns & reports (flag `module.campaigns`): campaign list + detail (KPIs, trend, channels, approved creatives), published reports with print/PDF
-- [ ] Portal home: latest report + active campaigns summary
+- [x] Campaigns & reports (flag `module.campaigns`): campaign list + detail (KPIs, trend, channels, approved creatives), published reports with print/PDF
+- [x] Portal home: latest report + active campaigns summary
 
 ### 4.7 Notifications
-- [ ] Report published (client), scheduled report draft ready (agency), campaign at risk / off track (owner), metrics stale on an active campaign (owner)
+- [x] Report published (client), scheduled report draft ready (agency), campaign at risk / off track (owner), metrics stale on an active campaign (owner)
 
 ### 4.8 Quality
-- [ ] Seed: campaigns for every client (active with ~90 days of metrics, completed, draft), KPIs, channels, published + draft reports, a schedule
-- [ ] Unit: derived metrics, pacing & health, CSV parsing + preset detection, report period math
-- [ ] RLS: client sees only its client-visible campaigns, metrics and published reports; drafts/internal campaigns and other clients denied
-- [ ] Playwright: AM creates a campaign with channels + KPIs → imports a Meta CSV → overview shows pacing → builds and publishes a report → client sees it in the portal and gets notified
-- [ ] Docs: ROADMAP, DATA_MODEL, ARCHITECTURE, DECISIONS, HANDOFF, CLAUDE.md
+- [x] Seed: campaigns for every client (active with ~90 days of metrics, completed, draft), KPIs, channels, published + draft reports, a schedule
+- [x] Unit: derived metrics, pacing & health, CSV parsing + preset detection, report period math
+- [x] RLS: client sees only its client-visible campaigns, metrics and published reports; drafts/internal campaigns and other clients denied
+- [x] Playwright: AM creates a campaign with channels + KPIs → imports a Meta CSV → overview shows pacing → builds and publishes a report → client sees it in the portal and gets notified
+- [x] Docs: ROADMAP, DATA_MODEL, ARCHITECTURE, DECISIONS, HANDOFF, CLAUDE.md
+
+### 4.9 Deferred (not in this phase)
+- [ ] Live metrics from ad-platform APIs (Phase 7; `metrics_daily.source = 'api'` and `campaign_channels.external_ref` are ready)
+- [ ] Server-generated PDF attachments on report emails (reports print to PDF from the browser; emails link to the portal)
+- [ ] Undo a CSV import (imports are logged and re-importing a period replaces it)
+- [ ] Cross-client analytics dashboard for the agency (per-campaign analytics and the campaign list summary exist) — Phase 5 ops dashboard
+- [ ] Campaign picker on the deliverable page (deliverables inherit their request's campaign and can be linked from the campaign's Creatives tab)
+- [ ] Human QA pass on real devices (screens were checked in AR/EN × light/dark × 390px/1440px with screenshots)
 
 ## Phase 5 — Agency Operations
 Internal ops dashboard, Client 360, team views, SLA policies & breach alerts.

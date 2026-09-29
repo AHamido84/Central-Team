@@ -544,3 +544,38 @@ sequenceDiagram
 - Reminders: `runReminderSweep()` in `/api/cron/dispatch-events` emits `task.due_soon`, `task.overdue`,
   `deliverable.approval_reminder` once per marker (ADR-043).
 
+## 19. Phase 4 — campaigns, metrics & reports
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor AM as Account manager / media buyer
+  actor C as Client user
+  participant B as Browser
+  participant DB as Postgres (RLS + triggers)
+  participant Cron as Daily cron
+  AM->>DB: saveCampaignAction (campaign + channels + KPI targets) → refreshCampaignHealth
+  AM->>B: drop an ad-platform CSV → parseMetricsCsv (preset, mapping, date order) → preview
+  B->>DB: importMetricsAction (re-validated rows, upsert by channel/day, metric_imports log) → health cache
+  AM->>DB: createReportAction (default sections) · saveReportAction · publishReportAction → snapshot frozen
+  DB-->>C: report.published → notification + email → /portal/reports/[id] (print / PDF)
+  Cron->>DB: runCampaignSweep → planned→active, active→completed, health, stale reminder, scheduled reports
+```
+
+- Module: `src/modules/campaigns` — `constants.ts` (metric catalog: kind volume/cost/rate, format), `metrics.ts`
+  (pure math: derived metrics, pacing, health, series), `csv.ts` (tolerant CSV parser + presets), `periods.ts`
+  (schedule periods, default sections), `snapshot.ts` (rows, KPIs, report snapshots — not `server-only`, the seed
+  uses it), `server/` (queries, actions, analysis/health cache, sweep, consumers), `components/` (list, form,
+  overview, SVG charts, metrics grid, import dialog, report builder/view, schedules, portal views).
+- Routes: agency `/campaigns`, `/campaigns/[id]` (`?tab=overview|metrics|creatives|reports`), `/reports`,
+  `/reports/[id]`; portal `/portal/campaigns`, `/portal/campaigns/[id]`, `/portal/reports/[id]`, a campaigns block on
+  `/portal`; a campaign picker on the agency request page.
+- Access: `campaigns:read`, `campaigns:manage`, `metrics:manage`, `reports:manage`; clients see client-visible,
+  non-draft campaigns and published reports (flag `module.campaigns`, on by default).
+- Health: computed in TypeScript from the rows (`analyzeCampaign`), cached on `campaigns.health` through
+  `app.campaign_store_health` (security definer; direct writes to the cache columns are ignored) — ADR-051.
+- Reports: drafts render live numbers; publishing stores `reports.snapshot`; print CSS hides the shell and forces
+  light tokens, so "Print / PDF" in the browser gives the branded PDF (ADR-049).
+- Charts: plain SVG (`components/charts.tsx`) on `--chart-*` tokens validated for colour-vision deficiency in both
+  modes (ADR-050).
+

@@ -328,6 +328,53 @@ which Supabase puts in every token as `app_metadata.app`. `readAppClaims` prefer
 the metadata. App metadata is writable only by the service role, so it is as trustworthy as the hook. Keep the hook
 enabled where possible (it reflects changes on the next refresh without relying on the triggers).
 
+### ADR-047 — Metrics are entered by hand or imported from CSV until Phase 7
+2026-09-29 · Accepted
+Live ad-platform APIs come with the integrations phase, so Phase 4 takes numbers two ways: a week-at-a-time grid per
+channel, and CSV imports of the platforms' own daily exports. `src/modules/campaigns/csv.ts` parses in the browser
+(delimiter, BOM, report-title rows, totals rows, Arabic digits, thousands/decimal separators, day/month order) and
+recognises Meta, TikTok, Snapchat and Google exports by their headers; the user can fix the column mapping and date
+order before importing. The server re-validates the rows with Zod and upserts one row per channel per day, so
+re-importing a period replaces it; `metric_imports` keeps the trail. `metrics_daily.source` already allows `api` and
+`campaign_channels.external_ref` holds the platform id for the Phase 7 sync.
+
+### ADR-048 — `metrics_daily` is a plain table (no partitioning yet)
+2026-09-29 · Accepted
+The forward sketch planned monthly partitions. With manual/CSV entry the volume is one row per channel per day —
+tens of thousands of rows a year for an agency this size — which a unique (channel, date) index and (campaign, date)
+/ (client, date) indexes serve comfortably, and Drizzle has no first-class partition support. Revisit when API sync
+adds ad-level or hourly rows.
+
+### ADR-049 — Published reports are snapshots; PDF comes from the browser's print
+2026-09-29 · Accepted
+Drafts compute numbers live; publishing stores everything the report shows (`reports.snapshot`: totals, previous
+period, campaign KPIs and pacing as of the period end, channels, daily series, creatives) so a later correction to
+the metrics never changes what the client already read. Taking a report back to draft clears the snapshot. PDF is
+the browser's "Print / Save as PDF" on the report page — print CSS hides the app shell and forces light tokens —
+because server-side PDF engines shape Arabic poorly and add heavy dependencies; emails link to the portal page
+instead of attaching a file. Scheduled reports (weekly Sunday–Saturday or monthly) are created by the daily sweep as
+drafts for the owner to review, or published directly when the schedule says so.
+
+### ADR-050 — Charts are plain SVG on validated palette tokens
+2026-09-29 · Accepted
+No chart library: the few forms needed (trend lines, channel bars, pacing meters) are small SVG/HTML components
+that follow the dataviz rules — one y-axis (a trend shows one metric; reports draw one chart per metric), 2px
+lines, legend for 2+ series with direct end labels up to four, crosshair tooltip on hover and arrow keys, and a table
+view. `--chart-1…8` hold the reference categorical palette in fixed order with separate dark steps; validated against
+our surfaces (`#ffffff`, `#161a22`): all checks pass in both modes, three light slots sit below 3:1 contrast, which
+the legend/labels/table view relieve. Channels keep their slot across charts. Arabic time axes run right to left.
+Compact numbers ("25K", "25 ألف") are built from translations rather than `Intl` `notation: 'compact'`, and bidi marks
+are stripped from formatted values, because Node's and the browser's ICU disagree on both and break hydration.
+
+### ADR-051 — Pacing and health are computed in TypeScript and cached on the campaign
+2026-09-29 · Accepted
+The rules (DATA_MODEL §3e: volume KPIs projected to the end of the flight, costs inverse, rates as is, ±15 % budget
+pacing, worst status wins) live once in `metrics.ts` and run on the server (list, detail, snapshots, sweep) and in
+the browser (charts). Lists read `campaigns.health`, refreshed after every metric/KPI/budget change and by the daily
+sweep. The cache is written only through `app.campaign_store_health()` (security definer, requires
+`metrics:manage` or `campaigns:manage`; direct updates of the cache columns are ignored by the trigger), which also
+records the health last alerted so "at risk / off track" notifies the owner once per slip.
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

@@ -30,8 +30,8 @@ Built single-agency first, but **multi-tenant ready**: every tenant-scoped row c
 | 1 — Client Portal | Portal shell, home, files, messages, agency-side client management | **Done** |
 | 2 — Requests | Request types + form builder, portal wizard, lifecycle, triage inbox, client dashboard, event dispatcher | **Done** |
 | 3 — Tasks & Deliverables | Workflow templates, tasks (board/list/table/calendar/My Work), deliverables & versions, internal review, client approvals with annotations, content calendar | **Done** |
-| 4 — Campaigns | Campaigns, KPIs, analytics, reports | **Next** |
-| 5 — Agency Operations | Internal dashboard, Client 360, team, SLA | — |
+| 4 — Campaigns | Campaigns, channels & KPI targets, daily metrics (entry + CSV import), analytics with pacing/health, client reports (snapshots, print/PDF, schedules), portal campaigns & reports | **Done** |
+| 5 — Agency Operations | Internal dashboard, Client 360, team, SLA | **Next** |
 | 6 — CRM & Capacity | Leads, pipeline, deals, team capacity | — |
 | 7 — Integrations & Automation | Meta, WhatsApp, TikTok, Snap, Google, automation engine | — |
 | 8 — AI Intelligence | AI analysis, recommendations, reports, assistant | — |
@@ -62,7 +62,7 @@ UI: `docs/UI.md`. Decisions: `docs/DECISIONS.md` (append-only, numbered).
 pnpm install            # install deps (Node 22, pnpm 10)
 cp .env.example .env.local   # then paste keys from `supabase status -o env`
 pnpm db:start           # start local Supabase (Docker)
-pnpm db:reset           # drop + migrate + seed (1 agency, 10 staff, 5 Saudi clients, files, threads, request types + requests, workflows, ~320 tasks, deliverables at every review stage)
+pnpm db:reset           # drop + migrate + seed (1 agency, 10 staff, 5 Saudi clients, files, threads, request types + requests, workflows, ~320 tasks, deliverables at every review stage, campaigns with ~90 days of metrics, reports)
 pnpm dev                # Next.js dev server on http://localhost:3000
 pnpm db:generate        # drizzle-kit: generate SQL migration from schema changes
 pnpm lint               # ESLint (incl. RTL logical-properties rule and no hardcoded JSX text)
@@ -122,8 +122,8 @@ Rules:
   inline in actions (ADR-027/028). Consumers must be idempotent.
 - **Reads** in Server Components go through module `server/queries.ts` using the RLS-scoped DB (`withRls`).
 - **Service-role access** (`supabaseAdmin`, `dbAdmin`) is allowed only in these server paths: invitation preview/
-  acceptance, the domain-event dispatcher and its consumers (incl. `notify()` fan-out), signed storage URLs issued after an RLS-checked lookup, the rate limiter, the reminder sweep
-  (`runReminderSweep`, cron), and the seed. Every use needs a comment why.
+  acceptance, the domain-event dispatcher and its consumers (incl. `notify()` fan-out), signed storage URLs issued after an RLS-checked lookup, the rate limiter, the reminder sweeps
+  (`runReminderSweep`, `runCampaignSweep`, cron), and the seed. Every use needs a comment why.
 - **Errors**: actions return `{ ok: true, data } | { ok: false, error: { code, message?, fieldErrors? } }`;
   error `code`s are translated in the UI. Never leak DB error text to users.
 - **Commits**: Conventional Commits (`feat(auth): …`, `fix(rbac): …`, `docs: …`). One logical change per commit.
