@@ -2,6 +2,8 @@ import 'server-only';
 
 import { z } from 'zod';
 
+import { databaseUrl } from '@/lib/db/url';
+
 const serverSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.url(),
   NEXT_PUBLIC_SUPABASE_URL: z.url(),
@@ -22,6 +24,6 @@ export type ServerEnv = z.infer<typeof serverSchema>;
 let cached: ServerEnv | undefined;
 
 export function env(): ServerEnv {
-  cached ??= serverSchema.parse(process.env);
+  cached ??= serverSchema.parse({ ...process.env, DATABASE_URL: databaseUrl() });
   return cached;
 }

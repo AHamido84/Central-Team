@@ -13,6 +13,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
+import { databaseUrl } from '../src/lib/db/url';
 import * as schema from '../src/lib/db/schema';
 import { hashInvitationToken } from '../src/modules/invitations/server/tokens';
 import { artworkPng, simplePdf } from './seed-assets';
@@ -32,7 +33,7 @@ if (!/127\.0\.0\.1|localhost/.test(url) && process.env.SEED_ALLOW_REMOTE !== '1'
 }
 
 const supabase = createClient(url, secret, { auth: { persistSession: false, autoRefreshToken: false } });
-const client = postgres(process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 4 });
+const client = postgres(databaseUrl(process.env, 'direct') ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 4 });
 const db = drizzle(client, { schema });
 
 type Person = {

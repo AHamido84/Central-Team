@@ -4,6 +4,7 @@ import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
 import * as schema from '@/lib/db/schema';
+import { databaseUrl } from '@/lib/db/url';
 
 export type Database = PostgresJsDatabase<typeof schema>;
 export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -13,7 +14,7 @@ const globalForDb = globalThis as unknown as { __sql?: postgres.Sql; __db?: Data
 function create(): Database {
   const sqlClient =
     globalForDb.__sql ??
-    postgres(process.env.DATABASE_URL!, {
+    postgres(databaseUrl()!, {
       // Supabase's transaction pooler does not support prepared statements.
       prepare: false,
       max: process.env.NODE_ENV === 'production' ? 5 : 10,
