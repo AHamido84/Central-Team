@@ -1,4 +1,5 @@
 export * from '@/lib/db/platform-schema';
+export * from '@/modules/campaigns/db/schema';
 export * from '@/modules/clients/db/schema';
 export * from '@/modules/departments/db/schema';
 export * from '@/modules/files/db/schema';

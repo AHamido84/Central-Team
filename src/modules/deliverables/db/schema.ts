@@ -16,6 +16,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import { createdAt, id, updatedAt } from '@/lib/db/columns';
+import { campaigns } from '@/modules/campaigns/db/schema';
 import { clients } from '@/modules/clients/db/schema';
 import { files } from '@/modules/files/db/schema';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
@@ -35,6 +36,8 @@ export const deliverables = pgTable(
       .references(() => clients.id, { onDelete: 'cascade' }),
     requestId: uuid('request_id').references(() => requests.id, { onDelete: 'set null' }),
     taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+    /** Campaign this creative belongs to (inherited from the request on insert, same client — trigger). */
+    campaignId: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
     type: text('type').notNull(),
     title: text('title').notNull(),
     status: text('status').notNull().default('in_progress'),
@@ -59,6 +62,7 @@ export const deliverables = pgTable(
     index('deliverables_client_idx').on(t.clientId, t.status),
     index('deliverables_request_idx').on(t.requestId),
     index('deliverables_task_idx').on(t.taskId),
+    index('deliverables_campaign_idx').on(t.campaignId),
     check('deliverables_type_check', sql`${t.type} in ('design','video','copy','document','other')`),
     check(
       'deliverables_status_check',

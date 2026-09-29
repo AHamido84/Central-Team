@@ -22,6 +22,13 @@
       "when": 1790655887028,
       "tag": "20260929042447_tasks_deliverables",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790704433831,
+      "tag": "20260929175353_campaigns",
+      "breakpoints": true
     }
   ]
 }

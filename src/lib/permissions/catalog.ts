@@ -45,6 +45,10 @@ export const agencyPermissions = [
   'deliverables:manage',
   'deliverables:review',
   'time:read_all',
+  'campaigns:read',
+  'campaigns:manage',
+  'metrics:manage',
+  'reports:manage',
 ] as const;
 
 export const clientPermissions = [

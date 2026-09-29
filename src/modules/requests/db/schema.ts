@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { boolean, check, date, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { createdAt, id, localized, updatedAt } from '@/lib/db/columns';
+import { campaigns } from '@/modules/campaigns/db/schema';
 import { clients } from '@/modules/clients/db/schema';
 import { files } from '@/modules/files/db/schema';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
@@ -78,6 +79,8 @@ export const requests = pgTable(
     closedAt: timestamp('closed_at', { withTimezone: true }),
     /** Set once when "Convert to tasks" generated the request's workflow (Phase 3). */
     convertedAt: timestamp('converted_at', { withTimezone: true }),
+    /** Optional link to the campaign this work feeds (same client — trigger). */
+    campaignId: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
     lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).notNull().defaultNow(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -87,6 +90,7 @@ export const requests = pgTable(
     index('requests_client_status_idx').on(t.clientId, t.status, t.lastActivityAt),
     index('requests_org_status_idx').on(t.organizationId, t.status, t.lastActivityAt),
     index('requests_assignee_idx').on(t.assigneeId),
+    index('requests_campaign_idx').on(t.campaignId),
     index('requests_type_idx').on(t.requestTypeId),
     index('requests_created_by_idx').on(t.createdBy),
     check(
