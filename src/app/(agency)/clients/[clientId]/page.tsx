@@ -1,4 +1,4 @@
-import { ClipboardList, FolderOpen, LayoutGrid, MessagesSquare, Package, Pencil, Users } from 'lucide-react';
+import { ClipboardList, FolderOpen, LayoutGrid, Megaphone, MessagesSquare, Package, Pencil, Users } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -25,6 +25,8 @@ import { FileBrowser } from '@/modules/files/components/file-browser';
 import { listClientLibrary } from '@/modules/files/server/queries';
 import { ThreadsView } from '@/modules/messaging/components/threads-view';
 import { getThread, listThreads } from '@/modules/messaging/server/queries';
+import { CampaignList } from '@/modules/campaigns/components/campaign-list';
+import { listCampaigns } from '@/modules/campaigns/server/queries';
 import { RequestsInbox } from '@/modules/requests/components/requests-inbox';
 import { listRequests } from '@/modules/requests/server/queries';
 
@@ -35,6 +37,7 @@ const tabs = [
   { key: 'files', icon: FolderOpen },
   { key: 'messages', icon: MessagesSquare },
   { key: 'requests', icon: ClipboardList },
+  { key: 'campaigns', icon: Megaphone },
 ] as const;
 type Tab = (typeof tabs)[number]['key'];
 
@@ -100,6 +103,7 @@ export default async function ClientPage({
         <ul className="flex gap-1 border-b border-border">
           {tabs
             .filter((x) => x.key !== 'requests' || (ctx.flags['module.requests'] && can(ctx.permissions, 'requests:read')))
+            .filter((x) => x.key !== 'campaigns' || (ctx.flags['module.campaigns'] && can(ctx.permissions, 'campaigns:read')))
             .map((x) => (
               <li key={x.key}>
                 <Link
@@ -205,6 +209,9 @@ export default async function ClientPage({
       ) : null}
       {tab === 'requests' && ctx.flags['module.requests'] && can(ctx.permissions, 'requests:read') ? (
         <RequestsTab ctx={ctx} clientId={clientId} />
+      ) : null}
+      {tab === 'campaigns' && ctx.flags['module.campaigns'] && can(ctx.permissions, 'campaigns:read') ? (
+        <CampaignList campaigns={await listCampaigns({ clientId })} showClient={false} showSummary={false} />
       ) : null}
     </div>
   );

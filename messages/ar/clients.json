@@ -37,7 +37,8 @@
     "package": "الباقة",
     "files": "الملفات",
     "messages": "الرسائل",
-    "requests": "الطلبات"
+    "requests": "الطلبات",
+    "campaigns": "الحملات"
   },
   "statuses": {
     "onboarding": "قيد التهيئة",

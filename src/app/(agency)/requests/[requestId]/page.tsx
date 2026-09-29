@@ -12,6 +12,8 @@ import { localized } from '@/lib/i18n/localized';
 import { getFormatters } from '@/lib/i18n/server-format';
 import { can } from '@/lib/permissions/can';
 import { publicAssetUrl } from '@/lib/storage';
+import { CampaignLinkField } from '@/modules/campaigns/components/campaign-link';
+import { listCampaignOptions } from '@/modules/campaigns/server/queries';
 import { listAgencyPeople } from '@/modules/clients/server/queries';
 import { Conversation } from '@/modules/messaging/components/conversation';
 import { getThread } from '@/modules/messaging/server/queries';
@@ -62,7 +64,8 @@ export default async function AgencyRequestPage({ params }: { params: Promise<{ 
     !request.convertedAt &&
     ['submitted', 'under_review', 'accepted'].includes(request.status);
   const today = dayInZone(new Date(), ctx.organization.defaultTimezone);
-  const [templates, work] = await Promise.all([
+  const campaignsOn = Boolean(ctx.flags['module.campaigns']) && can(ctx.permissions, 'campaigns:read');
+  const [templates, work, campaignOptions] = await Promise.all([
     canConvert ? templatesForRequestType(request.typeId) : Promise.resolve([]),
     tasksOn && request.convertedAt
       ? Promise.all([
@@ -72,6 +75,7 @@ export default async function AgencyRequestPage({ params }: { params: Promise<{ 
           listTaskStatuses(),
         ])
       : Promise.resolve(null),
+    campaignsOn ? listCampaignOptions(request.clientId) : Promise.resolve([]),
   ]);
 
   return (
@@ -187,6 +191,16 @@ export default async function AgencyRequestPage({ params }: { params: Promise<{ 
               ) : null
             }
           />
+          {campaignsOn ? (
+            <Card className="p-4">
+              <CampaignLinkField
+                subject={{ type: 'request', id: request.id }}
+                campaignId={request.campaignId}
+                options={campaignOptions}
+                canManage={can(ctx.permissions, 'campaigns:manage')}
+              />
+            </Card>
+          ) : null}
           <section>
             <SectionTitle title={t('requests.sla.title')} />
             <Card className="p-4">

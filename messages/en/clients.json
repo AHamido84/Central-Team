@@ -37,7 +37,8 @@
     "package": "Package",
     "files": "Files",
     "messages": "Messages",
-    "requests": "Requests"
+    "requests": "Requests",
+    "campaigns": "Campaigns"
   },
   "statuses": {
     "onboarding": "Onboarding",
