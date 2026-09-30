@@ -42,6 +42,9 @@ export const quoteStatusTone = { draft: 'outline', sent: 'info', accepted: 'succ
 export const followUpBuckets = ['overdue', 'today', 'upcoming'] as const;
 export type FollowUpBucket = (typeof followUpBuckets)[number];
 
+export const salesPeriods = ['month', 'quarter', 'year'] as const;
+export type SalesPeriod = (typeof salesPeriods)[number];
+
 export const leadReference = (n: number) => `L-${n}`;
 export const dealReference = (n: number) => `D-${n}`;
 export const quoteReference = (n: number) => `Q-${n}`;
