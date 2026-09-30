@@ -141,7 +141,7 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 |---|---|
 | URL | https://centralteam.vercel.app (Vercel project `centralteam`, Hobby plan) |
 | Database | Supabase project `udqhetkwsqpyyuurajcb` (created through the Vercel ↔ Supabase integration) |
-| Deployed from | branch `claude/stoic-cray-wud1ib`, commit `70541bb` (Phases 0–6; Phases 7–8 built, not deployed), deployment `dpl_5GC5GRe1SgdUKCYfQcdJ4SFBJ55m` on 2026-09-30 — migrations through `20260930020100` applied, Phase 5 SLA and Phase 6 sales demo data loaded |
+| Deployed from | branch `claude/sharp-euler-zr273f`, commit `f821e9c` (Phases 0–8 + Feedback Round 1), deployment `dpl_6uMpAtJKGFZAbybnpsaq1jrTCpTv` on 2026-09-30 — all 32 migrations applied (FR1: `20260930175704` … `20260930240100`); demo data already present, seeds skipped |
 | Data | the demo seed (agency "Ofoq", 5 clients, 25 users incl. `majed@` / `ruba@ofoq.test`, password `Passw0rd!` for all) + demo campaigns, SLA data and sales pipeline |
 
 How it works:
@@ -212,7 +212,7 @@ For production (Supabase Cloud + Vercel):
 - Before real clients: set `SEED_ON_DEPLOY=0`, delete the demo accounts or change their passwords, **rotate the Supabase
   DB password and the Vercel token** (both were pasted into a chat), enable the auth hook, set Auth URLs.
 - Email: Resend account + verified sending domain, then `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `EMAIL_FROM`.
-- **Phases 7 and 8 are not deployed yet** (waiting for the owner's go and a Vercel token). The next deploy applies
+- **Phases 7, 8 and Feedback Round 1 are deployed** (2026-09-30). Still missing on Vercel: `INTEGRATIONS_SANDBOX=1` and `AI_PROVIDER=mock` for the demo, and custom SMTP in Supabase for auth emails (see "Email delivery"). The next deploy applies
   migrations `20260930061507` / `20260930061600` (Phase 7) and `20260930102618` / `20260930102700` (Phase 8 — creates
   the `vector` extension in `extensions`) and, with `SEED_ON_DEPLOY=1`, loads the sandbox integrations demo once
   (`scripts/seed-integrations-standalone.ts`) and the AI demo once (`scripts/seed-ai-standalone.ts`). On Vercel set
