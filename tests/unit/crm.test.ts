@@ -433,4 +433,44 @@ describe('capacity', () => {
     const load = memberLoad(base);
     expect(load.find((l) => l.userId === 'a')!.weeks[0]).toMatchObject({ capacity: 40, demand: 50, level: 'over' });
   });
+
+  it("counts a client's package work only beyond the tasks already scheduled for that client", () => {
+    const week = weeks.slice(0, 1);
+    const pkg = {
+      clientId: 'c1',
+      periodStart: '2026-10-04',
+      periodEnd: '2026-10-08',
+      items: [{ itemType: 'post', quantity: 4, used: 0 }],
+      renews: false,
+    };
+    const base = {
+      today,
+      weeks: week,
+      departmentIds: ['design'],
+      members: [{ id: 'a', hoursPerWeek: 40, departmentIds: ['design'] }],
+      timeOff: [],
+      holidays: cal.holidays,
+      packages: [pkg],
+      deals: [],
+      efforts: [{ itemType: 'post', departmentId: 'design', hours: 5 }],
+    };
+    const task = (clientId: string | null, hours: number) => ({
+      id: `t-${clientId}`,
+      clientId,
+      departmentId: 'design',
+      estimateMinutes: hours * 60,
+      startDate: '2026-10-04',
+      dueDate: '2026-10-08',
+      assigneeIds: ['a'],
+    });
+    const cell = (tasks: ReturnType<typeof task>[]) => capacityGrid({ ...base, tasks }).at(0)!.cells[0]!;
+    // 4 posts × 5h = 20h of package work this week.
+    expect(cell([])).toMatchObject({ tasks: 0, packages: 20, demand: 20 });
+    // 12h of tasks for the same client already cover part of it: 12 + 8, not 12 + 20.
+    expect(cell([task('c1', 12)])).toMatchObject({ tasks: 12, packages: 8, demand: 20 });
+    // More scheduled than the package: tasks count, the package adds nothing.
+    expect(cell([task('c1', 30)])).toMatchObject({ tasks: 30, packages: 0, demand: 30 });
+    // Another client's tasks don't offset this client's package.
+    expect(cell([task('c2', 12)])).toMatchObject({ tasks: 12, packages: 20, demand: 32 });
+  });
 });

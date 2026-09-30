@@ -18,6 +18,7 @@ import * as schema from '../src/lib/db/schema';
 import { hashInvitationToken } from '../src/modules/invitations/server/tokens';
 import { artworkPng, simplePdf } from './seed-assets';
 import { seedCampaignsData } from './seed-campaigns';
+import { seedCrmData } from './seed-crm';
 import { seedSlaData } from './seed-sla';
 import { seedRequestsData } from './seed-requests';
 import { seedTasksData } from './seed-tasks';
@@ -151,6 +152,27 @@ const staff: (Person & { role: string; department: string; lead?: boolean; title
     department: 'media_buying',
     lead: true,
     title: 'أخصائي شراء وسائط',
+  },
+  {
+    key: 'majed',
+    email: 'majed@ofoq.test',
+    name: 'ماجد الشهري',
+    phone: '+966501110011',
+    locale: 'ar',
+    role: 'sales_manager',
+    department: 'sales',
+    lead: true,
+    title: 'مدير المبيعات',
+  },
+  {
+    key: 'ruba',
+    email: 'ruba@ofoq.test',
+    name: 'Ruba Haddad',
+    phone: '+966501110012',
+    locale: 'en',
+    role: 'sales_rep',
+    department: 'sales',
+    title: 'Account Executive',
   },
 ];
 
@@ -842,6 +864,15 @@ async function main() {
   });
 
   await seedSlaData({ db, ids, clientIds, orgId: ORG_ID });
+  await seedCrmData({
+    db,
+    ids,
+    clientIds,
+    orgId: ORG_ID,
+    today: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+      new Date(),
+    ),
+  });
 
   // --- Invitations (pending + expired) --------------------------------------
   await db.insert(schema.invitations).values([

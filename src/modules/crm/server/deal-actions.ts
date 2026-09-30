@@ -5,8 +5,20 @@ import { z } from 'zod';
 
 import { defineAction } from '@/lib/actions/define-action';
 import { ActionFailure } from '@/lib/actions/errors';
-import { crmFiles, crmSettings, dealContacts, deals, packages, quoteItems, quotes, requests, requestTypes } from '@/lib/db/schema';
+import {
+  crmFiles,
+  crmSettings,
+  dealContacts,
+  deals,
+  packages,
+  quoteItems,
+  quotes,
+  requests,
+  requestTypes,
+  workflowTemplateSteps,
+} from '@/lib/db/schema';
 import { emitEvent } from '@/lib/events/emit';
+import type { Permission } from '@/lib/permissions/catalog';
 import { can } from '@/lib/permissions/can';
 import { CRM_FILES_BUCKET, classifyUpload, storagePaths } from '@/lib/storage';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -210,6 +222,19 @@ export const convertDealToClientAction = defineAction({
     if (deal.convertedAt) throw new ActionFailure('already_converted_deal');
     if (input.packageId && !can(ctx.permissions, 'packages:assign')) throw new ActionFailure('forbidden');
     if (input.inviteContactId && !can(ctx.permissions, 'client_users:manage')) throw new ActionFailure('forbidden');
+    // Starting the onboarding workflow is a triage conversion done by the caller: check up front for what the
+    // template needs (tasks, plus deliverables when a step produces one) so the answer is specific, not "forbidden".
+    const [settings] = input.onboarding ? await tx.select().from(crmSettings).where(eq(crmSettings.organizationId, orgId)) : [];
+    if (input.onboarding) {
+      if (!settings?.onboardingRequestTypeId || !settings.onboardingTemplateId) throw new ActionFailure('onboarding_not_configured');
+      const steps = await tx
+        .select({ deliverableType: workflowTemplateSteps.deliverableType })
+        .from(workflowTemplateSteps)
+        .where(eq(workflowTemplateSteps.templateId, settings.onboardingTemplateId));
+      const needed: Permission[] = ['requests:triage', 'tasks:create', 'tasks:update'];
+      if (steps.some((st) => st.deliverableType)) needed.push('deliverables:manage');
+      if (!needed.every((perm) => can(ctx.permissions, perm))) throw new ActionFailure('onboarding_not_permitted');
+    }
 
     const today = dayInZone(new Date(), ctx.organization.defaultTimezone);
     const teamIds = [...new Set(input.teamIds.filter((id) => id !== input.accountManagerId))];
@@ -261,7 +286,6 @@ export const convertDealToClientAction = defineAction({
 
     let requestId: string | null = null;
     if (input.onboarding) {
-      const [settings] = await tx.select().from(crmSettings).where(eq(crmSettings.organizationId, orgId));
       if (!settings?.onboardingRequestTypeId || !settings.onboardingTemplateId) throw new ActionFailure('onboarding_not_configured');
       const [type] = await tx
         .select({ id: requestTypes.id, name: requestTypes.name })

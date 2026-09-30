@@ -51,7 +51,9 @@ returns text[] language sql immutable set search_path = '' as $$
     when 'team_lead'       then array['capacity:read', 'capacity:manage']
     when 'sales_manager'   then array['organization:read', 'users:read', 'departments:read', 'design_system:view',
       'clients:read_all', 'clients:create', 'clients:update', 'client_users:manage', 'packages:assign',
-      'requests:read', 'requests:triage', 'tasks:read', 'tasks:create',
+      'requests:read', 'requests:triage', 'tasks:read', 'tasks:create', 'tasks:update',
+      -- A new client starts with its default folders and general thread (same as creating one by hand).
+      'files:upload', 'messages:send',
       'leads:read', 'leads:manage', 'deals:read', 'deals:manage', 'crm:manage_all', 'crm:admin', 'capacity:read']
     when 'sales_rep'       then array['organization:read', 'users:read', 'departments:read',
       'leads:read', 'leads:manage', 'deals:read', 'deals:manage']

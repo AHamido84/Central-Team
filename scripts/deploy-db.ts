@@ -68,6 +68,12 @@ async function main() {
           env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
         });
         if (sla.status !== 0) throw new Error(`SLA seed failed with exit code ${sla.status}`);
+        // And Phase 6: the demo sales team, pipeline, leads, deals and capacity settings, once.
+        const crm = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-crm-standalone.ts'], {
+          stdio: 'inherit',
+          env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
+        });
+        if (crm.status !== 0) throw new Error(`CRM seed failed with exit code ${crm.status}`);
       } else {
         const [org] = await sql<{ count: number }[]>`select count(*)::int as count from public.organizations`;
         if ((org?.count ?? 0) === 0) {

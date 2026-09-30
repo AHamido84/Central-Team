@@ -48,5 +48,6 @@
   "invalid_merge": "These leads can't be merged.",
   "deal_not_won": "Mark the deal as won first.",
   "already_converted_deal": "This deal was already turned into a client.",
-  "onboarding_not_configured": "Set the onboarding request type and workflow in Sales settings first."
+  "onboarding_not_configured": "Set the onboarding request type and workflow in Sales settings first.",
+  "onboarding_not_permitted": "Your role can't start this onboarding workflow. Ask an account manager, or turn off onboarding and convert the request from the inbox later."
 }

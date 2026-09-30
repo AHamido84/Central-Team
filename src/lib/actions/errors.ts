@@ -49,6 +49,7 @@ export const actionErrorCodes = [
   'deal_not_won',
   'already_converted_deal',
   'onboarding_not_configured',
+  'onboarding_not_permitted',
   'unknown',
 ] as const;
 
