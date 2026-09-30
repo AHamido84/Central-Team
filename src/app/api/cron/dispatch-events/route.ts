@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { runDispatcher } from '@/lib/events/schedule';
+import { runAiSweep } from '@/modules/ai/server/sweep';
 import { runCampaignSweep } from '@/modules/campaigns/server/sweep';
 import { runCrmSweep } from '@/modules/crm/server/sweep';
 import { runIntegrationSweep } from '@/modules/integrations/server/sweep';
@@ -23,7 +24,7 @@ function authorized(request: NextRequest): boolean {
  * Safety net for the event dispatcher (retries, events left behind by a crashed process) and the time-based
  * reminder sweeps (due soon / overdue tasks, pending approvals; campaign status, health, stale metrics and scheduled
  * reports; SLA at-risk / breach detection; sales follow-ups due and stale deals; integration token health, the daily platform sync with retries, stuck
- * webhook events and WhatsApp retries). Called by the platform scheduler (Vercel Cron sends
+ * webhook events and WhatsApp retries; AI insights and the assistant index catch-up). Called by the platform scheduler (Vercel Cron sends
  * `Authorization: Bearer $CRON_SECRET`). Disabled when CRON_SECRET is unset.
  */
 export async function GET(request: NextRequest) {
@@ -33,6 +34,8 @@ export async function GET(request: NextRequest) {
   const sla = await runSlaSweep();
   const crm = await runCrmSweep();
   const integrations = await runIntegrationSweep();
+  // After the sync: fresh numbers → insights; then the assistant index catches up.
+  const ai = await runAiSweep();
   const result = await runDispatcher();
-  return NextResponse.json({ ...result, reminders, campaigns, sla, crm, integrations });
+  return NextResponse.json({ ...result, reminders, campaigns, sla, crm, integrations, ai });
 }

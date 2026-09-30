@@ -157,6 +157,10 @@
     "whatsapp_failed": {
       "title": "A WhatsApp message could not be sent",
       "body": "The message to {phone} was not delivered: {error}."
+    },
+    "ai_insight": {
+      "title": "{severity, select, critical {Critical insight} other {New insight}} on “⁨{campaign}⁩”",
+      "body": "{kind, select, spike {An unusual jump in the numbers} drop {An unusual drop in the numbers} kpi_off_track {A KPI is off track} kpi_at_risk {A KPI is at risk} budget_overspent {The budget is overspent} budget_overpace {Spend is ahead of plan} budget_underpace {Spend is behind plan} delivery_stopped {A channel stopped delivering} other {Something changed}} for {client}. Open it to see the numbers and the recommended next step."
     }
   }
 }

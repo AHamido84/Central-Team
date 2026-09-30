@@ -66,6 +66,10 @@
     "automations": {
       "title": "Automations",
       "body": "Messages that automation rules send to you."
+    },
+    "ai": {
+      "title": "AI insights",
+      "body": "Unusual changes, KPIs off track and budget pacing on your campaigns."
     }
   },
   "whatsappChannel": "WhatsApp",

@@ -34,6 +34,7 @@ import {
   Workflow,
   MessageCircleX,
   Zap,
+  Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -81,6 +82,7 @@ const typeIcon: Record<NotificationType, typeof Bell> = {
   automation_failed: Workflow,
   whatsapp_failed: MessageCircleX,
   automation_message: Zap,
+  ai_insight: Sparkles,
 };
 
 export function NotificationRow({

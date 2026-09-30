@@ -25,7 +25,8 @@
     "campaign_health_changed": "عند تراجع صحة حملة",
     "sla_breached": "عند تجاوز مستوى الخدمة",
     "metrics_synced": "عند مزامنة أرقام حملة",
-    "integration_connection_expired": "عند انتهاء صلاحية ربط منصة"
+    "integration_connection_expired": "عند انتهاء صلاحية ربط منصة",
+    "ai_insight_detected": "رصد رؤية بالذكاء الاصطناعي"
   },
   "actionTypes": {
     "notify": "إرسال إشعار",
@@ -79,7 +80,10 @@
     "campaign_owner_id": "مسؤول الحملة",
     "event_kind": "نوع الهدف",
     "event_rows": "عدد الصفوف",
-    "connection_provider": "المنصة"
+    "connection_provider": "المنصة",
+    "event_severity": "الأهمية",
+    "event_insightKind": "نوع الرؤية",
+    "event_metric": "المقياس"
   },
   "ops": {
     "eq": "يساوي",
@@ -174,7 +178,28 @@
     "snapchat": "سناب شات",
     "google": "Google",
     "true": "نعم",
-    "false": "لا"
+    "false": "لا",
+    "info": "معلومة",
+    "warning": "تنبيه",
+    "critical": "حرج",
+    "spike": "ارتفاع غير معتاد",
+    "drop": "انخفاض غير معتاد",
+    "kpi_off_track": "مؤشر خارج المسار",
+    "kpi_at_risk": "مؤشر معرّض للخطر",
+    "budget_overspent": "تجاوز الميزانية",
+    "budget_overpace": "إنفاق أسرع من الخطة",
+    "budget_underpace": "إنفاق أبطأ من الخطة",
+    "delivery_stopped": "توقّف العرض",
+    "spend": "الإنفاق",
+    "clicks": "النقرات",
+    "conversions": "التحويلات",
+    "leads": "العملاء المحتملون",
+    "ctr": "نسبة النقر",
+    "cpc": "تكلفة النقرة",
+    "cpl": "تكلفة العميل المحتمل",
+    "cpa": "تكلفة التحويل",
+    "cpm": "تكلفة الألف ظهور",
+    "roas": "العائد على الإنفاق"
   },
   "pickPeople": "اختر أشخاصًا",
   "value": "القيمة",

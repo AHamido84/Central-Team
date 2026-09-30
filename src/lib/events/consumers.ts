@@ -1,6 +1,7 @@
 import 'server-only';
 
 import type { Consumer } from '@/lib/events/dispatcher';
+import { aiAnalysis, aiIndexer, aiNotifications, aiReportDrafts } from '@/modules/ai/server/consumers';
 import { automationEngine } from '@/modules/automations/server/engine';
 import { campaignNotifications } from '@/modules/campaigns/server/consumers';
 import { crmNotifications } from '@/modules/crm/server/consumers';
@@ -32,4 +33,9 @@ export const consumers: readonly Consumer[] = [
   integrationNotifications,
   // Automation rules (Phase 7, ADR-071) react to the same events as the notification consumers above.
   automationEngine,
+  // AI (Phase 8): detectors after metrics change, insight alerts, and the assistant's index (ADR-074/075).
+  aiAnalysis,
+  aiNotifications,
+  aiIndexer,
+  aiReportDrafts,
 ];

@@ -14,13 +14,19 @@ import { checkRateLimit } from '@/lib/rate-limit';
 
 type SideContext = { agency: AgencyContext; client: ClientContext; any: AppContext };
 
-type ActionConfig<S extends z.ZodType, T, Side extends keyof SideContext> = {
+type ActionConfig<S extends z.ZodType, T, Side extends keyof SideContext, R = T> = {
   input: S;
   side: Side;
   /** Early check for UX; RLS enforces the same rule in the database. */
   permission?: Permission | ((input: z.infer<S>) => Permission | null);
   rateLimit?: { key: string; max: number; windowSeconds: number };
   handler: (args: { input: z.infer<S>; tx: Tx; ctx: SideContext[Side] }) => Promise<T>;
+  /**
+   * Slow work that must not hold the transaction open (e.g. an AI provider call, ADR-073): runs after commit with what
+   * the handler prepared (RLS-checked), and its result — or its failure — is the action's result. It may write through
+   * its own `withRls` / service calls; events it emits are dispatched like the handler's.
+   */
+  complete?: (args: { input: z.infer<S>; prepared: T; ctx: SideContext[Side] }) => Promise<R>;
   /** Runs after commit (e.g. transactional emails). Failures are logged, never surfaced. Notification fan-out belongs in event consumers. */
   after?: (args: { input: z.infer<S>; result: T; ctx: SideContext[Side] }) => Promise<void>;
   revalidate?: string[] | ((input: z.infer<S>, result: T) => string[]);
@@ -30,8 +36,8 @@ type ActionConfig<S extends z.ZodType, T, Side extends keyof SideContext> = {
  * The only way to write a mutation (CLAUDE.md §6): validate → authenticate → side check →
  * can() → RLS transaction → commit → event dispatch (scheduled) → after hooks → revalidate → typed Result.
  */
-export function defineAction<S extends z.ZodType, T, Side extends keyof SideContext>(config: ActionConfig<S, T, Side>) {
-  return async (raw: z.input<S>): Promise<ActionResult<T>> => {
+export function defineAction<S extends z.ZodType, T, Side extends keyof SideContext, R = T>(config: ActionConfig<S, T, Side, R>) {
+  return async (raw: z.input<S>): Promise<ActionResult<R>> => {
     const parsed = config.input.safeParse(raw);
     if (!parsed.success) {
       return {
@@ -61,6 +67,8 @@ export function defineAction<S extends z.ZodType, T, Side extends keyof SideCont
       const result = await withRls((tx) => config.handler({ input, tx, ctx: typedCtx }), ctx.session);
       // Committed: consumers (notifications, …) react to the events the handler emitted.
       scheduleEventDispatch();
+      const final = config.complete ? await config.complete({ input, prepared: result, ctx: typedCtx }) : (result as unknown as R);
+      if (config.complete) scheduleEventDispatch();
 
       if (config.after) {
         try {
@@ -71,7 +79,7 @@ export function defineAction<S extends z.ZodType, T, Side extends keyof SideCont
       }
       const paths = typeof config.revalidate === 'function' ? config.revalidate(input, result) : config.revalidate;
       for (const path of paths ?? []) revalidatePath(path, 'layout');
-      return { ok: true, data: result };
+      return { ok: true, data: final };
     } catch (error) {
       const actionError = toActionError(error);
       if (actionError.code === 'unknown') console.error('[action] unexpected error', error);

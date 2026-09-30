@@ -11,6 +11,7 @@ export const notificationCategories = [
   'sales',
   'integrations',
   'automations',
+  'ai',
 ] as const;
 export type NotificationCategory = (typeof notificationCategories)[number];
 
@@ -51,6 +52,7 @@ export const notificationTypes = {
   automation_failed: 'integrations',
   whatsapp_failed: 'integrations',
   automation_message: 'automations',
+  ai_insight: 'ai',
 } as const satisfies Record<string, NotificationCategory>;
 
 export type NotificationType = keyof typeof notificationTypes;

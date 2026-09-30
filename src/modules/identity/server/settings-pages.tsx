@@ -84,7 +84,7 @@ export async function NotificationSettingsPage({ base }: { base: Base }) {
       .from(notificationPreferences)
       .where(and(eq(notificationPreferences.userId, ctx.session.userId), eq(notificationPreferences.organizationId, ctx.organization.id))),
   );
-  const agencyOnly = ['account', 'tasks', 'sla', 'sales', 'integrations', 'automations'];
+  const agencyOnly = ['account', 'tasks', 'sla', 'sales', 'integrations', 'automations', 'ai'];
   const categories =
     ctx.side === 'client'
       ? notificationCategories.filter((c) => !agencyOnly.includes(c))

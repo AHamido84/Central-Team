@@ -15,6 +15,7 @@ import {
   MessageSquare,
   Handshake,
   PlugZap,
+  Sparkles,
   Timer,
   UserRound,
   Workflow,
@@ -246,6 +247,7 @@ const categoryIcon: Record<NotificationCategory, typeof Bell> = {
   sales: Handshake,
   integrations: PlugZap,
   automations: Workflow,
+  ai: Sparkles,
 };
 
 type Pref = { category: NotificationCategory; inApp: boolean; email: boolean; whatsapp: boolean };

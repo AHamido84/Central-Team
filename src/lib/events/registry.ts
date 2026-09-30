@@ -170,6 +170,28 @@ export type DomainEventPayloads = {
   'automation.deleted': { automationId: string };
   /** A run failed after the dispatcher's last retry. */
   'automation.failed': { automationId: string; runId: string; error: string };
+  // AI intelligence (Phase 8)
+  /** A detector found something new on a campaign, or a cleared condition came back (`reopened`). */
+  'ai_insight.detected': {
+    insightId: string;
+    campaignId: string;
+    clientId: string;
+    insightKind: string;
+    severity: 'info' | 'warning' | 'critical';
+    metric: string | null;
+    reopened: boolean;
+  };
+  'ai_insight.status_changed': { insightId: string; campaignId: string; clientId: string; from: string; to: string };
+  'ai_recommendation.decided': {
+    recommendationId: string;
+    insightId: string;
+    campaignId: string;
+    clientId: string;
+    decision: 'accepted' | 'dismissed';
+    taskId: string | null;
+  };
+  'ai_settings.updated': { fields: string[] };
+  'ai_report.drafted': { reportId: string; clientId: string; section: 'commentary' | 'next_steps' };
 };
 
 export type DomainEventType = keyof DomainEventPayloads;

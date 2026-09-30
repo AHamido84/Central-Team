@@ -149,6 +149,33 @@ export const triggerCatalog = [
   },
   { type: 'metrics.synced', subject: 'campaign', fields: [...campaignFields, { key: 'event.rows', type: 'number' }] },
   {
+    type: 'ai_insight.detected',
+    subject: 'campaign',
+    fields: [
+      ...campaignFields,
+      { key: 'event.severity', type: 'enum', options: ['info', 'warning', 'critical'] },
+      {
+        key: 'event.insightKind',
+        type: 'enum',
+        options: [
+          'spike',
+          'drop',
+          'kpi_off_track',
+          'kpi_at_risk',
+          'budget_overspent',
+          'budget_overpace',
+          'budget_underpace',
+          'delivery_stopped',
+        ],
+      },
+      {
+        key: 'event.metric',
+        type: 'enum',
+        options: ['spend', 'clicks', 'conversions', 'leads', 'ctr', 'cpc', 'cpl', 'cpa', 'cpm', 'roas'],
+      },
+    ],
+  },
+  {
     type: 'integration.connection_expired',
     subject: 'connection',
     fields: [{ key: 'connection.provider', type: 'enum', options: ['meta', 'whatsapp', 'tiktok', 'snapchat', 'google'] }],

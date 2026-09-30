@@ -25,7 +25,8 @@
     "campaign_health_changed": "A campaign's health drops",
     "sla_breached": "An SLA is breached",
     "metrics_synced": "Campaign numbers are synced",
-    "integration_connection_expired": "A platform connection expires"
+    "integration_connection_expired": "A platform connection expires",
+    "ai_insight_detected": "An AI insight is detected"
   },
   "actionTypes": {
     "notify": "Send a notification",
@@ -79,7 +80,10 @@
     "campaign_owner_id": "Campaign owner",
     "event_kind": "Target",
     "event_rows": "Rows",
-    "connection_provider": "Platform"
+    "connection_provider": "Platform",
+    "event_severity": "Severity",
+    "event_insightKind": "Insight type",
+    "event_metric": "Metric"
   },
   "ops": {
     "eq": "is",
@@ -174,7 +178,28 @@
     "snapchat": "Snapchat",
     "google": "Google",
     "true": "Yes",
-    "false": "No"
+    "false": "No",
+    "info": "Info",
+    "warning": "Warning",
+    "critical": "Critical",
+    "spike": "Unusual jump",
+    "drop": "Unusual drop",
+    "kpi_off_track": "KPI off track",
+    "kpi_at_risk": "KPI at risk",
+    "budget_overspent": "Over budget",
+    "budget_overpace": "Spending too fast",
+    "budget_underpace": "Spending too slowly",
+    "delivery_stopped": "Delivery stopped",
+    "spend": "Spend",
+    "clicks": "Clicks",
+    "conversions": "Conversions",
+    "leads": "Leads",
+    "ctr": "CTR",
+    "cpc": "CPC",
+    "cpl": "Cost per lead",
+    "cpa": "CPA",
+    "cpm": "CPM",
+    "roas": "ROAS"
   },
   "pickPeople": "Pick people",
   "value": "Value",
