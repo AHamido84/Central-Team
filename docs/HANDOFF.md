@@ -163,6 +163,21 @@ How it works:
 - Answers to open questions in `docs/DECISIONS.md` (brand, logo, domain, sending email, data residency/PDPL).
 - Human QA on real devices; deferred items in `docs/ROADMAP.md` (each phase has a "Deferred" list).
 
+## Phase 7 — manual test checklist (sandbox, local or demo with `INTEGRATIONS_SANDBOX=1`)
+
+Sign in as `sara@ofoq.test` (password `Passw0rd!`).
+1. `/admin/integrations` → Snapchat "Connect sandbox" → Allow → the connection opens as Connected.
+2. Accounts tab: pick a client. Campaigns tab: link a platform campaign to a channel. Sync tab: "Sync now" → the run succeeds
+   and the numbers appear on that campaign. Backfill 30 days, then again → the numbers don't change.
+3. Connect again with "Allow with a short-lived token" → after 2 minutes "Test connection" shows Expired with Reconnect.
+   The seeded "Google Ads — Ofoq MCC" shows the expired state.
+4. As `ruba@ofoq.test`, open the lead "ريم القحطاني" → Send message → the status reaches Read.
+5. As `noura@ofoq.test`: Settings → Notifications → turn on WhatsApp with consent → the WhatsApp switches become available.
+6. `/admin/automations` → a new rule on "Campaign numbers are synced" → sync → the notification arrives and the run log
+   shows it; the Test tab runs a dry run.
+7. On a connection's Webhooks tab: copy the URL; rejected deliveries appear in the log.
+8. Repeat the screens in AR / EN × light / dark × mobile / desktop.
+
 ## Starting a new session
 
 1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md`; then `bash scripts/bootstrap.sh` (or `pnpm db:start` +
