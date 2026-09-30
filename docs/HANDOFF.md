@@ -142,10 +142,15 @@ How it works:
 1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md`; then `bash scripts/bootstrap.sh` (or `pnpm db:start` +
    `pnpm db:reset` if the stack exists). In cloud sandboxes Docker may need `dockerd &` first, the Supabase CLI may be
    missing (install the release binary from github.com/supabase/cli, same version as CI: 2.118.0), Playwright needs
-   `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`, and `pnpm dev` must be started in the background.
+   `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`, and `pnpm dev` must be started in the background. If `dockerd` won't
+   start after a container restart, remove the stale `/var/run/docker.pid` first. Repeated logins trip the login rate
+   limit locally — `delete from public.rate_limits` via `docker exec supabase_db_central-team psql -U postgres`.
 2. Verify: `pnpm check`, `pnpm test:db`, `pnpm test:e2e` (expect 157 / 131 / 23 green), `pnpm build`. On a cold dev
    server the first e2e run can time out on a first-compiled route; re-run that spec before treating it as a failure.
-3. Work on branch `claude/stoic-cray-wud1ib` (or the one the owner names); Conventional Commits; plan in ROADMAP +
+3. Deploys need a Vercel token from the owner each session (never store it); trigger a production deployment of this
+   branch through the Vercel API (`POST /v13/deployments` with `gitSource` for repo id `1393530120`) and read the
+   build log for the `[deploy-db]` / seed lines. Revoke-and-rotate reminders are under "Open items".
+4. Work on branch `claude/stoic-cray-wud1ib` (or the one the owner names); Conventional Commits; plan in ROADMAP +
    DATA_MODEL before building a phase; decisions in DECISIONS (next ADR: **067**).
 
 ## Suggested Phase 7 scope (from the roadmap)
