@@ -375,6 +375,64 @@ sweep. The cache is written only through `app.campaign_store_health()` (security
 `metrics:manage` or `campaigns:manage`; direct updates of the cache columns are ignored by the trigger), which also
 records the health last alerted so "at risk / off track" notifies the owner once per slip.
 
+### ADR-052 — SLA policies are matched by specificity and applied once, at submit
+2026-09-29 · Accepted
+`sla_policies` carry optional criteria (client, request type, priority) and targets (first reply in business hours,
+delivery in working days, or the type's own `sla_days`). When a request is submitted the most specific active policy
+wins (client 4 + type 2 + priority 1, ties by `sort_order`) — `app.sla_policy_for` in SQL, `matchPolicy` in TS, kept
+identical by a DB test. The trigger `requests_sla` stores `sla_policy_id` and `response_due_at` and computes
+`due_date`, which stays the delivery target, so the Phase 2 SLA badge, inbox sort and portal "expected on" keep working.
+Targets are a snapshot: editing or deleting a policy never moves requests already submitted (the FK is `set null`).
+SLA columns are server-owned (user writes are reset by the trigger). *Rejected*: evaluating the policy on read (targets
+would silently change under people) and a policy per request type only (no client-specific promises).
+
+### ADR-053 — One working calendar: Sunday–Thursday, org business hours, holidays; SQL is the source of truth
+2026-09-29 · Accepted
+Working days stay Sunday–Thursday (the Saudi week, CLAUDE.md §7); `holidays` removes dates (Saudi public holidays and
+agency days off are seeded) and `organizations.business_hours_start/end` (minutes after midnight, default 09:00–17:00)
+bound reply targets. `app.org_add_working_days`, `app.org_working_days_between` and `app.org_add_business_hours` compute
+targets in the org time zone; `src/modules/sla/calendar.ts` mirrors them for previews and live states, and a DB test
+compares both on a grid of instants, holidays included. Business hours are changed through `app.set_business_hours`
+(security definer, requires `sla:manage`) because `organizations`' update policy needs `organization:update`.
+Configurable working days and per-client calendars are deferred.
+
+### ADR-054 — Waiting on the client pauses delivery; the due date moves on resume
+2026-09-29 · Accepted
+Under a policy with `pause_on_client`, entering Needs info stamps `sla_paused_at`; leaving it adds the working days spent
+waiting to `due_date` (unless the same statement changed the date by hand), accumulates `sla_paused_days` and logs the
+move as a *system* `due_date_changed` event (visible to the client: "the date moved because we waited on you").
+While paused the resolution state is `paused` (no alerts). The reply target isn't paused: asking for information is
+itself the first response.
+
+### ADR-055 — Live SLA states on read; the sweep records breaches once and alerts
+2026-09-29 · Accepted
+Every screen computes response / delivery states from the request row at render time (`responseState`, `slaState`), so
+the monitor and dashboard are right even between sweeps. `runSlaSweep()` (cron, service connection — listed in
+CLAUDE.md §6) writes `sla_breaches` once per request × kind × level (unique index; no at-risk row once breached), emits
+`sla.at_risk` / `sla.breached`, and marks rows resolved when the reply or delivery arrives or the request ends. The
+consumer notifies the assignee (at risk) or the assignee + account manager + the policy's escalation contact
+(breached) in the new `sla` notification category (agency only). People may only acknowledge a breach with a note
+(column grant + trigger stamps who/when). On the Hobby plan the sweep runs daily (ADR-044), so alerts can lag by up to a
+day — the live states don't; restore a 5-minute schedule on Pro.
+
+### ADR-056 — Operations views are RLS-scoped read models; client health is a transparent penalty score
+2026-09-29 · Accepted
+The ops dashboard, Client 360 and team pages are grouped queries in `src/modules/operations/server/queries.ts` run with
+`withRls`, so every number is limited to the clients the viewer can access (an account manager's "all clients" is their
+own). No materialized views or cached counters: the volume (hundreds of open items) doesn't need them and freshness
+matters more. Client health = 100 minus capped penalties (past SLA 15 each up to 45, off-track campaigns 15/30,
+overdue tasks 4/20, unanswered conversations 5/15, approvals waiting past the reminder interval 5/15, recent breaches
+3/15, at-risk SLA 5/15, at-risk campaigns 5/10); ≥ 80 healthy, ≥ 55 watch, else at risk; the reasons shown are the
+costliest signals. *Rejected*: an opaque weighted model — the team needs to see why a client is flagged.
+
+### ADR-057 — `operations:read` and `sla:manage`
+2026-09-29 · Accepted
+`operations:read` (Super Admin, Admin, Account Manager, Team Lead) shows the ops dashboard, `/team`, the SLA monitor and
+Client 360; people without it keep the personal dashboard. `sla:manage` (Super Admin, Admin) edits policies, business
+hours and holidays. Policies and holidays are readable by every agency member (targets appear on requests); breaches
+need request access, and acknowledging needs `operations:read` or `requests:triage`. None of the SLA tables reach the
+portal; the request list returns response targets only when the viewer can read the policy.
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

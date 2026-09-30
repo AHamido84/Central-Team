@@ -198,7 +198,7 @@ attachments from the first cut are kept.
 
 ### 2.9 Deferred (not in this phase)
 - [ ] True WYSIWYG rich text (long text supports light Markdown: bold, lists, links)
-- [ ] SLA policies: pause while waiting on the client, business-hour calendars, holidays, breach alerts (Phase 5)
+- [x] SLA policies: pause while waiting on the client, business-hour calendars, holidays, breach alerts (Phase 5)
 - [ ] "Convert to tasks" behaviour (Phase 3; the button is behind `module.tasks`)
 - [ ] Per-client availability of request types; agency-created requests on behalf of a client (UI)
 - [ ] UI to edit a client's request prefix (column + default exist)
@@ -319,11 +319,11 @@ Data model: `docs/DATA_MODEL.md` §3e.
 - [ ] Live metrics from ad-platform APIs (Phase 7; `metrics_daily.source = 'api'` and `campaign_channels.external_ref` are ready)
 - [ ] Server-generated PDF attachments on report emails (reports print to PDF from the browser; emails link to the portal)
 - [ ] Undo a CSV import (imports are logged and re-importing a period replaces it)
-- [ ] Cross-client analytics dashboard for the agency (per-campaign analytics and the campaign list summary exist) — Phase 5 ops dashboard
+- [x] Cross-client analytics dashboard for the agency — Phase 5 ops dashboard (campaign health per client, attention list)
 - [ ] Campaign picker on the deliverable page (deliverables inherit their request's campaign and can be linked from the campaign's Creatives tab)
 - [ ] Human QA pass on real devices (screens were checked in AR/EN × light/dark × 390px/1440px with screenshots)
 
-## Phase 5 — Agency Operations
+## Phase 5 — Agency Operations (done)
 
 The agency's control room: one dashboard across every client the viewer can access, a Client 360 page with a
 health score, team workload views, and SLA policies (business hours, holidays, pause while waiting on the client)
@@ -331,42 +331,50 @@ with at-risk / breach alerts. Mostly read models over Phases 1–4; new tables o
 Data model: `docs/DATA_MODEL.md` §3f.
 
 ### 5.1 Data & security
-- [ ] Tables: `sla_policies` (match on client / request type / priority, response business hours, resolution working days, pause on client, at-risk %, escalation contact), `holidays`, `sla_breaches` (response/resolution × at_risk/breached, acknowledge + note)
-- [ ] Columns: `organizations.business_hours_start/end`; `requests.sla_policy_id`, `response_due_at`, `sla_paused_at`, `sla_paused_days`
-- [ ] Permissions: `operations:read` (ops dashboard, team, SLA monitor), `sla:manage` (policies, business hours, holidays)
-- [ ] SQL: org working days with holidays, business-hour arithmetic, policy resolution (most specific wins), `requests_sla` trigger (targets at submit, pause in Needs info, due date extended on resume)
-- [ ] RLS: policies/holidays agency-only (write `sla:manage`); breaches readable with request access, only acknowledgement is writable; nothing reaches the portal
+- [x] Tables: `sla_policies` (match on client / request type / priority, response business hours, resolution working days, pause on client, at-risk %, escalation contact), `holidays`, `sla_breaches` (response/resolution × at_risk/breached, acknowledge + note)
+- [x] Columns: `organizations.business_hours_start/end`; `requests.sla_policy_id`, `response_due_at`, `sla_paused_at`, `sla_paused_days`
+- [x] Permissions: `operations:read` (ops dashboard, team, SLA monitor), `sla:manage` (policies, business hours, holidays)
+- [x] SQL: org working days with holidays, business-hour arithmetic, policy resolution (most specific wins), `requests_sla` trigger (targets at submit, pause in Needs info, due date extended on resume)
+- [x] RLS: policies/holidays agency-only (write `sla:manage`); breaches readable with request access, only acknowledgement is writable; nothing reaches the portal
 
 ### 5.2 SLA policies admin (`/admin/sla`)
-- [ ] Policies: list, create / edit / delete, active toggle, match criteria, targets, pause, at-risk threshold, escalation person
-- [ ] Business hours (start / end, Sunday–Thursday) and holidays (add / remove; Saudi public holidays seeded)
+- [x] Policies: list, create / edit / delete, active toggle, match criteria, targets, pause, at-risk threshold, escalation person
+- [x] Business hours (start / end, Sunday–Thursday) and holidays (add / remove; Saudi public holidays seeded)
 
 ### 5.3 SLA monitoring & alerts
-- [ ] Response (first agency reply or move) and resolution (delivery) targets on every submitted request; SLA card on the request page and response state in the triage inbox
-- [ ] Sweep: at-risk and breached rows once per request × kind × level, resolved when met or closed; `sla.at_risk` / `sla.breached` events
-- [ ] Notifications: at risk → assignee; breached → assignee + account manager + policy escalation contact
-- [ ] SLA monitor (`/sla`): open issues (live), breach log with filters and acknowledge, compliance (response / resolution) for 30 / 90 days per client
+- [x] Response (first agency reply or move) and resolution (delivery) targets on every submitted request; SLA card on the request page and response state in the triage inbox
+- [x] Sweep: at-risk and breached rows once per request × kind × level, resolved when met or closed; `sla.at_risk` / `sla.breached` events
+- [x] Notifications: at risk → assignee; breached → assignee + account manager + policy escalation contact
+- [x] SLA monitor (`/sla`): open issues (live), breach log with filters and acknowledge, compliance (response / resolution) for 30 / 90 days per client
 
 ### 5.4 Operations dashboard (`/dashboard`)
-- [ ] Scope: all accessible clients / my clients / one account manager
-- [ ] Tiles: open requests, awaiting triage, SLA overdue / at risk, overdue tasks, waiting on client approval, waiting on internal review, campaigns at risk / off track, unanswered client messages
-- [ ] Needs attention (ranked), client portfolio with health, workload by department, SLA compliance
-- [ ] Viewers without `operations:read` keep the personal dashboard
+- [x] Scope: all accessible clients / my clients / one account manager
+- [x] Tiles: open requests, awaiting triage, SLA overdue / at risk, overdue tasks, waiting on client approval, waiting on internal review, campaigns at risk / off track, unanswered client messages
+- [x] Needs attention (ranked), client portfolio with health, workload by department, SLA compliance
+- [x] Viewers without `operations:read` keep the personal dashboard
 
 ### 5.5 Client 360
-- [ ] Health (healthy / watch / at risk) with reasons, computed from SLA, overdue work, waiting approvals, campaign health and unanswered messages
-- [ ] Overview: KPI tiles, SLA compliance, upcoming deadlines (14 days), unified activity timeline (requests, deliverables, reports, messages); health on the clients list
+- [x] Health (healthy / watch / at risk) with reasons, computed from SLA, overdue work, waiting approvals, campaign health and unanswered messages
+- [x] Overview: KPI tiles, SLA compliance, upcoming deadlines (14 days), unified activity timeline (requests, deliverables, reports, messages); health on the clients list
 
 ### 5.6 Team
-- [ ] `/team`: members with departments, open / overdue / due this week tasks, reviews waiting, assigned requests, clients managed, hours logged (with `time:read_all`), load bar; department filter and search
-- [ ] `/team/[userId]`: stats, tasks by bucket, assigned requests, clients, hours per day (14 days)
+- [x] `/team`: members with departments, open / overdue / due this week tasks, reviews waiting, assigned requests, clients managed, hours logged (with `time:read_all`), load bar; department filter and search
+- [x] `/team/[userId]`: stats, tasks by bucket, assigned requests, clients, hours per day (14 days)
 
 ### 5.7 Quality
-- [ ] Seed: default + client + urgent policies, holidays, requests with breaches (acknowledged and open), paused request
-- [ ] Unit: business-hours / working-day math, policy matching, SLA states, client health
-- [ ] DB: SQL ↔ TS calendar parity, trigger targets + pause/resume, RLS (allow + deny, portal denied), sweep idempotency and notifications
-- [ ] Playwright: admin creates a policy → client submits → targets shown → sweep flags breach → assignee notified → ops acknowledges; ops dashboard, Client 360 and team pages render
-- [ ] Docs: ROADMAP, DATA_MODEL, ARCHITECTURE, DECISIONS, HANDOFF, CLAUDE.md
+- [x] Seed: default + client + urgent policies, holidays, requests with breaches (acknowledged and open), paused request
+- [x] Unit: business-hours / working-day math, policy matching, SLA states, client health
+- [x] DB: SQL ↔ TS calendar parity, trigger targets + pause/resume, RLS (allow + deny, portal denied), sweep idempotency and notifications
+- [x] Playwright: admin creates a policy → client submits → targets shown → sweep flags breach → assignee notified → ops acknowledges; ops dashboard, Client 360 and team pages render
+- [x] Docs: ROADMAP, DATA_MODEL, ARCHITECTURE, DECISIONS, HANDOFF, CLAUDE.md
+
+### 5.8 Deferred (not in this phase)
+- [ ] Configurable working days and per-client calendars (Sunday–Thursday is fixed; holidays and business hours are editable)
+- [ ] SLA targets on tasks and approvals (task due dates keep their overdue reminders; requests carry the SLA)
+- [ ] Sub-daily breach alerts on the Vercel Hobby plan (the sweep runs daily — ADR-044/055; live states are always current)
+- [ ] Re-applying a changed policy to requests already submitted (targets are a snapshot — ADR-052)
+- [ ] Capacity planning (hours available vs. estimates) on the team view — Phase 6
+- [ ] Human QA pass on real devices (screens checked in AR/EN × light/dark × 390px/1440px with screenshots)
 
 ## Phase 6 — CRM & Capacity
 Leads, pipelines, deals, activities, won-deal → client, team capacity planning & utilization.

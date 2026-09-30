@@ -579,3 +579,33 @@ sequenceDiagram
 - Charts: plain SVG (`components/charts.tsx`) on `--chart-*` tokens validated for colour-vision deficiency in both
   modes (ADR-050).
 
+
+## 20. Phase 5 — agency operations & SLA
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Admin as Operations manager
+  actor C as Client user
+  actor AM as Account manager
+  participant DB as Postgres (RLS + triggers)
+  participant Cron as Daily cron
+  Admin->>DB: savePolicyAction · saveBusinessHoursAction (app.set_business_hours) · saveHolidayAction
+  C->>DB: submit request → requests_sla: app.sla_policy_for → response_due_at (business hours), due_date (working days)
+  AM->>DB: needs info → sla_paused_at · client resubmits → due_date += working days waited (system event)
+  Cron->>DB: runSlaSweep → sla_breaches (once per request × kind × level) → sla.at_risk / sla.breached
+  DB-->>AM: notifications.sla consumer → assignee (+ account manager + escalation contact on breach)
+  AM->>DB: acknowledgeBreachAction (note; who/when stamped by trigger)
+```
+
+- Modules: `src/modules/sla` — `calendar.ts` (working days, business hours; mirror of the SQL, parity-tested),
+  `constants.ts` (policy matching, compliance), `server/` (queries: admin data, live issues `issuesOf`, monitor;
+  actions; sweep; consumer), `components/` (admin, monitor). `src/modules/operations` — `health.ts` (client health
+  score), `server/queries.ts` (ops overview, Client 360, clients health, team overview / member), `components/`.
+- Routes: `/dashboard` (ops view with `operations:read`, `?scope=mine|<account manager id>`), `/sla`
+  (`?days=90&view=unacknowledged|resolved|all&client=`), `/admin/sla`, `/team` (`?department=`), `/team/[userId]`;
+  Client 360 is the overview tab of `/clients/[id]`; the clients list gains a health column.
+- Live vs recorded: request screens, the monitor and the dashboard compute SLA states on read; the sweep only records
+  breaches and alerts (ADR-055). The cron route runs reminders → campaigns → SLA → dispatcher.
+- Scoping: every ops number comes from RLS-scoped queries (`withRls`), so views are limited to the clients the viewer
+  can access; time totals follow `time:read_all` (ADR-056).

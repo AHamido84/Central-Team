@@ -721,7 +721,7 @@ erDiagram
 
 | Table / column | Key columns | Notes |
 |---|---|---|
-| `organizations` (+) | `business_hours_start` (`09:00`), `business_hours_end` (`17:00`) | Working days stay Sunday–Thursday (Saudi week, CLAUDE.md §7); holidays come from `holidays`. |
+| `organizations` (+) | `business_hours_start` (540 = 09:00), `business_hours_end` (1020 = 17:00), minutes after midnight in the org time zone | Working days stay Sunday–Thursday (Saudi week, CLAUDE.md §7); holidays come from `holidays`. |
 | `sla_policies` | `name` (AR/EN), `client_id?`, `request_type_id?`, `priority?`, `response_hours` (business hours, 1–240), `resolution_days?` (working days, 1–90; null = the request type's `sla_days`), `pause_on_client` (default true), `at_risk_percent` (50–95, default 75), `escalate_to?` (agency member), `is_active`, `sort_order` | Matching: every non-null criterion must equal the request's; the most specific wins (client 4 + type 2 + priority 1), ties by `sort_order`. A policy without criteria is the org default. No match → type SLA only, no response target. |
 | `holidays` | `date`, `name` (AR/EN) | Unique (org, date). Skipped by working-day and business-hour math. |
 | `requests` (+) | `sla_policy_id?`, `response_due_at?`, `sla_paused_at?`, `sla_paused_days` | Server-owned (trigger `requests_sla`). `due_date` stays the resolution target (existing SLA UI keeps working); pausing adds the paused working days to it on resume. |
@@ -732,7 +732,7 @@ erDiagram
 - Response: `response_due_at = org_add_business_hours(submitted_at, response_hours)` — counts only minutes between
   business start/end on working days in the org time zone; a request submitted at night starts counting next morning.
 - Pause (policy `pause_on_client`): entering `needs_info` sets `sla_paused_at`; leaving it adds the working days spent
-  waiting to `due_date` (and to `response_due_at` if not yet answered), accumulates `sla_paused_days`, logs a system
+  waiting to `due_date` (the reply target isn't paused — asking for information is the first response), accumulates `sla_paused_days`, logs a system
   `due_date_changed` event.
 - States (TS, live): response — `met` / `missed` once `first_response_at` exists, else `on_track` / `at_risk` (elapsed ≥
   `at_risk_percent`) / `overdue`; resolution — same rule on `due_date` (end of day, org tz), `paused` while in Needs info.
@@ -742,7 +742,7 @@ erDiagram
 | Table | Agency | Client users |
 |---|---|---|
 | `sla_policies`, `holidays` | read: agency members; write: `sla:manage` | — |
-| `sla_breaches` | read: `requests:read` + client access; update (`acknowledged_*`, `note` only): same + `operations:read` or `requests:triage` | — |
+| `sla_breaches` | read: `requests:read` + client access; update (`acknowledged_*`, `note` only): same + `operations:read` or `requests:triage`; insert/delete: none (the sweep uses the service connection) | — |
 
 **Read models** (no tables): ops dashboard, Client 360 and team views are RLS-scoped queries in
 `src/modules/operations/server/queries.ts` over requests, tasks, deliverables, campaigns, threads and time entries, so

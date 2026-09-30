@@ -1,6 +1,6 @@
 # Handoff — state of the project
 
-Last updated: 2026-09-29 · Branch: `claude/stoic-cray-wud1ib` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
+Last updated: 2026-09-30 · Branch: `claude/stoic-cray-wud1ib` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
 
 ## Where we are
 
@@ -11,10 +11,12 @@ Last updated: 2026-09-29 · Branch: `claude/stoic-cray-wud1ib` · Read with `CLA
 | 2 — Requests | **Built (revision 2).** Request types with a no-code form builder (12 field types, conditions, drag & drop, live preview), portal wizard with drafts and package quota check, per-client references, DB-enforced lifecycle with reasons, triage inbox + preview drawer with SLA states, package consumption on accept, client dashboard (stats, usage chart, activity), notifications via the event dispatcher |
 | 3 — Tasks & Deliverables | **Built.** Workflow templates + visual builder, configurable task statuses, "Convert to tasks", tasks (board with swimlanes, list, table with bulk/inline edit, calendar, My Work, saved views, keyboard drawer, realtime, time tracking), deliverables with resumable uploads and versions, internal review → client approval with image pins / video timestamps, revision rounds, portal approvals center + content calendar + request progress, reminders |
 | 4 — Campaigns | **Built.** Campaigns per client with channels, budgets and KPI targets; daily metrics by hand (week grid) or CSV import with Meta/TikTok/Snapchat/Google detection; analytics (KPI pacing, budget pacing, health, trend + channel charts); report builder with published snapshots, print/PDF and weekly/monthly schedules; portal campaigns + reports; notifications (campaign live, at risk, stale numbers, report ready/published) |
-| 5 — Agency Operations | **Next** |
+| 5 — Agency Operations | **Built.** Ops dashboard across accessible clients (scope by account manager, tiles, client portfolio by health, needs-attention list, workload by department, SLA compliance); Client 360 on the client overview (health score with reasons, SLA compliance, deadlines, one activity stream) and health on the clients list; team workload (`/team`, `/team/[id]`); SLA policies (`/admin/sla`: match by client/type/priority, reply in business hours, delivery in working days, pause on client, escalation, business hours, holidays), SLA targets on requests, daily breach sweep + alerts, SLA monitor (`/sla`) with acknowledgement |
+| 6 — CRM & Capacity | **Next** |
 
-Verified green on a fresh seed: `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 112 unit tests, 101 DB tests
-(RLS, dispatcher, approval state machine, reminders, campaign sweep), 21 Playwright e2e tests, `pnpm build`. The CI workflow (`.github/workflows/ci.yml`) is written but has not run on GitHub yet.
+Verified green on a fresh seed: `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 134 unit tests, 113 DB tests
+(RLS, dispatcher, approval state machine, reminders, campaign sweep, SLA calendar parity, SLA triggers/RLS, SLA sweep),
+22 Playwright e2e tests, `pnpm build`. The CI workflow (`.github/workflows/ci.yml`) is written but has not run on GitHub yet.
 
 ## Run it
 
@@ -75,6 +77,14 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 20. **Login is rate-limited** (10 per email per 15 min): repeated screenshot scripts time out on login — clear
     `public.rate_limits` locally.
 21. Dev-only: the Next.js dev indicator ("N" bubble) overlaps the bottom-left of mobile screenshots; it is not in builds.
+22. **UPDATE … FROM cannot use `lateral` against the target table** — compute the per-row value in a CTE and join it.
+23. **`tx.execute(sql\`…${date}…\`)` with a `Date` fails in postgres-js** (Drizzle builders convert, raw `sql` doesn't) —
+    pass `date.toISOString()` with a `::timestamptz` cast.
+24. **SLA targets are snapshots set at submit** (ADR-052): changing a policy doesn't touch existing requests; tests that
+    create policies must delete them (a leftover policy can win the match on the next run — see `e2e/operations.spec.ts`).
+25. **`issuesOf()` / `openRequestsForSla()` are shared** by the SLA monitor, the ops dashboard and Client 360 — change the
+    SLA state rules in `requests/constants.ts` (`slaState`, `responseState`), never in a view.
+26. DataTables render desktop rows and hidden mobile cards: in Playwright filter to `{ visible: true }` before `.first()`.
 
 ## Production (live demo)
 
@@ -82,13 +92,13 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 |---|---|
 | URL | https://centralteam.vercel.app (Vercel project `centralteam`, Hobby plan) |
 | Database | Supabase project `udqhetkwsqpyyuurajcb` (created through the Vercel ↔ Supabase integration) |
-| Deployed from | branch `claude/stoic-cray-wud1ib` (Phase 4, commit `ee2e20c` or later) |
+| Deployed from | branch `claude/stoic-cray-wud1ib` (Phase 4, commit `ee2e20c`). **Phase 5 is pushed but not deployed** — waiting for the owner's go and a Vercel token |
 | Data | the demo seed (agency "Ofoq", 5 clients, 23 users, password `Passw0rd!` for all) + Phase 4 demo campaigns |
 
 How it works:
 - **Deploy** = a Vercel production build of the branch. `vercel.json` runs `pnpm db:deploy && pnpm build`:
   `scripts/deploy-db.ts` applies pending `supabase/migrations` (tracked in `supabase_migrations.schema_migrations`,
-  CLI-compatible) and, while `SEED_ON_DEPLOY=1`, seeds an empty DB once / adds the demo campaigns once (ADR-045).
+  CLI-compatible) and, while `SEED_ON_DEPLOY=1`, seeds an empty DB once / adds the demo campaigns once / adds the Phase 5 SLA demo data once (`scripts/seed-sla-standalone.ts`) (ADR-045).
   Trigger it from the Vercel dashboard (Redeploy) or the Vercel API with a token — tokens are **not** stored in the
   repo or the environment; the owner provides one per session.
 - **Env vars on Vercel** (all set): the integration's `SUPABASE_*`, `NEXT_PUBLIC_SUPABASE_*`, `POSTGRES_URL*` (read via
@@ -97,7 +107,7 @@ How it works:
 - **Auth**: the custom access token hook is **not** enabled in the Supabase dashboard; the app works anyway because
   the claims are mirrored into `app_metadata` (ADR-046). Site URL / redirect URLs in Supabase Auth should be set to the
   Vercel URL (owner's task) for magic links and password resets.
-- **Cron**: daily at 05:00 UTC (08:00 Riyadh) — dispatcher safety net, reminder sweep, campaign sweep (ADR-044).
+- **Cron**: daily at 05:00 UTC (08:00 Riyadh) — reminder sweep, campaign sweep, SLA breach sweep, dispatcher safety net (ADR-044/055).
 - **Network (cloud sessions)**: `api.vercel.com` must be allowed; direct Postgres (port 5432/6543) to Supabase is
   blocked from the sandbox, so DB changes only happen through the Vercel build.
 
@@ -115,15 +125,16 @@ How it works:
 ## Starting a new session
 
 1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md`; then `bash scripts/bootstrap.sh` (or `pnpm db:start` +
-   `pnpm db:reset` if the stack exists). In cloud sandboxes Docker may need `dockerd &` first, Playwright needs
+   `pnpm db:reset` if the stack exists). In cloud sandboxes Docker may need `dockerd &` first, the Supabase CLI may be
+   missing (install the release binary from github.com/supabase/cli, same version as CI: 2.118.0), Playwright needs
    `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`, and `pnpm dev` must be started in the background.
-2. Verify: `pnpm check`, `pnpm test:db`, `pnpm test:e2e` (expect 112 / 101 / 21 green), `pnpm build`.
+2. Verify: `pnpm check`, `pnpm test:db`, `pnpm test:e2e` (expect 134 / 113 / 22 green), `pnpm build`. On a cold dev
+   server the first e2e run can time out on a first-compiled route; re-run that spec before treating it as a failure.
 3. Work on branch `claude/stoic-cray-wud1ib` (or the one the owner names); Conventional Commits; plan in ROADMAP +
-   DATA_MODEL before building a phase; decisions in DECISIONS (next ADR: **052**).
+   DATA_MODEL before building a phase; decisions in DECISIONS (next ADR: **058**).
 
-## Suggested Phase 5 scope (from the roadmap)
+## Suggested Phase 6 scope (from the roadmap)
 
-Agency operations: an internal ops dashboard across clients (open requests, overdue tasks, approvals waiting, campaign
-health — `campaigns.health` is cached for exactly this), Client 360 (the client page already has requests, files,
-messages, package and campaigns tabs), team views and SLA policies with breach alerts (request `due_date` and task due
-dates exist; the reminder sweeps are the place for breach detection). Deferred items: `docs/ROADMAP.md` §3.9 and §4.9.
+CRM & capacity: leads, pipeline stages, deals and activities, won deal → client (reusing client creation), and team
+capacity planning (available hours per person/department vs task estimates — `/team` already shows open work, reviews
+and logged time, and `tasks.estimate_minutes` exists). Deferred items: `docs/ROADMAP.md` §3.9, §4.9 and §5.8.

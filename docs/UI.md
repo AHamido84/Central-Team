@@ -171,21 +171,22 @@ Breakpoints: `sm` 640 · `md` 768 · `lg` 1024 · `xl` 1280 · `2xl` 1536. Minim
 ```
 [Org / agency name]
 ─ Home
-  • Dashboard                       /dashboard          [0 → 5: real ops dashboard]
+  • Dashboard                       /dashboard          [0 → 5: ops dashboard with operations:read]
   • Inbox (notifications)           /notifications      [0]
 ─ Work
   • Requests (triage)               /requests           [2]
+  • SLA monitor                     /sla                [5]
   • Tasks                           /tasks              [3]
   • Approvals                       /approvals          [3]
 ─ Clients
-  • Clients / Client 360            /clients            [1 → 5]  (tabs: overview, portal users, package, files, messages)
+  • Clients / Client 360            /clients            [1 → 5]  (overview = Client 360; users, package, files, messages, requests, campaigns)
   • Messages (all client threads)   /messages           [1]
   • Campaigns                       /campaigns          [4]
   • Reports                         /reports            [4]
 ─ Growth
   • Leads & Pipeline                /crm                [6]
 ─ Team
-  • Team & capacity                 /team               [5 → 6]
+  • Team (workload)                 /team               [5; capacity in 6]  — built under Home in the sidebar
 ─ Intelligence
   • AI Assistant                    /ai                 [8]
 ─ Admin (permission-gated)
@@ -193,6 +194,7 @@ Breakpoints: `sm` 640 · `md` 768 · `lg` 1024 · `xl` 1280 · `2xl` 1536. Minim
   • Roles & permissions             /admin/roles        [0]
   • Departments                     /admin/departments  [0]
   • Packages                        /admin/packages     [1]
+  • SLA policies                    /admin/sla          [5]
   • Feature flags                   /admin/features     [0]
   • Audit log                       /admin/audit        [0]
   • Organization                    /admin/organization [0]
