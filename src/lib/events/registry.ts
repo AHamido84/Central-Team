@@ -150,6 +150,8 @@ export type DomainEventPayloads = {
   'integration.reconnected': { connectionId: string; provider: string };
   'integration.disconnected': { connectionId: string; provider: string };
   'integration.updated': { connectionId: string; fields: string[] };
+  'integration.connection_expiring': { connectionId: string; provider: string; expiresAt: string };
+  'integration.reassigned': { connectionId: string; from: string | null; to: string };
   /** The token expired or was revoked: someone with `integrations:manage` has to reconnect. */
   'integration.connection_expired': { connectionId: string; provider: string; errorCode: string };
   'integration.account_mapped': { accountId: string; clientId: string | null; syncEnabled: boolean };

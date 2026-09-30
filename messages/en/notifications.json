@@ -169,6 +169,10 @@
     "task_watching": {
       "title": "You're following a task",
       "body": "{actor} added you as a watcher of “⁨{task}⁩” for ⁨{client}⁩."
+    },
+    "integration_expiring": {
+      "title": "A connected account expires soon",
+      "body": "Your {provider} connection “⁨{name}⁩” expires on {date}. Paste a new token in My connected accounts."
     }
   }
 }

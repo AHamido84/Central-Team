@@ -48,5 +48,6 @@
   "time_order": "The end must be after the start.",
   "contact_required": "Add a phone number or an email.",
   "stages_won_lost": "A pipeline needs open stages, one Won and one Lost stage.",
-  "invalid_key": "Enter the full API key."
+  "invalid_key": "Enter the full API key.",
+  "invalid_token": "Paste the full access token."
 }

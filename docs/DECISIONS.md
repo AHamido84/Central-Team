@@ -783,6 +783,23 @@ key). Server Function argument logging is turned off in `next.config` so keys an
 *Rejected*: application-level encryption with an env master key (a second key to manage; Vault is already used for
 integration tokens, ADR-067).
 
+### ADR-086 — Personal platform connections owned by a person
+2026-09-30 · Accepted
+A connection is either the organization's (`owner_id` null, OAuth on `/admin/integrations`, ADR-067) or a person's
+(`owner_id` set): **Settings → Connected accounts** for holders of the new `integrations:connect` (Super Admin, Admin,
+Account Manager, Team Lead, Specialist). Platforms: Meta, TikTok, Snapchat, Google Ads, X and LinkedIn (the last two
+personal only). Tokens are pasted for now but stored exactly like OAuth tokens (`TokenSet` in Vault,
+`settings.source = 'pasted'`, a masked `tokenHint`), so an OAuth button can replace pasting without a model change.
+RLS: owners see their connection, its ad accounts and campaigns (`app.owns_connection`, which also requires them to
+still hold `integrations:connect`) and may map their ad accounts only to clients they can access; `integrations:read`
+sees every connection; client users see none. Reassigning changes `owner_id`, allowed by the connection guard trigger
+only for `integrations:manage` and only to a member holding `integrations:connect` (audited, `integration.reassigned`).
+The integrations sweep warns the owner once per expiry date, seven days ahead (`expiry_notified_for`,
+`integration.connection_expiring`); expired/failed connections notify the owner as well as the managers. Mapped
+personal accounts join the daily sync only when a manager switches sync on. Platform references: `docs/INTEGRATIONS.md`.
+*Rejected*: a separate `personal_connections` table (would duplicate sync, discovery and Vault handling); a `scope`
+column (`owner_id` null/non-null already says it).
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

@@ -1,17 +1,23 @@
 import 'server-only';
 
 import { and, eq } from 'drizzle-orm';
-import { getTranslations } from 'next-intl/server';
+import { forbidden } from 'next/navigation';
+import { getLocale, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
 import { PageHeader } from '@/components/patterns';
 import { requireSignedIn } from '@/lib/auth/context';
 import { withRls } from '@/lib/db/rls';
 import { notificationPreferences } from '@/lib/db/schema';
+import { localized, type Locale } from '@/lib/i18n/localized';
+import { can } from '@/lib/permissions/can';
 import { SettingsNav } from '@/modules/identity/components/settings-nav';
 import { NotificationSettings, PreferencesSettings, ProfileSettings } from '@/modules/identity/components/settings-forms';
 import { WhatsAppOptIn } from '@/modules/integrations/components/whatsapp-opt-in';
-import { getWhatsAppChannel } from '@/modules/integrations/server/queries';
+import { MyConnections } from '@/modules/integrations/components/my-connections';
+import { sandboxEnabled } from '@/modules/integrations/providers';
+import { getWhatsAppChannel, listPersonalConnections } from '@/modules/integrations/server/queries';
+import { listClients } from '@/modules/clients/server/queries';
 import { notificationCategories } from '@/modules/notifications/types';
 
 const TIMEZONES = [
@@ -32,10 +38,12 @@ type Base = '/settings' | '/portal/settings';
 
 async function Shell({ base, children }: { base: Base; children: ReactNode }) {
   const t = await getTranslations('settings');
+  const ctx = await requireSignedIn();
+  const showConnections = base === '/settings' && ctx.side === 'agency' && can(ctx.permissions, 'integrations:connect');
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader title={t('title')} description={t('description')} />
-      <SettingsNav base={base} />
+      <SettingsNav base={base} showConnections={showConnections} />
       <div className="mt-6">{children}</div>
     </div>
   );
@@ -100,6 +108,26 @@ export async function NotificationSettingsPage({ base }: { base: Base }) {
           const row = rows.find((r) => r.category === category);
           return { category, inApp: row?.inApp ?? true, email: row?.email ?? true, whatsapp: row?.whatsapp ?? false };
         })}
+      />
+    </Shell>
+  );
+}
+
+/** "My connected accounts" (FR1.6): the signed-in person's own platform connections. */
+export async function ConnectionsSettingsPage() {
+  const ctx = await requireSignedIn();
+  if (ctx.side !== 'agency' || !can(ctx.permissions, 'integrations:connect')) forbidden();
+  const [connections, clients, locale] = await Promise.all([
+    listPersonalConnections('mine', ctx.session.userId),
+    listClients(ctx),
+    getLocale() as Promise<Locale>,
+  ]);
+  return (
+    <Shell base="/settings">
+      <MyConnections
+        connections={connections}
+        clients={clients.map((c) => ({ id: c.id, name: localized(c.name, locale) }))}
+        sandbox={sandboxEnabled()}
       />
     </Shell>
   );

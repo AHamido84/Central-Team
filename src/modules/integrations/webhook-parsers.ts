@@ -148,6 +148,9 @@ export function parseWebhook(provider: ProviderKey, body: unknown): WebhookItem[
       return parseLeadList(b, 'ad_account_id', 'lead_form_id');
     case 'google':
       return parseGoogle(b);
+    case 'x':
+    case 'linkedin':
+      return [];
   }
 }
 

@@ -81,6 +81,7 @@ const typeIcon: Record<NotificationType, typeof Bell> = {
   deal_stale: Hourglass,
   deal_won: Trophy,
   integration_expired: PlugZap,
+  integration_expiring: PlugZap,
   integration_sync_failed: RefreshCwOff,
   automation_failed: Workflow,
   whatsapp_failed: MessageCircleX,

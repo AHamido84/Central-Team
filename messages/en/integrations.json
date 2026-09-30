@@ -52,6 +52,14 @@
     "google": {
       "name": "Google Ads & Analytics",
       "description": "Google Ads campaign numbers, GA4 properties and lead forms."
+    },
+    "x": {
+      "name": "X (Twitter)",
+      "description": "X Ads accounts (personal connection)."
+    },
+    "linkedin": {
+      "name": "LinkedIn",
+      "description": "LinkedIn Campaign Manager ad accounts (personal connection)."
     }
   },
   "capabilities": {
@@ -192,7 +200,9 @@
       "whatsapp": "Register it in your Meta app → WhatsApp → Configuration (field messages) with the same verify token.",
       "tiktok": "Register it in your TikTok for Business app for lead form notifications.",
       "snapchat": "Register it in Snap Business Manager for lead form notifications, with SNAPCHAT_WEBHOOK_SECRET.",
-      "google": "Paste it into the Google Ads lead form with the GOOGLE_LEAD_WEBHOOK_KEY key."
+      "google": "Paste it into the Google Ads lead form with the GOOGLE_LEAD_WEBHOOK_KEY key.",
+      "x": "X doesn't send lead webhooks here.",
+      "linkedin": "LinkedIn doesn't send lead webhooks here."
     },
     "status": {
       "received": "Received",
@@ -248,5 +258,55 @@
     "allowShort": "Allow with a short-lived token",
     "deny": "Deny",
     "shortHint": "The short-lived token expires in two minutes with no refresh, to try expiry and reconnecting."
+  },
+  "personal": {
+    "title": "My connected accounts",
+    "description": "Connect your own ad accounts with an access token, test them and map their ad accounts to clients. Tokens are stored encrypted and never shown again.",
+    "connect": "Connect account",
+    "connectTitle": "Connect an account",
+    "connectBody": "Paste an access token from the platform (see the guide in docs). It is stored in Vault; only its first and last characters are shown.",
+    "provider": "Platform",
+    "mode": "Mode",
+    "modes": {
+      "live": "Live",
+      "sandbox": "Sandbox"
+    },
+    "name": "Display name",
+    "accessToken": "Access token",
+    "refreshToken": "Refresh token",
+    "expiresAt": "Token expires on",
+    "customerId": "Google Ads customer ID",
+    "save": "Connect",
+    "cancel": "Cancel",
+    "connected": "Account connected.",
+    "emptyTitle": "No connected accounts",
+    "emptyBody": "Connect an ad account to test it, fetch its campaigns and map it to a client.",
+    "token": "Token",
+    "expires": "expires {when}",
+    "noExpiry": "no expiry date",
+    "owner": "Owner",
+    "test": "Test connection",
+    "testOk": "{count, plural, one {# ad account found} other {# ad accounts found}}.",
+    "fetch": "Fetch campaigns",
+    "fetched": "{count, plural, =0 {No campaigns on the platform} one {# campaign} other {# campaigns}}",
+    "campaigns": "{count, plural, =0 {no campaigns fetched} one {# campaign} other {# campaigns}}",
+    "noAccounts": "No ad accounts yet — press “Test connection”.",
+    "client": "Client",
+    "noClient": "Not mapped",
+    "mapped": "Mapping saved.",
+    "disconnect": "Disconnect",
+    "disconnectTitle": "Disconnect this account?",
+    "disconnectBody": "The token is deleted from Vault for good. Mapped ad accounts stop syncing.",
+    "disconnected": "Disconnected.",
+    "admin": {
+      "title": "People's connected accounts",
+      "description": "Personal connections of your team. Tokens stay masked; hand a connection to someone else when its owner leaves.",
+      "empty": "Nobody has connected a personal account yet.",
+      "reassign": "Reassign",
+      "reassignTitle": "Reassign connection",
+      "reassignBody": "The new owner will see and use this connection; the previous owner loses access.",
+      "newOwner": "New owner",
+      "reassigned": "Connection reassigned."
+    }
   }
 }

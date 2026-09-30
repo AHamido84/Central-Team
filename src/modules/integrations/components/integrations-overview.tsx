@@ -24,7 +24,7 @@ export function useOAuth() {
   const start = useAction(startOAuthAction, { refresh: false });
   return {
     pending: start.pending,
-    go: async (provider: Exclude<ProviderKey, 'whatsapp'>, mode: ConnectionMode, connectionId: string | null = null) => {
+    go: async (provider: Exclude<ProviderKey, 'whatsapp' | 'x' | 'linkedin'>, mode: ConnectionMode, connectionId: string | null = null) => {
       const res = await start.run({ provider, mode, connectionId });
       if (res.ok) window.location.assign(res.data.url);
     },

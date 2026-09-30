@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, asc, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 
 import { withRls } from '@/lib/db/rls';
 import {
@@ -54,7 +54,7 @@ export type ConnectionSummary = {
 };
 
 export type ProviderCard = {
-  key: ProviderKey;
+  key: Exclude<ProviderKey, 'x' | 'linkedin'>;
   auth: 'oauth' | 'token';
   capabilities: readonly string[];
   missingEnv: string[];
@@ -65,7 +65,12 @@ export type IntegrationsOverview = { sandbox: boolean; providers: ProviderCard[]
 
 export async function getIntegrationsOverview(): Promise<IntegrationsOverview> {
   const rows = await withRls(async (tx) => {
-    const connections = await tx.select().from(integrationConnections).orderBy(asc(integrationConnections.createdAt));
+    // Agency connections only; personal ones ("My connected accounts") are listed separately (FR1.6).
+    const connections = await tx
+      .select()
+      .from(integrationConnections)
+      .where(isNull(integrationConnections.ownerId))
+      .orderBy(asc(integrationConnections.createdAt));
     const ids = connections.map((c) => c.id);
     const counts = ids.length
       ? await tx
@@ -113,13 +118,16 @@ export async function getIntegrationsOverview(): Promise<IntegrationsOverview> {
   });
   return {
     sandbox: sandboxEnabled(),
-    providers: providerKeys.map((key) => ({
-      key,
-      auth: providerCatalog[key].auth,
-      capabilities: providerCatalog[key].capabilities,
-      missingEnv: missingEnv(key),
-      connections: summaries.filter((s) => s.provider === key),
-    })),
+    // X and LinkedIn are personal connections only (FR1.6).
+    providers: providerKeys
+      .filter((key): key is ProviderCard['key'] => providerCatalog[key].auth !== 'personal')
+      .map((key) => ({
+        key,
+        auth: providerCatalog[key].auth === 'token' ? ('token' as const) : ('oauth' as const),
+        capabilities: providerCatalog[key].capabilities,
+        missingEnv: missingEnv(key),
+        connections: summaries.filter((s) => s.provider === key),
+      })),
   };
 }
 
@@ -349,7 +357,8 @@ export async function getConnectionDetail(connectionId: string): Promise<Connect
       connectedBy: c.connectedBy,
       settings: c.settings,
     },
-    auth: providerCatalog[c.provider as ProviderKey].auth,
+    // Personal connections (X, LinkedIn, pasted tokens) re-connect with a token, like WhatsApp.
+    auth: providerCatalog[c.provider as ProviderKey].auth === 'oauth' && !c.ownerId ? ('oauth' as const) : ('token' as const),
     accounts: data.accounts.map((a) => ({
       id: a.id,
       kind: a.kind as AccountKind,
@@ -511,5 +520,93 @@ export async function getWhatsAppChannel(userId: string, organizationId: string)
       optedInAt: optedIn ? iso(opt!.optedInAt) : null,
       suggestedPhone: normalizePhone(me?.whatsapp) ?? normalizePhone(me?.phone),
     };
+  });
+}
+
+export type PersonalAccount = {
+  id: string;
+  kind: AccountKind;
+  externalId: string;
+  name: string;
+  currency: string | null;
+  clientId: string | null;
+  campaigns: number;
+};
+
+export type PersonalConnection = {
+  id: string;
+  provider: ProviderKey;
+  mode: ConnectionMode;
+  name: string;
+  externalName: string | null;
+  health: ConnectionHealth;
+  tokenHint: string | null;
+  tokenExpiresAt: string | null;
+  connectedAt: string;
+  lastErrorCode: string | null;
+  owner: { id: string; name: string } | null;
+  accounts: PersonalAccount[];
+};
+
+/**
+ * Personal connections (FR1.6): `mine` = the caller's own; `all` = every person's (admins; RLS lets people with
+ * `integrations:read` see them). Tokens never leave Vault — only the masked hint kept in settings is shown.
+ */
+export async function listPersonalConnections(scope: 'mine' | 'all', me: string): Promise<PersonalConnection[]> {
+  return withRls(async (tx) => {
+    const connections = await tx
+      .select({ c: integrationConnections, ownerName: profiles.fullName, ownerEmail: profiles.email })
+      .from(integrationConnections)
+      .leftJoin(profiles, eq(profiles.id, integrationConnections.ownerId))
+      .where(scope === 'mine' ? eq(integrationConnections.ownerId, me) : isNotNull(integrationConnections.ownerId))
+      .orderBy(asc(integrationConnections.createdAt));
+    const ids = connections.map((r) => r.c.id);
+    const accounts = ids.length
+      ? await tx
+          .select({
+            a: integrationAccounts,
+            campaigns: sql<number>`(select count(*)::int from public.integration_campaign_links l where l.account_id = ${integrationAccounts.id})`,
+          })
+          .from(integrationAccounts)
+          .where(inArray(integrationAccounts.connectionId, ids))
+          .orderBy(asc(integrationAccounts.name))
+      : [];
+    return connections.map(({ c, ownerName, ownerEmail }) => ({
+      id: c.id,
+      provider: c.provider as ProviderKey,
+      mode: c.mode as ConnectionMode,
+      name: c.name,
+      externalName: c.externalName,
+      health: connectionHealth({ status: c.status as ConnectionHealth & 'connected', tokenExpiresAt: c.tokenExpiresAt }),
+      tokenHint: c.settings.tokenHint ?? null,
+      tokenExpiresAt: iso(c.tokenExpiresAt),
+      connectedAt: c.connectedAt.toISOString(),
+      lastErrorCode: c.lastErrorCode,
+      owner: c.ownerId ? { id: c.ownerId, name: ownerName || ownerEmail || '' } : null,
+      accounts: accounts
+        .filter((r) => r.a.connectionId === c.id && r.a.kind === 'ad_account')
+        .map((r) => ({
+          id: r.a.id,
+          kind: r.a.kind as AccountKind,
+          externalId: r.a.externalId,
+          name: r.a.name,
+          currency: r.a.currency,
+          clientId: r.a.clientId,
+          campaigns: Number(r.campaigns),
+        })),
+    }));
+  });
+}
+
+/** Active agency members who may own a personal connection (reassign targets, FR1.6). */
+export async function listConnectionOwners(organizationId: string): Promise<{ id: string; name: string }[]> {
+  return withRls(async (tx) => {
+    const rows = await tx.execute<{ id: string; name: string }>(sql`
+      select p.id, coalesce(nullif(p.full_name, ''), p.email) as name
+      from public.organization_members m join public.profiles p on p.id = m.user_id
+      where m.organization_id = ${organizationId}::uuid and m.status = 'active' and m.user_type = 'agency'
+        and app.member_has_permission(m.organization_id, m.user_id, 'integrations:connect')
+      order by 2`);
+    return [...rows];
   });
 }

@@ -5,7 +5,7 @@ import { connectionModes, providerKeys, SYNC } from '@/modules/integrations/cons
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 export const startOAuthSchema = z.object({
-  provider: z.enum(providerKeys).exclude(['whatsapp']),
+  provider: z.enum(providerKeys).exclude(['whatsapp', 'x', 'linkedin']),
   mode: z.enum(connectionModes),
   connectionId: z.uuid().nullable().default(null),
 });

@@ -674,6 +674,18 @@ Focused improvements on Phases 0–8 — no new phase. Each item extends the exi
   columns) and shows them on the client page and the owner's view. Endpoints and scopes documented in
   `docs/INTEGRATIONS.md`.
 
+**Status**
+- [x] `owner_id` + `expiry_notified_for` on `integration_connections`; `integrations:connect`; owner RLS, reassign guard (ADR-086)
+- [x] X and LinkedIn providers (personal only); personal Meta works without the app env
+- [x] **Settings → Connected accounts**: connect with a pasted token (refresh token, expiry, Google customer id),
+  masked hint, health / expiry badges, Test connection, map ad accounts to clients, Fetch campaigns, Disconnect
+- [x] `/admin/integrations` lists everyone's personal connections (masked) with Reassign
+- [x] Owner notified 7 days before the entered expiry and on expiry/failure
+- [x] `docs/INTEGRATIONS.md` (tokens, calls, versions and official docs per platform)
+- [x] DB tests (`tests/db/personal-connections.test.ts`), e2e (`e2e/personal-connections.spec.ts`)
+- [ ] Deferred: campaign objective / start–end dates columns and showing fetched campaigns on the client page;
+  X Ads OAuth 1.0a and X/LinkedIn daily numbers
+
 ### FR1.7 Email change
 - Root-cause the missing email, surface real errors (rate limit, in use, invalid, SMTP), pending state with resend /
   cancel, dev-only Mailpit link, a completable double confirmation, an admin "change email" in the user drawer

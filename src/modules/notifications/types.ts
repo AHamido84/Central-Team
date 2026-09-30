@@ -50,6 +50,7 @@ export const notificationTypes = {
   deal_stale: 'sales',
   deal_won: 'sales',
   integration_expired: 'integrations',
+  integration_expiring: 'integrations',
   integration_sync_failed: 'integrations',
   automation_failed: 'integrations',
   whatsapp_failed: 'integrations',

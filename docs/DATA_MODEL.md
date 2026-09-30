@@ -835,7 +835,7 @@ erDiagram
 
 | Table | Key columns | Notes |
 |---|---|---|
-| `integration_connections` | `provider` (`meta · whatsapp · tiktok · snapchat · google`), `mode` (`live · sandbox`), `name`, `status` (`connected · expired · error · disconnected`), `external_user_id`, `external_name`, `scopes text[]`, `token_expires_at`, `settings jsonb` (WhatsApp phone number / WABA id, Google customer id), `last_checked_at`, `last_synced_at`, `last_error_code`, `last_error_message`, `connected_by`, `connected_at`, `disconnected_at` | **No token column.** Status and error columns are server-owned (only the service path changes them). "Expiring" is derived (expiry within 7 days). |
+| `integration_connections` | `provider` (`meta · whatsapp · tiktok · snapchat · google`), `mode` (`live · sandbox`), `name`, `status` (`connected · expired · error · disconnected`), `external_user_id`, `external_name`, `scopes text[]`, `token_expires_at`, `settings jsonb` (WhatsApp phone number / WABA id, Google customer id), `last_checked_at`, `last_synced_at`, `last_error_code`, `last_error_message`, `connected_by`, `connected_at`, `disconnected_at`, `owner_id` (personal connection, FR1.6), `expiry_notified_for` | **No token column.** Provider also `x · linkedin` (personal only). Status and error columns are server-owned (only the service path changes them). "Expiring" is derived (expiry within 7 days). |
 | `integration_secrets` | `connection_id` (pk), `secret_id` (a `vault.secrets` id) | RLS on, **no policies**, no grants to `authenticated`/`anon`: only `app.integration_put_secret / get_secret / drop_secret` (security definer, `execute` for `service_role` and the owner only) touch it. The secret is the JSON token set (access, refresh, expiry). |
 | `integration_accounts` | `connection_id`, `kind` (`ad_account · page · whatsapp_number · analytics_property`), `external_id`, `name`, `currency`, `timezone`, `client_id?`, `sync_enabled`, `metadata jsonb`, `last_synced_at` | Unique (connection, kind, external id); `(kind, external_id)` indexed to route webhooks. |
 | `integration_campaign_links` | `account_id`, `external_campaign_id`, `name`, `platform_status`, `channel_id?` (`campaign_channels`), `last_seen_at` | Unique (account, external campaign). Trigger: the channel's campaign belongs to the account's client. Several platform campaigns may feed one channel (summed). |
@@ -855,7 +855,7 @@ depth + 1 and the chain of rules that led to them — the loop guard reads both)
 
 | Table | Agency | Client users |
 |---|---|---|
-| `integration_connections`, `integration_accounts`, `integration_campaign_links`, `integration_sync_runs`, `integration_webhook_events`, `whatsapp_templates` | read `integrations:read`; write `integrations:manage` (connections: name only — tokens, status and health through the service path; runs: insert queued manual/backfill only; webhook events: read only) | — |
+| `integration_connections`, `integration_accounts`, `integration_campaign_links`, `integration_sync_runs`, `integration_webhook_events`, `whatsapp_templates` | read `integrations:read`; write `integrations:manage` (connections: name only, plus `owner_id` for managers reassigning to an `integrations:connect` holder — tokens, status and health through the service path; personal connections: the owner reads their own connection, accounts and campaigns and maps accounts to clients they can access (ADR-086); runs: insert queued manual/backfill only; webhook events: read only) | — |
 | `integration_secrets`, `vault.*` | none (service role only) | none |
 | `whatsapp_messages` | read `whatsapp:send`, or `leads:read` / `deals:read` for rows on a lead / deal, or `integrations:read`; insert only through the service path after an RLS-checked lead / deal lookup | — |
 | `whatsapp_opt_ins` | own row | — (agency channel only) |
@@ -956,7 +956,7 @@ members, open tasks, workflow steps and pending invitations to another departmen
 `app.audit_skip` suppresses per-row audit writes during the wipe; one `activity_log` entry (`data_reset`) is written after
 it, so it survives. Storage objects are listed first (`app.data_reset_paths`) and removed after the transaction commits.
 
-## 3k. Feedback Round 1 — AI keys and task permissions
+## 3k. Feedback Round 1 — AI keys, task permissions, personal connections
 
 | Table | Purpose |
 |---|---|
@@ -965,6 +965,10 @@ it, so it survives. Storage objects are listed first (`app.data_reset_paths`) an
 Task field access (ADR-084) is computed, not stored: `app.task_edit_scope(task)` → full / limited / none; guard
 triggers on `tasks`, `task_members`, `task_dependencies`, `task_attachments`, `task_checklist_items`. History comes from
 `activity_log` through `app.task_history(task)`; checklist items and dependencies are now audited.
+
+Personal connections (ADR-086) reuse `integration_connections` with `owner_id` set (and `expiry_notified_for` for the
+7-day warning). New permission `integrations:connect` (Super Admin, Admin, Account Manager, Team Lead, Specialist);
+`app.owns_connection(connection)` backs the owner policies on connections, accounts and campaign links.
 
 ## 4. Forward-looking sketch (all phases — not built in Phase 0)
 

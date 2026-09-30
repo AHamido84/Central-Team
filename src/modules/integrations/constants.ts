@@ -1,4 +1,4 @@
-export const providerKeys = ['meta', 'whatsapp', 'tiktok', 'snapchat', 'google'] as const;
+export const providerKeys = ['meta', 'whatsapp', 'tiktok', 'snapchat', 'google', 'x', 'linkedin'] as const;
 export type ProviderKey = (typeof providerKeys)[number];
 
 export const connectionModes = ['live', 'sandbox'] as const;
@@ -21,7 +21,7 @@ export type Capability = 'ads' | 'pages' | 'lead_ads' | 'whatsapp' | 'analytics'
  */
 export const providerCatalog: Record<
   ProviderKey,
-  { auth: 'oauth' | 'token'; capabilities: readonly Capability[]; env: readonly string[]; campaignPlatform: string | null }
+  { auth: 'oauth' | 'token' | 'personal'; capabilities: readonly Capability[]; env: readonly string[]; campaignPlatform: string | null }
 > = {
   meta: {
     auth: 'oauth',
@@ -43,7 +43,14 @@ export const providerCatalog: Record<
     env: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_ADS_DEVELOPER_TOKEN', 'GOOGLE_LEAD_WEBHOOK_KEY'],
     campaignPlatform: 'google',
   },
+  // Personal connections only (FR1.6): a pasted user token; ad accounts are listed and mapped, numbers are not synced yet.
+  x: { auth: 'personal', capabilities: ['ads'], env: [], campaignPlatform: null },
+  linkedin: { auth: 'personal', capabilities: ['ads'], env: [], campaignPlatform: null },
 };
+
+/** Platforms people can connect as their own accounts ("My connected accounts", FR1.6). */
+export const personalProviderKeys = ['meta', 'tiktok', 'snapchat', 'google', 'x', 'linkedin'] as const satisfies readonly ProviderKey[];
+export type PersonalProviderKey = (typeof personalProviderKeys)[number];
 
 /** Campaign channel platforms an ad account of this provider may feed (Meta covers Facebook and Instagram). */
 export const channelPlatformsFor: Record<ProviderKey, readonly string[]> = {
@@ -52,6 +59,8 @@ export const channelPlatformsFor: Record<ProviderKey, readonly string[]> = {
   tiktok: ['tiktok'],
   snapchat: ['snapchat'],
   google: ['google', 'youtube'],
+  x: [],
+  linkedin: [],
 };
 
 /** Translated error codes shown on connections, sync runs and messages (`integrations.errors.<code>`). */

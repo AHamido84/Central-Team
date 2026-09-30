@@ -14,6 +14,8 @@ const providerLabel: Record<string, string> = {
   tiktok: 'TikTok',
   snapchat: 'Snapchat',
   google: 'Google',
+  x: 'X',
+  linkedin: 'LinkedIn',
 };
 
 async function holders(organizationId: string, permission: Permission): Promise<string[]> {
@@ -31,9 +33,30 @@ async function holders(organizationId: string, permission: Permission): Promise<
  */
 export const integrationNotifications = defineConsumer({
   name: 'notifications.integrations',
-  types: ['integration.connection_expired', 'integration.sync_failed', 'automation.failed', 'whatsapp.message_failed'],
+  types: [
+    'integration.connection_expired',
+    'integration.connection_expiring',
+    'integration.sync_failed',
+    'automation.failed',
+    'whatsapp.message_failed',
+  ],
   async handle(event) {
     switch (event.type) {
+      case 'integration.connection_expiring': {
+        // Personal connection (FR1.6): the owner renews their own token.
+        const [c] = await dbAdmin.select().from(integrationConnections).where(eq(integrationConnections.id, event.payload.connectionId));
+        if (!c?.ownerId || c.status !== 'connected') return;
+        await notify({
+          organizationId: event.organizationId,
+          actorId: null,
+          eventId: event.id,
+          userIds: [c.ownerId],
+          type: 'integration_expiring',
+          params: { provider: providerLabel[c.provider] ?? c.provider, name: c.name, date: event.payload.expiresAt.slice(0, 10) },
+          link: '/settings/connections',
+        });
+        return;
+      }
       case 'integration.connection_expired':
       case 'integration.sync_failed': {
         const [c] = await dbAdmin.select().from(integrationConnections).where(eq(integrationConnections.id, event.payload.connectionId));
@@ -43,7 +66,8 @@ export const integrationNotifications = defineConsumer({
           organizationId: event.organizationId,
           actorId: null,
           eventId: event.id,
-          userIds: await holders(event.organizationId, 'integrations:manage'),
+          // A personal connection's owner hears about it too (FR1.6).
+          userIds: [...new Set([...(await holders(event.organizationId, 'integrations:manage')), ...(c.ownerId ? [c.ownerId] : [])])],
           type: event.type === 'integration.connection_expired' ? 'integration_expired' : 'integration_sync_failed',
           params: { provider: providerLabel[c.provider] ?? c.provider, name: c.name, error: event.payload.errorCode },
           link: `/admin/integrations/${c.id}`,

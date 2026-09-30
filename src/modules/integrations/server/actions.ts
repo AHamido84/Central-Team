@@ -7,7 +7,7 @@ import { cookies } from 'next/headers';
 import { after } from 'next/server';
 
 import { defineAction } from '@/lib/actions/define-action';
-import { ActionFailure, type ActionErrorCode } from '@/lib/actions/errors';
+import { ActionFailure } from '@/lib/actions/errors';
 import type { Tx } from '@/lib/db/client';
 import {
   deals,
@@ -38,29 +38,12 @@ import {
   syncSchema,
 } from '@/modules/integrations/schemas';
 import { signState } from '@/modules/integrations/signatures';
+import { providerFailure } from '@/modules/integrations/server/failure';
 import { checkConnection, disconnectConnection, discover, saveConnection } from '@/modules/integrations/server/connections';
 import { executeRunsQuietly } from '@/modules/integrations/server/sync';
 import { sendWhatsApp } from '@/modules/integrations/server/whatsapp';
 
 const paths = (id?: string) => ['/admin/integrations', ...(id ? [`/admin/integrations/${id}`] : [])];
-
-/** Platform failures → translated action errors (the detail stays in the server log). */
-function providerFailure(error: unknown): ActionFailure {
-  if (error instanceof ActionFailure) return error;
-  if (!(error instanceof ProviderError)) throw error;
-  const map: Partial<Record<ProviderErrorCode, ActionErrorCode>> = {
-    not_configured: 'integration_not_configured',
-    auth_expired: 'integration_auth_failed',
-    auth_revoked: 'integration_auth_failed',
-    permission_denied: 'integration_permission_denied',
-    rate_limited: 'integration_rate_limited',
-    invalid_phone: 'invalid_phone',
-    template_not_approved: 'template_not_approved',
-    no_connection: 'connection_not_connected',
-  };
-  console.warn('[integrations] provider error', error.code, error.detail);
-  return new ActionFailure(map[error.code] ?? 'integration_unavailable');
-}
 
 /** RLS probe: the connection is visible to the caller and they may manage integrations (DB-side check). */
 async function managedConnection(tx: Tx, organizationId: string, connectionId: string) {

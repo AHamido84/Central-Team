@@ -36,6 +36,8 @@ const providerLabel: Record<ProviderKey, string> = {
   tiktok: 'TikTok',
   snapchat: 'Snapchat',
   google: 'Google',
+  x: 'X',
+  linkedin: 'LinkedIn',
 };
 
 /**
@@ -56,6 +58,10 @@ export function verifyInbound(provider: ProviderKey, rawBody: string, headers: H
       return verifySnapSignature(rawBody, headers.get('x-snap-signature'), e.SNAPCHAT_WEBHOOK_SECRET) ? 'live' : null;
     case 'google':
       return verifyGoogleKey((body as { google_key?: unknown } | null)?.google_key, e.GOOGLE_LEAD_WEBHOOK_KEY) ? 'live' : null;
+    case 'x':
+    case 'linkedin':
+      // No lead webhooks from these platforms.
+      return null;
   }
 }
 

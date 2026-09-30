@@ -53,6 +53,10 @@ export const integrationConnections = pgTable(
     lastErrorCode: text('last_error_code'),
     lastErrorMessage: text('last_error_message'),
     connectedBy: uuid('connected_by').references(() => profiles.id, { onDelete: 'set null' }),
+    /** Personal connection ("My connected accounts", FR1.6): the person who owns it. Null = the agency's connection. */
+    ownerId: uuid('owner_id').references(() => profiles.id, { onDelete: 'set null' }),
+    /** The token expiry the owner was last warned about (7 days ahead), so the warning goes out once. */
+    expiryNotifiedFor: timestamp('expiry_notified_for', { withTimezone: true }),
     connectedAt: timestamp('connected_at', { withTimezone: true }).notNull().defaultNow(),
     disconnectedAt: timestamp('disconnected_at', { withTimezone: true }),
     isDemo: isDemo(),
@@ -61,7 +65,8 @@ export const integrationConnections = pgTable(
   },
   (t) => [
     index('integration_connections_org_idx').on(t.organizationId, t.provider),
-    check('integration_connections_provider_check', sql`${t.provider} in ('meta','whatsapp','tiktok','snapchat','google')`),
+    index('integration_connections_owner_idx').on(t.ownerId),
+    check('integration_connections_provider_check', sql`${t.provider} in ('meta','whatsapp','tiktok','snapchat','google','x','linkedin')`),
     check('integration_connections_mode_check', sql`${t.mode} in ('live','sandbox')`),
     check('integration_connections_status_check', sql`${t.status} in ('connected','expired','error','disconnected')`),
     check('integration_connections_name_check', sql`char_length(${t.name}) between 1 and 120`),

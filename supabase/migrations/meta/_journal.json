@@ -71,6 +71,13 @@
       "when": 1790798308189,
       "tag": "20260930220000_ai_credentials",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790799263913,
+      "tag": "20260930230000_personal_connections",
+      "breakpoints": true
     }
   ]
 }

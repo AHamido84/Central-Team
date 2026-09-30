@@ -169,6 +169,10 @@
     "task_watching": {
       "title": "أصبحت متابعًا لمهمة",
       "body": "أضافك {actor} متابعًا لـ «⁨{task}⁩» لـ ⁨{client}⁩."
+    },
+    "integration_expiring": {
+      "title": "ينتهي حساب مربوط قريبًا",
+      "body": "ينتهي ربط {provider} «⁨{name}⁩» في {date}. الصق رمزًا جديدًا في حساباتي المربوطة."
     }
   }
 }

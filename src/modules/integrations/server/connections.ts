@@ -1,12 +1,12 @@
 import 'server-only';
 
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, isNull, inArray, sql } from 'drizzle-orm';
 
 import { dbAdmin, type Tx } from '@/lib/db/client';
 import { integrationAccounts, integrationCampaignLinks, integrationConnections, whatsappTemplates } from '@/lib/db/schema';
 import { emitEvent } from '@/lib/events/emit';
 import { countTemplateParams, type ConnectionMode, type ProviderKey } from '@/modules/integrations/constants';
-import { getProvider } from '@/modules/integrations/providers';
+import { getPersonalProvider, getProvider } from '@/modules/integrations/providers';
 import { ProviderError, type ConnectionContext, type IntegrationProvider, type TokenSet } from '@/modules/integrations/providers/types';
 
 export type Connection = typeof integrationConnections.$inferSelect;
@@ -44,7 +44,11 @@ export async function openConnection(
 ): Promise<{ connection: Connection; provider: IntegrationProvider; ctx: ConnectionContext }> {
   const [connection] = await dbAdmin.select().from(integrationConnections).where(eq(integrationConnections.id, connectionId));
   if (!connection || connection.status === 'disconnected') throw new ProviderError('no_connection');
-  const provider = getProvider(connection.provider as ProviderKey, connection.mode as ConnectionMode);
+  // Personal connections (FR1.6) run on the person's pasted token; agency connections on the agency's app.
+  const provider = (connection.ownerId ? getPersonalProvider : getProvider)(
+    connection.provider as ProviderKey,
+    connection.mode as ConnectionMode,
+  );
   let tokens = await readSecret(connectionId);
   if (!tokens) throw new ProviderError('auth_revoked', 'no token stored');
   if (tokens.expiresAt && new Date(tokens.expiresAt).getTime() - Date.now() < REFRESH_MARGIN_MS) {
@@ -229,8 +233,12 @@ export async function saveConnection(input: {
   settings?: Record<string, string>;
   /** Reconnect this connection instead of creating a new one. */
   connectionId?: string | null;
+  /** A personal connection of this person ("My connected accounts", FR1.6). */
+  ownerId?: string | null;
+  /** Display name chosen by the owner (defaults to the platform account name). */
+  name?: string | null;
 }): Promise<{ connectionId: string; reconnected: boolean }> {
-  const provider = getProvider(input.provider, input.mode);
+  const provider = (input.ownerId ? getPersonalProvider : getProvider)(input.provider, input.mode);
   const settings = input.settings ?? {};
   const probe: ConnectionContext = { connectionId: input.connectionId ?? 'new', mode: input.mode, tokens: input.tokens, settings };
   const identity = await provider.identify(probe);
@@ -259,6 +267,7 @@ export async function saveConnection(input: {
             eq(integrationConnections.provider, input.provider),
             eq(integrationConnections.mode, input.mode),
             eq(integrationConnections.externalUserId, identity.externalUserId),
+            input.ownerId ? eq(integrationConnections.ownerId, input.ownerId) : isNull(integrationConnections.ownerId),
           ),
         );
       connectionId = same?.id ?? null;
@@ -279,7 +288,12 @@ export async function saveConnection(input: {
     if (connectionId) {
       await tx
         .update(integrationConnections)
-        .set({ ...values, connectedBy: input.actorId, connectedAt: new Date() })
+        .set({
+          ...values,
+          ...(input.name ? { name: input.name.slice(0, 120) } : {}),
+          connectedBy: input.actorId,
+          connectedAt: new Date(),
+        })
         .where(eq(integrationConnections.id, connectionId));
     } else {
       connectionId = crypto.randomUUID();
@@ -288,8 +302,9 @@ export async function saveConnection(input: {
         organizationId: input.organizationId,
         provider: input.provider,
         mode: input.mode,
-        name: identity.name.slice(0, 120) || input.provider,
+        name: (input.name || identity.name).slice(0, 120) || input.provider,
         connectedBy: input.actorId,
+        ownerId: input.ownerId ?? null,
         ...values,
       });
     }

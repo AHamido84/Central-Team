@@ -63,6 +63,7 @@ export const agencyPermissions = [
   'capacity:manage',
   'integrations:read',
   'integrations:manage',
+  'integrations:connect',
   'automations:read',
   'automations:manage',
   'whatsapp:send',

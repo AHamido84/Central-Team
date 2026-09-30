@@ -33,6 +33,10 @@ const SANDBOX_ACCOUNTS: Record<ProviderKey, (ExternalAccount & { kind: AccountKi
     { kind: 'ad_account', externalId: 'sbx_gads_5001', name: 'Sandbox Google Ads', currency: 'SAR', timezone: 'Asia/Riyadh' },
     { kind: 'analytics_property', externalId: 'sbx_ga4_6001', name: 'Sandbox GA4 property', timezone: 'Asia/Riyadh' },
   ],
+  x: [{ kind: 'ad_account', externalId: 'sbx_x_8001', name: 'Sandbox X Ads account', currency: 'SAR', timezone: 'Asia/Riyadh' }],
+  linkedin: [
+    { kind: 'ad_account', externalId: 'sbx_li_9001', name: 'Sandbox LinkedIn Campaign Manager', currency: 'SAR', timezone: 'Asia/Riyadh' },
+  ],
   whatsapp: [{ kind: 'whatsapp_number', externalId: 'sbx_wa_7001', name: '+966 55 000 7001', metadata: { displayPhone: '+966550007001' } }],
 };
 
