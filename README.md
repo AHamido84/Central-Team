@@ -26,6 +26,8 @@ Emails (invites, magic links, resets, notifications) land in Mailpit: http://loc
 | عبدالرحمن الشهري | abdulrahman@ofoq.test | Agency · Account Manager (Future Smile, Gulf Vision) — English UI |
 | ريم الدوسري / لمى الزهراني | reem@ / lama@ofoq.test | Agency · Team Lead (Design / Video) |
 | خالد المطيري, عمر الغامدي, هند السبيعي, تركي العنزي | khalid@ / omar@ / hind@ / turki@ofoq.test | Agency · Specialist (Turki has a “see all clients” override) |
+| ماجد الشهري | majed@ofoq.test | Agency · Sales Manager (whole pipeline, Sales settings, turns won deals into clients) |
+| Ruba Haddad | ruba@ofoq.test | Agency · Sales Rep (own leads and deals) — English UI |
 | محمد الراشد | mohammed@najd.test | Client Owner · مطاعم نجد الأصيلة |
 | عبير السالم | abeer@najd.test | Client Member (approver) · Najd |
 | سعد الفهد | saad@najd.test | Client Viewer · Najd |

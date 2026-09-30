@@ -12,11 +12,11 @@ Last updated: 2026-09-30 · Branch: `claude/stoic-cray-wud1ib` · Read with `CLA
 | 3 — Tasks & Deliverables | **Built.** Workflow templates + visual builder, configurable task statuses, "Convert to tasks", tasks (board with swimlanes, list, table with bulk/inline edit, calendar, My Work, saved views, keyboard drawer, realtime, time tracking), deliverables with resumable uploads and versions, internal review → client approval with image pins / video timestamps, revision rounds, portal approvals center + content calendar + request progress, reminders |
 | 4 — Campaigns | **Built.** Campaigns per client with channels, budgets and KPI targets; daily metrics by hand (week grid) or CSV import with Meta/TikTok/Snapchat/Google detection; analytics (KPI pacing, budget pacing, health, trend + channel charts); report builder with published snapshots, print/PDF and weekly/monthly schedules; portal campaigns + reports; notifications (campaign live, at risk, stale numbers, report ready/published) |
 | 5 — Agency Operations | **Built.** Ops dashboard across accessible clients (scope by account manager, tiles, client portfolio by health, needs-attention list, workload by department, SLA compliance); Client 360 on the client overview (health score with reasons, SLA compliance, deadlines, one activity stream) and health on the clients list; team workload (`/team`, `/team/[id]`); SLA policies (`/admin/sla`: match by client/type/priority, reply in business hours, delivery in working days, pause on client, escalation, business hours, holidays), SLA targets on requests, daily breach sweep + alerts, SLA monitor (`/sla`) with acknowledgement |
-| 6 — CRM & Capacity | **Next** |
+| 6 — CRM & Capacity | **Built.** Leads (manual, CSV import with mapping, public embeddable form `/f/[token]` with honeypot + signed ticket + rate limits, inbound webhook), Saudi phone normalisation, duplicates + merge, assignment rules with round-robin; configurable pipelines, Kanban with drag & drop (+ keyboard), deal page (stage bar, contacts, activities, files, quotes with AR/EN print), won → client in one step (client, package, portal invitation, onboarding tasks); follow-ups view, due / quiet-deal reminders and sales notifications; sales dashboard (pipeline by stage, conversion, win rate, cycle, sources, per person, forecast vs target); capacity planning (`/capacity`: 8-week department heatmap, over-allocated people, "can we take this client?" simulator, hours / time off / service effort); Sales Manager + Sales Rep roles |
 
-Verified green on a fresh seed: `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 134 unit tests, 113 DB tests
-(RLS, dispatcher, approval state machine, reminders, campaign sweep, SLA calendar parity, SLA triggers/RLS, SLA sweep),
-22 Playwright e2e tests, `pnpm build`. The CI workflow (`.github/workflows/ci.yml`) is written but has not run on GitHub yet.
+Verified green on a fresh seed: `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 157 unit tests, 131 DB tests
+(RLS, dispatcher, approval state machine, reminders, campaign sweep, SLA calendar parity, SLA triggers/RLS, SLA sweep,
+CRM triggers/RLS, capacity readers, lead intake, CRM sweep), 23 Playwright e2e tests, `pnpm build`. The CI workflow (`.github/workflows/ci.yml`) is written but has not run on GitHub yet.
 
 ## Run it
 
@@ -85,6 +85,19 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 25. **`issuesOf()` / `openRequestsForSla()` are shared** by the SLA monitor, the ops dashboard and Client 360 — change the
     SLA state rules in `requests/constants.ts` (`slaState`, `responseState`), never in a view.
 26. DataTables render desktop rows and hidden mobile cards: in Playwright filter to `{ visible: true }` before `.first()`.
+27. **Actions that reuse other modules' services run as the caller** (e.g. won → client creates folders, a thread, tasks
+    and task members): every table touched needs the caller's rights. `defineAction` maps Postgres `42501` to
+    `forbidden` — to find which statement, log the original error there temporarily.
+28. **`INSERT … RETURNING` fails when the table's SELECT policy looks the new row up through a STABLE function**
+    (`app.can_access_client(clients.id)` can't see it yet): insert with an app-generated id and no `returning`, as
+    `createClientRecord()` does.
+29. **Deal and lead triggers stamp `last_activity_at = now()`** when a stage is set; a seed with historical dates must
+    recompute it afterwards (`scripts/seed-crm.ts` does).
+30. **`sr-only` spans inside table cells need `relative` on the cell**: absolute children escape an `overflow-x-auto`
+    wrapper and widen the page on mobile (capacity heatmap).
+31. Request form field types are `short_text` / `long_text` (not `text` / `textarea`) — seed forms are typechecked.
+32. The capacity demand readers (`app.capacity_*`) raise `42501` without `capacity:read`; call them only from
+    `getCapacity()` (ADR-060).
 
 ## Production (live demo)
 
@@ -92,13 +105,13 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 |---|---|
 | URL | https://centralteam.vercel.app (Vercel project `centralteam`, Hobby plan) |
 | Database | Supabase project `udqhetkwsqpyyuurajcb` (created through the Vercel ↔ Supabase integration) |
-| Deployed from | branch `claude/stoic-cray-wud1ib` (Phase 4, commit `ee2e20c`). **Phase 5 is pushed but not deployed** — waiting for the owner's go and a Vercel token |
+| Deployed from | branch `claude/stoic-cray-wud1ib` (Phase 4, commit `ee2e20c`). **Phases 5 and 6 are pushed but not deployed** — waiting for the owner's go and a Vercel token |
 | Data | the demo seed (agency "Ofoq", 5 clients, 23 users, password `Passw0rd!` for all) + Phase 4 demo campaigns |
 
 How it works:
 - **Deploy** = a Vercel production build of the branch. `vercel.json` runs `pnpm db:deploy && pnpm build`:
   `scripts/deploy-db.ts` applies pending `supabase/migrations` (tracked in `supabase_migrations.schema_migrations`,
-  CLI-compatible) and, while `SEED_ON_DEPLOY=1`, seeds an empty DB once / adds the demo campaigns once / adds the Phase 5 SLA demo data once (`scripts/seed-sla-standalone.ts`) (ADR-045).
+  CLI-compatible) and, while `SEED_ON_DEPLOY=1`, seeds an empty DB once / adds the demo campaigns once / adds the Phase 5 SLA demo data once (`scripts/seed-sla-standalone.ts`) / adds the Phase 6 sales team, leads, deals and capacity settings once (`scripts/seed-crm-standalone.ts`, creates `majed@` and `ruba@ofoq.test`) (ADR-045).
   Trigger it from the Vercel dashboard (Redeploy) or the Vercel API with a token — tokens are **not** stored in the
   repo or the environment; the owner provides one per session.
 - **Env vars on Vercel** (all set): the integration's `SUPABASE_*`, `NEXT_PUBLIC_SUPABASE_*`, `POSTGRES_URL*` (read via
@@ -107,7 +120,7 @@ How it works:
 - **Auth**: the custom access token hook is **not** enabled in the Supabase dashboard; the app works anyway because
   the claims are mirrored into `app_metadata` (ADR-046). Site URL / redirect URLs in Supabase Auth should be set to the
   Vercel URL (owner's task) for magic links and password resets.
-- **Cron**: daily at 05:00 UTC (08:00 Riyadh) — reminder sweep, campaign sweep, SLA breach sweep, dispatcher safety net (ADR-044/055).
+- **Cron**: daily at 05:00 UTC (08:00 Riyadh) — reminder sweep, campaign sweep, SLA breach sweep, CRM sweep (follow-ups due, quiet deals), dispatcher safety net (ADR-044/055/066).
 - **Network (cloud sessions)**: `api.vercel.com` must be allowed; direct Postgres (port 5432/6543) to Supabase is
   blocked from the sandbox, so DB changes only happen through the Vercel build.
 
@@ -118,9 +131,10 @@ How it works:
 - Before real clients: set `SEED_ON_DEPLOY=0`, delete the demo accounts or change their passwords, **rotate the Supabase
   DB password and the Vercel token** (both were pasted into a chat), enable the auth hook, set Auth URLs.
 - Email: Resend account + verified sending domain, then `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `EMAIL_FROM`.
+- Optional: a dedicated `FORM_SIGNING_SECRET` on Vercel for the public lead form tickets (falls back to the Supabase secret key).
 - Custom domain (the owner's network blocks some `*.app` hosts — ADR-015) and a Pro plan for a 5-minute cron.
 - Answers to open questions in `docs/DECISIONS.md` (brand, logo, domain, sending email, data residency/PDPL).
-- Human QA on real devices; deferred items in `docs/ROADMAP.md` §3.9 and §4.9.
+- Human QA on real devices; deferred items in `docs/ROADMAP.md` (each phase has a "Deferred" list).
 
 ## Starting a new session
 
@@ -128,13 +142,15 @@ How it works:
    `pnpm db:reset` if the stack exists). In cloud sandboxes Docker may need `dockerd &` first, the Supabase CLI may be
    missing (install the release binary from github.com/supabase/cli, same version as CI: 2.118.0), Playwright needs
    `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`, and `pnpm dev` must be started in the background.
-2. Verify: `pnpm check`, `pnpm test:db`, `pnpm test:e2e` (expect 134 / 113 / 22 green), `pnpm build`. On a cold dev
+2. Verify: `pnpm check`, `pnpm test:db`, `pnpm test:e2e` (expect 157 / 131 / 23 green), `pnpm build`. On a cold dev
    server the first e2e run can time out on a first-compiled route; re-run that spec before treating it as a failure.
 3. Work on branch `claude/stoic-cray-wud1ib` (or the one the owner names); Conventional Commits; plan in ROADMAP +
-   DATA_MODEL before building a phase; decisions in DECISIONS (next ADR: **058**).
+   DATA_MODEL before building a phase; decisions in DECISIONS (next ADR: **067**).
 
-## Suggested Phase 6 scope (from the roadmap)
+## Suggested Phase 7 scope (from the roadmap)
 
-CRM & capacity: leads, pipeline stages, deals and activities, won deal → client (reusing client creation), and team
-capacity planning (available hours per person/department vs task estimates — `/team` already shows open work, reviews
-and logged time, and `tasks.estimate_minutes` exists). Deferred items: `docs/ROADMAP.md` §3.9, §4.9 and §5.8.
+Integrations & automation: platform connections (Meta Ads + Pages, WhatsApp Business, TikTok, Snapchat, Google Ads /
+Analytics) with tokens in Supabase Vault, metric sync into `metrics_daily` (today filled by hand / CSV), lead
+ads into `ingestLead()` (the webhook contract in ARCHITECTURE §21 is the shape), WhatsApp as a notification channel,
+and an automation engine whose triggers are `domain_events` types. Deferred items: `docs/ROADMAP.md` (Deferred lists
+in §3–§6).

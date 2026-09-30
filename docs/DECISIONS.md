@@ -433,6 +433,96 @@ hours and holidays. Policies and holidays are readable by every agency member (t
 need request access, and acknowledging needs `operations:read` or `requests:triage`. None of the SLA tables reach the
 portal; the request list returns response targets only when the viewer can read the policy.
 
+### ADR-058 — CRM ownership model and RLS
+2026-09-30 · Accepted
+Leads, deals and their children (contacts, activities, files, quotes) are agency-only tables. Reading needs
+`leads:read` / `deals:read`; writing needs `leads:manage` / `deals:manage` **and** being the owner, or the record being
+unassigned; `crm:manage_all` writes anyone's (reassign, merge, delete). Settings (pipelines, forms, rules, targets,
+webhook tokens, stale days, onboarding workflow) need `crm:admin`. The checks live in `app.crm_can_write()` /
+`app.can_write_deal()` / `app.can_write_lead()`, so the UI's "can edit" comes from the same SQL. Two seeded roles:
+**Sales Manager** (all CRM rights, can create clients) and **Sales Rep** (own leads and deals); Account Managers read
+the pipeline. Deal status, probability and won/lost stamps are derived from the stage by a trigger (losing requires a
+reason; a converted deal stays won), and every stage change writes `deal_stage_history` for conversion metrics.
+*Rejected*: per-client visibility for sales data — leads aren't clients yet, and a small sales team works one
+shared pipeline.
+
+### ADR-059 — Capacity demand model
+2026-09-30 · Accepted
+Capacity and demand are hours per department per week (Sunday–Saturday) for 8 weeks. Capacity is each member's
+hours/week (default 40) × working days ÷ 5, minus org holidays and time off; someone in two departments is split
+evenly. Demand has three parts: (1) open tasks with an estimate and a due date, spread over their working window
+(overdue work lands this week); (2) package work, from a per-item **service effort** matrix (e.g. one reel = 4h video
++ 1h content), for what is left of the current period and then the full package while the client stays active;
+(3) open deals with a target package, weighted by probability from their expected close. To avoid counting the same
+work twice, a client's package demand in a department and week only counts what that client's scheduled tasks there
+don't already cover (package work is a floor, not an addition). Levels: ≥ 85% tight, > 100% over. The simulator adds a
+package at 100% from a chosen week. The maths is pure (`src/modules/capacity/calc.ts`) and runs in the browser for the
+simulator. *Rejected*: time-tracking-based forecasts (too little history yet) and per-person scheduling.
+
+### ADR-060 — Capacity readers are numbers-only definer functions
+2026-09-30 · Accepted
+Planning needs every estimated task, active package and weighted deal, even those the planner's own RLS hides (a team
+lead can't read the pipeline; a sales manager doesn't see every task). `app.capacity_tasks`, `app.capacity_packages`
+and `app.capacity_deals` are `security definer` functions that raise `42501` without `capacity:read` and return only
+ids, dates, estimates, quantities and probabilities — no titles, names, notes or deal values. *Rejected*: the service
+role in the page query (not an allowed service path) and widening task/deal RLS.
+
+### ADR-061 — Won → client runs as the caller
+2026-09-30 · Accepted
+"Turn into client" is one transaction under the caller's RLS: client (+ account manager, team, default folders and
+general thread) → package for today + 30 days → portal invitation to a chosen contact → onboarding request converted
+to tasks through the workflow template in Sales settings → deal linked to the client (`deal.converted`). It needs the
+same rights as doing each step by hand, so the Sales Manager role also holds `clients:create/update`,
+`client_users:manage`, `packages:assign`, `requests:triage`, `tasks:create/update`, `files:upload` and
+`messages:send`. Before starting, the action checks what the chosen workflow needs (deliverable steps also need
+`deliverables:manage`) and fails with `onboarding_not_permitted` rather than a bare "forbidden". The seeded onboarding
+workflow is five plain internal tasks, so a Sales Manager can run it; an agency that adds deliverable steps either
+grants that right or leaves onboarding to an account manager. Sales Reps can't convert. *Rejected*: running the
+conversion with the service role, which would let anyone with `clients:create` bypass every other check.
+
+### ADR-062 — Public lead form: embeddable, signed, rate-limited
+2026-09-30 · Accepted
+`/f/[token]` is public and the only embeddable route (`frame-ancestors *`, no `X-Frame-Options`; everything else stays
+`frame-ancestors 'none'`). Spam protection without a captcha: a hidden honeypot field, an HMAC-signed load-time ticket
+(`FORM_SIGNING_SECRET`, falls back to the Supabase secret) that must be 3 seconds to 6 hours old, and rate limits of 5
+submissions per IP per 10 minutes and 200 per form per hour. Submissions go through `ingestLead()` with the service
+connection (listed service path, CLAUDE.md §6): the visitor has no session. The form speaks the visitor's language.
+*Rejected*: a third-party captcha (another processor of visitor data, and blocked on some networks).
+
+### ADR-063 — Inbound lead webhook contract (for Phase 7)
+2026-09-30 · Accepted
+`POST /api/webhooks/leads` with `Authorization: Bearer <token>`; tokens are created in Sales settings, shown once, and
+stored as SHA-256 hashes (revocable, last use recorded). The body is the snake_case contract in ARCHITECTURE §21
+(`external_ref` required). Replays with the same `source` + `external_ref` return `200 {duplicate: true}` without a
+new lead; a new external lead matching an existing phone/email becomes an activity on that lead. Phase 7 connectors
+(Meta lead ads, WhatsApp, TikTok) will call the same `ingestLead()` instead of the HTTP endpoint.
+
+### ADR-064 — Duplicates and merge
+2026-09-30 · Accepted
+Phones are normalised to E.164, Saudi-first (`05…`, `5…`, `9665…`, `009665…`, Arabic-Indic digits all become
+`+9665…`; landlines `01x…` become `+9661x…`); emails are lower-cased (also by trigger). A duplicate is any non-merged lead sharing the phone or the email.
+Creating shows a warning; form and webhook repeats become an activity on the existing lead. Merging (`crm:manage_all`)
+keeps the primary's values, fills its gaps from the other, unites services and tags, keeps the furthest status, moves
+activities and deals, and marks the other `merged` (kept for the audit trail, hidden from lists).
+
+### ADR-065 — Quotes
+2026-09-30 · Accepted
+Quote numbers and totals are server-owned: `app.quote_recalculate()` rounds each line (quantity × unit price, in
+halalas) and subtracts the discount; client-sent totals are ignored. Only drafts can be edited or deleted; sent,
+accepted and declined quotes are history. A quote prints in **its own** language and direction (chosen per quote), not
+the viewer's, through the same print stylesheet as reports ("Print / PDF", ADR-049). Line items can come from a
+package (name and price copied at the time) or free text. Prices exclude VAT unless stated.
+
+### ADR-066 — Sales reminders and notifications
+2026-09-30 · Accepted
+`runCrmSweep()` runs with the other sweeps from the cron route (service connection, listed path): an open activity due
+before the end of today (org time zone) is announced once (`reminded_at`, cleared when it is rescheduled), and an open
+deal with no completed activity for `crm_settings.stale_days` (default 7) is announced once per quiet spell
+(`stale_notified_at`). Notifications come from the `notifications.crm` consumer in a new **sales** category that
+client users never see: lead assigned (new owner), follow-up due (owner), deal gone quiet (owner, else sales
+managers), deal won (sales managers and owner). Scheduled activities don't count as contact; completed ones move a
+new lead to contacted.
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

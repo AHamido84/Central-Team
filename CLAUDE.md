@@ -32,8 +32,8 @@ Built single-agency first, but **multi-tenant ready**: every tenant-scoped row c
 | 3 — Tasks & Deliverables | Workflow templates, tasks (board/list/table/calendar/My Work), deliverables & versions, internal review, client approvals with annotations, content calendar | **Done** |
 | 4 — Campaigns | Campaigns, channels & KPI targets, daily metrics (entry + CSV import), analytics with pacing/health, client reports (snapshots, print/PDF, schedules), portal campaigns & reports | **Done** |
 | 5 — Agency Operations | Ops dashboard across clients, Client 360 with client health, team workload views, SLA policies (business hours, holidays, pause on client) with breach alerts, SLA monitor | **Done** |
-| 6 — CRM & Capacity | Leads, pipeline, deals, team capacity | **Next** |
-| 7 — Integrations & Automation | Meta, WhatsApp, TikTok, Snap, Google, automation engine | — |
+| 6 — CRM & Capacity | Leads (manual, CSV, public form, webhook; dedup/merge; assignment rules), pipelines & deals, quotes, won → client, follow-ups, sales dashboard, capacity planning with simulator | **Done** |
+| 7 — Integrations & Automation | Meta, WhatsApp, TikTok, Snap, Google, automation engine | **Next** |
 | 8 — AI Intelligence | AI analysis, recommendations, reports, assistant | — |
 
 Current state & gotchas: `docs/HANDOFF.md` (read first in a new session). Details: `docs/ROADMAP.md`. Architecture: `docs/ARCHITECTURE.md`. Data: `docs/DATA_MODEL.md`.
@@ -62,7 +62,7 @@ UI: `docs/UI.md`. Decisions: `docs/DECISIONS.md` (append-only, numbered).
 pnpm install            # install deps (Node 22, pnpm 10)
 cp .env.example .env.local   # then paste keys from `supabase status -o env`
 pnpm db:start           # start local Supabase (Docker)
-pnpm db:reset           # drop + migrate + seed (1 agency, 10 staff, 5 Saudi clients, files, threads, request types + requests, workflows, ~320 tasks, deliverables at every review stage, campaigns with ~90 days of metrics, reports, SLA policies, holidays and a breach log)
+pnpm db:reset           # drop + migrate + seed (1 agency, 12 staff incl. a sales manager and rep, 5 Saudi clients, files, threads, request types + requests, workflows, ~320 tasks, deliverables at every review stage, campaigns with ~90 days of metrics, reports, SLA policies, holidays and a breach log, leads, deals in every stage, quotes, capacity settings)
 pnpm dev                # Next.js dev server on http://localhost:3000
 pnpm db:generate        # drizzle-kit: generate SQL migration from schema changes
 pnpm lint               # ESLint (incl. RTL logical-properties rule and no hardcoded JSX text)
@@ -123,7 +123,8 @@ Rules:
 - **Reads** in Server Components go through module `server/queries.ts` using the RLS-scoped DB (`withRls`).
 - **Service-role access** (`supabaseAdmin`, `dbAdmin`) is allowed only in these server paths: invitation preview/
   acceptance, the domain-event dispatcher and its consumers (incl. `notify()` fan-out), signed storage URLs issued after an RLS-checked lookup, the rate limiter, the reminder sweeps
-  (`runReminderSweep`, `runCampaignSweep`, `runSlaSweep`, cron), and the seed. Every use needs a comment why.
+  (`runReminderSweep`, `runCampaignSweep`, `runSlaSweep`, `runCrmSweep`, cron), public lead intake (`ingestLead` from the
+  website form and the lead webhook — no session exists), and the seed. Every use needs a comment why.
 - **Errors**: actions return `{ ok: true, data } | { ok: false, error: { code, message?, fieldErrors? } }`;
   error `code`s are translated in the UI. Never leak DB error text to users.
 - **Commits**: Conventional Commits (`feat(auth): …`, `fix(rbac): …`, `docs: …`). One logical change per commit.

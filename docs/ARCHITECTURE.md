@@ -609,3 +609,70 @@ sequenceDiagram
   breaches and alerts (ADR-055). The cron route runs reminders → campaigns → SLA → dispatcher.
 - Scoping: every ops number comes from RLS-scoped queries (`withRls`), so views are limited to the clients the viewer
   can access; time totals follow `time:read_all` (ADR-056).
+
+## 21. Phase 6 — CRM & capacity
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor V as Website visitor
+  participant F as /f/[token] (public, embeddable)
+  participant API as /api/public/lead-forms/[token]
+  participant DB as Postgres (RLS + triggers)
+  actor Rep as Sales rep
+  actor SM as Sales manager
+  participant Cron as Daily cron
+  V->>F: load (server signs a time ticket)
+  V->>API: submit (honeypot, ticket 3s–6h, rate limits)
+  API->>DB: ingestLead (service path) → duplicate? activity on existing lead : insert + assignment rules (round-robin)
+  DB-->>Rep: lead.assigned → notifications.crm
+  Rep->>DB: convertLeadAction → deal (first open stage, primary contact) · moveDealAction … Won
+  SM->>DB: convertDealToClientAction (one RLS transaction)
+  Note over DB: client + folders + thread → client package → invitation → onboarding request → workflow tasks → deal.converted
+  DB-->>V: invitation email (after-hook)
+  Cron->>DB: runCrmSweep → crm_activity.due · deal.stale → notifications.crm
+```
+
+- Modules: `src/modules/crm` — `leads.ts` (phone/email normalisation, duplicates, merge, score, rule matching),
+  `metrics.ts` (weighted value, stage conversion, win rate, cycle, forecast, sources, per owner), `quotes.ts` (totals,
+  mirror of `app.quote_recalculate`), `server/` (`intake.ts` public form + webhook, `queries.ts`, `actions.ts`,
+  `deal-actions.ts` files/quotes/conversion, `settings-actions.ts`, `dashboard.ts`, `sweep.ts`, `consumers.ts`),
+  `components/`. `src/modules/capacity` — `calc.ts` (pure capacity maths, ADR-059), `server/queries.ts` (inputs via
+  the `app.capacity_*` readers, ADR-060), `server/actions.ts` (hours, time off, service effort), `components/`.
+- Routes: `/crm/leads`, `/crm/leads/[id]`, `/crm/pipeline` (`?pipeline=`), `/crm/deals/[id]`, `/crm/quotes/[id]`
+  (print / PDF in the quote's language), `/crm/follow-ups` (`?scope=all` with `crm:manage_all`), `/crm/dashboard`
+  (`?period=month|quarter|year&owner=&pipeline=`), `/capacity`, `/admin/crm`; public `/f/[token]`,
+  `POST /api/public/lead-forms/[token]`, `POST /api/webhooks/leads`. The proxy treats `/f/`, `/api/public/` and
+  `/api/webhooks/` as public; only `/f/` may be framed.
+- Files: private `crm-files` bucket, `org/<org>/deals/<deal>/<file>-<name>`, signed upload after `app.can_write_deal`,
+  signed download for rows the caller can select (same pattern as client files).
+- The cron route now runs reminders → campaigns → SLA → CRM → dispatcher.
+
+### Inbound lead webhook (contract for Phase 7 and third parties)
+
+```http
+POST /api/webhooks/leads
+Authorization: Bearer ctw_…            (Sales settings → Integrations; shown once, stored hashed)
+Content-Type: application/json
+
+{
+  "external_ref": "meta-lead-123456",  // required, unique per source — replays are ignored
+  "source": "lead_ad",                 // website_form | whatsapp | instagram | referral | event | lead_ad | manual | other (default lead_ad)
+  "source_detail": "Meta · Ramadan",   // optional, free text
+  "full_name": "Sara Al-Otaibi",       // required
+  "company": "Qahwa Lab",              // optional
+  "phone": "0551234567",               // phone or email required; Saudi formats normalised to E.164
+  "email": "sara@example.com",
+  "city": "riyadh",                    // optional: riyadh | jeddah | dammam | khobar | makkah | madinah | abha | taif | tabuk | qassim | other
+  "services": ["social_media", "ads"], // optional: social_media | content | design | video | photography | ads | branding | web | influencers
+  "budget_range": "15k_50k",           // optional: under_5k | 5k_15k | 15k_50k | 50k_plus | unknown
+  "message": "…"                       // optional, stored in the lead notes
+}
+```
+
+| Response | Meaning |
+|---|---|
+| `201 {"leadId", "duplicate": false}` | New lead, assigned by the rules |
+| `200 {"leadId", "duplicate": true}` | Same `external_ref` again, or an existing lead with that phone/email (the submission is added to it as an activity) |
+| `400 {"error": "validation", "fieldErrors"}` | Invalid body |
+| `401` / `429` | Missing, unknown or revoked token / more than 120 requests per minute per token |

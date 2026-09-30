@@ -779,10 +779,10 @@ erDiagram
 | `deals` | `number` (`D-12`), `title`, `lead_id?`, `company`, `pipeline_id`, `stage_id`, `status` (`open · won · lost`, from the stage kind), `value_minor` + `currency`, `probability` (stage default, overridable), `expected_close_date`, `owner_id`, `package_id?` (what they'd buy), `lost_reason` (`price · timing · competitor · no_response · not_fit · other`), `lost_note`, `won_at`, `lost_at`, `client_id?`, `converted_at`, `last_activity_at`, `stale_notified_at` | Trigger: status/stamps follow the stage; moving into a stage resets probability to the stage's; lost needs a reason. |
 | `deal_stage_history` | `deal_id`, `from_stage_id`, `to_stage_id`, `actor_id`, `created_at` | Written by trigger; feeds conversion rates and cycle length. |
 | `deal_contacts` | `deal_id`, `full_name`, `job_title`, `phone`, `email`, `is_primary` | At most one primary per deal; the primary gets the portal invitation on conversion. |
-| `crm_activities` | `lead_id?` / `deal_id?` (one required), `type` (`call · meeting · email · whatsapp · note · task`), `subject`, `body`, `due_at`, `completed_at`, `owner_id`, `reminded_at` | Insert bumps the parent's `last_activity_at` (trigger). |
+| `crm_activities` | `lead_id?` / `deal_id?` (one required), `type` (`call · meeting · email · whatsapp · note · task`), `subject`, `body`, `due_at`, `completed_at`, `owner_id`, `reminded_at` | A completed activity (or a note) bumps the parent's `last_activity_at` and moves a `new` lead to `contacted`; scheduled ones don't (trigger). `reminded_at` is set once by the sweep and cleared on reschedule. |
 | `crm_files` | `deal_id`, `storage_path`, `name`, `mime_type`, `size_bytes`, `uploaded_by` | Private `crm-files` bucket, path `org/<org>/deals/<deal>/<uuid>-<name>`; signed URLs after an RLS-checked lookup. |
 | `quotes` / `quote_items` | quote `number` (`Q-12`), `deal_id`, `title`, `locale`, `status` (`draft · sent · accepted · declined`), `valid_until`, `discount_minor`, `subtotal_minor`, `total_minor`, `notes`, `sent_at`; item `package_id?`, `description`, `quantity`, `unit_price_minor`, `sort_order` | Totals recomputed by trigger from items; print/PDF from the browser (as reports, ADR-049). |
-| `lead_forms` | `name`, `token` (public, random), `is_active`, `services text[]` (offered choices), `thank_you` (AR/EN), `submissions` | Embedded with an iframe snippet; submissions go through the service connection after spam checks (ADR). |
+| `lead_forms` | `name`, `token` (public, random), `is_active`, `services text[]` (offered choices), `thank_you` (AR/EN), `submissions` | Embedded with an iframe snippet; submissions go through the service connection after spam checks (ADR-062). |
 | `lead_assignment_rules` | `name`, `match_services`, `match_cities`, `match_sources` (empty = any), `member_ids uuid[]`, `cursor`, `is_active`, `sort_order` | First matching active rule wins; round-robin over its active members. |
 | `crm_webhook_tokens` | `name`, `token_hash` (SHA-256), `last_used_at`, `revoked_at` | Bearer tokens for `POST /api/webhooks/leads` (Phase 7 integrations). |
 | `sales_targets` | `owner_id?` (null = team), `month` (1st of month), `amount_minor` | Unique (org, owner, month). |
@@ -796,10 +796,11 @@ erDiagram
   Friday/Saturday, org holidays and the member's time off. Department capacity = the sum over its members (a member in
   several departments is split evenly).
 - Demand per department and week: (1) open tasks with an estimate and a department, spread evenly over the working days
-  from start (or due − 5 working days) to due; (2) remaining package work — for each active client package, the items
-  not used yet × effort per unit, spread over the period's remaining weeks (used items are already tasks); later
-  periods at the full monthly quantity for clients whose package continues; (3) open deals with a target package —
-  the package's monthly effort × probability from the week of the expected close date.
+  from start (or due − 5 working days) to due, overdue work in the current week; (2) remaining package work — for each
+  onboarding/active client's current package, the items not used yet × effort per unit, spread over the period's
+  remaining working days, then later periods at the full quantity — **net of that client's scheduled task hours in the
+  same department and week** (package work is a floor, so the same work isn't counted twice, ADR-059); (3) open deals
+  with a target package — the package's monthly effort × probability from the expected close date.
 - Utilisation = demand ÷ capacity; ≥ 85 % tight, > 100 % over. The simulator adds a package's monthly effort from a
   start week and returns the same grid.
 
@@ -809,7 +810,8 @@ erDiagram
 |---|---|---|
 | `leads`, `deals`, children | read `leads:read` / `deals:read`; write `*:manage` when owner is you or empty, or `crm:manage_all` | — |
 | `pipelines`, stages, `lead_forms`, rules, tokens, `sales_targets`, `crm_settings` | read `leads:read` or `deals:read` (tokens: `crm:admin` only); write `crm:admin` | — |
-| `member_capacity`, `time_off`, `service_efforts` | read `capacity:read` (own time off always); write `capacity:manage` | — |
+| `member_capacity`, `time_off`, `service_efforts` | read `capacity:read` (own hours and time off always); write `capacity:manage`; rows only for agency members (trigger) | — |
+| `app.capacity_tasks` / `app.capacity_packages` / `app.capacity_deals` | definer functions, `capacity:read` or `42501`; numbers only (ids, dates, estimates, quantities, probabilities) — ADR-060 | — |
 
 ## 4. Forward-looking sketch (all phases — not built in Phase 0)
 

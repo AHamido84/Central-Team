@@ -202,7 +202,7 @@ export const setQuoteStatusAction = defineAction({
 /* -------------------------------------------------------------------------- */
 
 /**
- * One transaction, as the signed-in user (ADR): client (+ AM, team, folders, general thread) → package for the current
+ * One transaction, as the signed-in user (ADR-061): client (+ AM, team, folders, general thread) → package for the current
  * period → portal invitation for the chosen contact → onboarding request converted to tasks through the configured
  * workflow → deal linked to the client. Needs the same permissions as doing each step by hand (the Sales Manager role
  * has them). The invitation email goes out after commit.
