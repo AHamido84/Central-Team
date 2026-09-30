@@ -1,1 +1,70 @@
-{}
+{
+  "title": "Capacity planning",
+  "description": "Hours the team has against the work already scheduled, sold and in the pipeline, for the next 8 weeks.",
+  "explain": "Each cell is a department's demand as a share of its available hours that week: estimated tasks, remaining package work and weighted pipeline deals.",
+  "tabs": {
+    "plan": "Plan",
+    "team": "Team hours & leave",
+    "efforts": "Service effort"
+  },
+  "levels": {
+    "ok": "Has room",
+    "tight": "Tight (85%+)",
+    "over": "Over capacity"
+  },
+  "department": "Department",
+  "cellTitle": "{demand} of {capacity} hours · tasks {tasks}h · packages {packages}h · pipeline {pipeline}h · new client {simulated}h",
+  "hoursShort": "{demand}/{capacity}h",
+  "plusHours": "+{hours}h",
+  "simulator": {
+    "title": "Can we take this client?",
+    "body": "Pick a package and a start week to see how it would load each department.",
+    "package": "Package",
+    "choose": "Choose a package",
+    "start": "Starting",
+    "weekOf": "Week of {date}",
+    "horizon": "Look ahead",
+    "weeks": "{count, plural, one {# week} other {# weeks}}",
+    "verdict": {
+      "ok": "Yes — the team has room for it.",
+      "tight": "Possible, but it gets tight.",
+      "over": "Not without more people or moving work."
+    },
+    "impact": "{department}: +{hours}h, peaks at {peak}",
+    "noEffort": "This package has no service effort set up yet, so it adds no hours. Set it in Service effort."
+  },
+  "warnings": {
+    "title": "Over-allocated people",
+    "none": "No one is booked beyond their hours in the next 8 weeks.",
+    "week": "{date}: {demand}/{capacity}h"
+  },
+  "team": {
+    "title": "Weekly hours",
+    "hours": "Hours per week",
+    "perWeek": "h / week",
+    "noDepartment": "No department"
+  },
+  "timeOff": {
+    "title": "Time off",
+    "member": "Team member",
+    "from": "From",
+    "to": "To",
+    "kind": "Type",
+    "kinds": {
+      "annual": "Annual leave",
+      "sick": "Sick leave",
+      "other": "Other"
+    },
+    "add": "Add time off",
+    "remove": "Remove time off",
+    "empty": "No upcoming time off",
+    "emptyBody": "Leave recorded here reduces the capacity for those days."
+  },
+  "efforts": {
+    "body": "Hours each department spends on one unit of a package item (for example, one reel = 3h video + 1h content). Package and pipeline demand come from this.",
+    "item": "Package item"
+  },
+  "saved": "Saved.",
+  "emptyTitle": "No departments yet",
+  "emptyBody": "Create departments and add people to them to plan capacity."
+}

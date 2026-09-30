@@ -6,7 +6,7 @@
  * Demand: (1) open tasks with an estimate and a department, spread evenly over their working days (start, or 5 working
  * days before due, → due; overdue work lands in the first week); (2) package work still to do — the current period's
  * unused items, then the full quantity for following periods while the client stays active — at a daily rate over the
- * period's working days; (3) open deals with a target package: the package's work × probability from the expected close.
+ * period's working days, net of the same client's scheduled task hours that week; (3) open deals with a target package: the package's work × probability from the expected close.
  */
 
 export type Week = { start: string; end: string };
@@ -73,6 +73,8 @@ export function memberWeekCapacity(member: Member, week: Week, cal: Calendar, ti
 
 export type TaskDemand = {
   id: string;
+  /** The client the task works for; its hours count towards that client's package work (no double counting). */
+  clientId?: string | null;
   departmentId: string | null;
   estimateMinutes: number | null;
   startDate: string | null;
@@ -243,8 +245,27 @@ export function capacityGrid(input: CapacityInput): { departmentId: string; cell
     if (!t.departmentId) continue;
     merge(tasks, new Map([[t.departmentId, taskDays(t, input.today, cal)]]));
   }
-  const packages = new Map<string, Map<string, number>>();
-  for (const p of input.packages) merge(packages, packageDays(p, input.efforts, input.today, horizonEnd, cal));
+  // Package work is a floor per client: scheduled tasks for that client are assumed to deliver it, so a week's
+  // package demand only counts what the client's tasks in that department don't already cover (ADR-059).
+  const clientTasks = new Map<string, Map<string, Map<string, number>>>();
+  for (const t of input.tasks) {
+    if (!t.departmentId || !t.clientId) continue;
+    const m = clientTasks.get(t.clientId) ?? new Map<string, Map<string, number>>();
+    merge(m, new Map([[t.departmentId, taskDays(t, input.today, cal)]]));
+    clientTasks.set(t.clientId, m);
+  }
+  const clientPackages = new Map<string, Map<string, Map<string, number>>>();
+  for (const p of input.packages) {
+    const m = clientPackages.get(p.clientId) ?? new Map<string, Map<string, number>>();
+    merge(m, packageDays(p, input.efforts, input.today, horizonEnd, cal));
+    clientPackages.set(p.clientId, m);
+  }
+  const packageWeek = (departmentId: string, week: Week) => {
+    let n = 0;
+    for (const [clientId, byDept] of clientPackages)
+      n += Math.max(0, sumWeek(byDept.get(departmentId), week) - sumWeek(clientTasks.get(clientId)?.get(departmentId), week));
+    return n;
+  };
   const pipeline = new Map<string, Map<string, number>>();
   for (const d of input.deals) merge(pipeline, dealDays(d, input.efforts, input.today, horizonEnd, cal));
   const simulated = new Map<string, Map<string, number>>();
@@ -268,7 +289,7 @@ export function capacityGrid(input: CapacityInput): { departmentId: string; cell
         .reduce((n, m) => n + memberWeekCapacity(m, week, cal, input.timeOff) / m.departmentIds.length, 0);
       const cell = {
         tasks: sumWeek(tasks.get(departmentId), week),
-        packages: sumWeek(packages.get(departmentId), week),
+        packages: packageWeek(departmentId, week),
         pipeline: sumWeek(pipeline.get(departmentId), week),
         simulated: sumWeek(simulated.get(departmentId), week),
       };
