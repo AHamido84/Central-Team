@@ -1237,6 +1237,7 @@ export function TaskDrawer({
                     onChange={(ids) => void ctx.onPatch(task.id, { reviewerId: ids[0] ?? null }).then(() => ctx.onRefresh(task.id))}
                     label={t('tasks.fields.reviewer')}
                     disabled={!full.canUpdate}
+                    testId="drawer-reviewer"
                   />
                 </Prop>
                 <Prop label={t('tasks.fields.watchers')} locked={locked}>
@@ -1246,6 +1247,7 @@ export function TaskDrawer({
                     onChange={members('watcher')}
                     label={t('tasks.fields.watchers')}
                     disabled={!full.canUpdate}
+                    testId="drawer-watchers"
                   />
                 </Prop>
                 <Prop label={t('tasks.fields.department')} locked={locked}>

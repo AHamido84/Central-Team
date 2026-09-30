@@ -275,12 +275,13 @@ export const PopoverAnchor = PopoverPrimitive.Anchor;
 
 export function PopoverContent({ className, align = 'center', sideOffset = 6, ...props }: ComponentProps<typeof PopoverPrimitive.Content>) {
   return (
+    // Above sheets (z-60) and dialogs (z-70): menus and pickers opened inside a drawer must not render behind it.
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content
         align={align}
         sideOffset={sideOffset}
         className={cn(
-          'z-40 w-72 animate-in rounded-lg border border-border bg-surface-raised p-4 shadow-md fade-in-0 outline-none zoom-in-95',
+          'z-[80] w-72 animate-in rounded-lg border border-border bg-surface-raised p-4 shadow-md fade-in-0 outline-none zoom-in-95',
           className,
         )}
         {...props}

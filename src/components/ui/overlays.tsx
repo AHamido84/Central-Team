@@ -188,12 +188,13 @@ export function DropdownMenuContent({
   ...props
 }: ComponentProps<typeof DropdownPrimitive.Content>) {
   return (
+    // Above sheets (z-60) and dialogs (z-70): menus and pickers opened inside a drawer must not render behind it.
     <DropdownPrimitive.Portal>
       <DropdownPrimitive.Content
         sideOffset={sideOffset}
         align={align}
         className={cn(
-          'z-40 min-w-48 overflow-hidden rounded-lg border border-border bg-surface-raised p-1 shadow-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
+          'z-[80] min-w-48 overflow-hidden rounded-lg border border-border bg-surface-raised p-1 shadow-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
           className,
         )}
         {...props}
