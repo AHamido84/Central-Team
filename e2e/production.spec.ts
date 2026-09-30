@@ -144,8 +144,11 @@ test('task board: drag a card to another status, open the drawer, tick the check
   for (let i = 1; i <= 8; i++) {
     await page.mouse.move(from.x + ((to.x + to.width / 2 - from.x) * i) / 8, from.y + ((to.y + 60 - from.y) * i) / 8);
   }
+  // The card moves optimistically; wait for the server action that saves it before reloading.
+  const saved = page.waitForResponse((r) => r.request().method() === 'POST' && Boolean(r.request().headers()['next-action']));
   await page.mouse.up();
   await expect(active.locator(`[data-task-id="${taskId}"]`)).toBeVisible();
+  await saved;
   // The move is saved (survives a reload).
   await page.reload();
   await expect(active.locator(`[data-task-id="${taskId}"]`)).toBeVisible();
