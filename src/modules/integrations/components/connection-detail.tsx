@@ -298,7 +298,11 @@ export function ConnectionDetailView({
       <Tabs defaultValue="accounts">
         <TabsList className="w-full overflow-x-auto sm:w-auto">
           <TabsTrigger value="accounts">{t('tabs.accounts')}</TabsTrigger>
-          {showCampaigns ? <TabsTrigger value="campaigns">{t('tabs.campaigns')}</TabsTrigger> : null}
+          {showCampaigns ? (
+            <TabsTrigger value="campaigns" data-testid="tab-campaigns">
+              {t('tabs.campaigns')}
+            </TabsTrigger>
+          ) : null}
           {showCampaigns ? (
             <TabsTrigger value="sync" data-testid="tab-sync">
               {t('tabs.sync')}

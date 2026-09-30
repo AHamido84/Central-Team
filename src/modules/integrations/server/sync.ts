@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, eq, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, lte, or, sql } from 'drizzle-orm';
 
 import { dbAdmin } from '@/lib/db/client';
 import {
@@ -14,6 +14,7 @@ import {
   organizations,
 } from '@/lib/db/schema';
 import { emitEvent } from '@/lib/events/emit';
+import { runDispatcher } from '@/lib/events/schedule';
 import { refreshCampaignHealth } from '@/modules/campaigns/server/analysis';
 import { SYNC, terminalErrors, type ProviderErrorCode } from '@/modules/integrations/constants';
 import { aggregateToChannels, flightDays } from '@/modules/integrations/metrics';
@@ -298,7 +299,11 @@ export async function scheduleDailySyncs(now = new Date()): Promise<number> {
   return created;
 }
 
-/** Runs ids in the background of a request (after the response) — used by "Sync now" and "Backfill". */
+/**
+ * Runs ids in the background of a request (after the response) — used by "Sync now", "Backfill" and "Retry". The
+ * events the runs emit (`metrics.synced`, `campaign.health_changed`, `integration.sync_failed`) are delivered
+ * right away rather than at the next cron pass.
+ */
 export async function executeRunsQuietly(ids: string[]): Promise<void> {
   for (const id of ids) {
     try {
@@ -307,13 +312,5 @@ export async function executeRunsQuietly(ids: string[]): Promise<void> {
       console.error('[integrations] sync run failed to execute', id, error);
     }
   }
-}
-
-export async function runIdsFor(connectionIds: string[]): Promise<string[]> {
-  if (!connectionIds.length) return [];
-  const rows = await dbAdmin
-    .select({ id: integrationSyncRuns.id })
-    .from(integrationSyncRuns)
-    .where(and(inArray(integrationSyncRuns.connectionId, connectionIds), eq(integrationSyncRuns.status, 'queued')));
-  return rows.map((r) => r.id);
+  await runDispatcher().catch((error) => console.error('[integrations] dispatch after sync failed', error));
 }
