@@ -15,7 +15,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-import { createdAt, id, updatedAt } from '@/lib/db/columns';
+import { createdAt, id, isDemo, updatedAt } from '@/lib/db/columns';
 import { campaignChannels } from '@/modules/campaigns/db/schema';
 import { clients } from '@/modules/clients/db/schema';
 import { deals, leads } from '@/modules/crm/db/schema';
@@ -55,6 +55,7 @@ export const integrationConnections = pgTable(
     connectedBy: uuid('connected_by').references(() => profiles.id, { onDelete: 'set null' }),
     connectedAt: timestamp('connected_at', { withTimezone: true }).notNull().defaultNow(),
     disconnectedAt: timestamp('disconnected_at', { withTimezone: true }),
+    isDemo: isDemo(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

@@ -679,6 +679,31 @@ with that and its return value (or failure) becomes the action's result. Writes 
 `withRls` or a listed service path, and events they emit are dispatched like the handler's.
 *Rejected*: raw Server Actions for AI (bypass validation, permission and error mapping); streaming route handlers
 (deferred with streaming answers).
+
+### ADR-080 — Soft delete with restrictive RLS policies and a Trash
+2026-09-30 · Accepted
+Deletes must be recoverable and hidden everywhere at once. Rather than adding `deleted_at is null` to ~100 queries, each
+soft-deletable table gets a **restrictive** SELECT policy (`deleted_at is null`, or Trash mode for holders of the
+matching `:delete`) and a restrictive UPDATE policy (live rows only); a deleted client is hidden through the two access
+functions every client-scoped policy already calls. All deletes go through SECURITY DEFINER functions (`app.trash_delete`
+/ `trash_restore` / `trash_purge`) that check `<resource>:delete|purge` (authors may delete their own messages and
+uploads), mark the row and its children with one `delete_batch`, and write a `trash_items` row; the audit trigger records
+the updates (soft delete) and deletes (purge). Checklist items, departments and roles stay hard-deleted configuration.
+Purge returns Storage paths so files are removed after commit (ADR-079 `complete`). Guard triggers that protect live rows
+are skipped while `app.purging()` is on (set only inside purge and data reset).
+*Rejected*: a separate archive schema (moves rows and breaks FKs); per-query filters (easy to forget; the portal would leak).
+
+### ADR-081 — Data reset as a service-role job with a lock
+2026-09-30 · Accepted
+Clearing demo or test data before go-live is a Super Admin action guarded four times: password re-entry (checked with a
+throwaway Supabase client), the typed phrase `DELETE ALL DATA`, the organization lock (`data_reset_locked_at`; unlocking
+needs the password) and a rate limit. The wipe runs after the response (`after()`), as one transaction in
+`app.data_reset_run` (service role only), with progress written to `data_reset_jobs` for the screen to poll. Seeded roots
+carry `is_demo` so "demo only" removes exactly the seed. Per-row auditing is skipped during the wipe (`app.audit_skip`)
+and a single `data_reset` audit entry is written afterwards so it survives. The one-click backup ZIP (JSON per table, no
+secrets or hashes, plus a list of Storage objects) is a service path for the Super Admin and is itself audited.
+*Rejected*: running the wipe inside the request (timeouts on large tenants); SQL `truncate` (ignores tenant boundaries).
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

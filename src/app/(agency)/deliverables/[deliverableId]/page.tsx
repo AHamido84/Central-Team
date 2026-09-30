@@ -32,6 +32,7 @@ export default async function DeliverablePage({ params }: { params: Promise<{ de
           canManage: can(ctx.permissions, 'deliverables:manage'),
           canReview: can(ctx.permissions, 'deliverables:review'),
           canApprove: false,
+          canDelete: can(ctx.permissions, 'deliverables:delete'),
         }}
         quota={null}
       />

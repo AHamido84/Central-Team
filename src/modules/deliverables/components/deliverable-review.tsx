@@ -34,7 +34,10 @@ import { localized, type Locale } from '@/lib/i18n/localized';
 import { acceptAttribute, publicAssetUrl } from '@/lib/storage';
 import { ensureRealtimeAuth, getSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { cn } from '@/lib/utils/cn';
+import { DeleteButton } from '@/modules/data/components/delete-button';
+import { RowActions } from '@/modules/data/components/row-actions';
 import { ClientDeliverableBadge, DeliverableStatusBadge, VersionStatusBadge } from '@/modules/deliverables/components/badges';
+import { EditDeliverableButton } from '@/modules/deliverables/components/deliverable-edit';
 import { useVersionUpload } from '@/modules/deliverables/components/use-version-upload';
 import { DocumentViewer, formatTime, ImageViewer, VideoViewer, type Pending } from '@/modules/deliverables/components/viewer';
 import {
@@ -53,7 +56,7 @@ import { FormattedText } from '@/modules/requests/components/brief-fields';
 import { TaskRef } from '@/modules/tasks/components/badges';
 
 type Side = 'agency' | 'client';
-export type ReviewPerms = { canManage: boolean; canReview: boolean; canApprove: boolean };
+export type ReviewPerms = { canManage: boolean; canReview: boolean; canApprove: boolean; canDelete?: boolean };
 export type RevisionQuota = { allowed: number; used: number; hasPackage: boolean } | null;
 
 function useDeliverable(initial: DeliverableDetail) {
@@ -720,7 +723,13 @@ export function DeliverableReview({
           <bdi>{d.title}</bdi>
         </h1>
       </div>
-      {side === 'agency' ? <DeliverableStatusBadge status={d.status} /> : <ClientDeliverableBadge status={d.status} />}
+      <div className="flex items-center gap-2">
+        {side === 'agency' ? <DeliverableStatusBadge status={d.status} /> : <ClientDeliverableBadge status={d.status} />}
+        {side === 'agency' && perms.canManage ? <EditDeliverableButton d={d} onSaved={() => void refresh()} /> : null}
+        {side === 'agency' && perms.canDelete ? (
+          <DeleteButton type="deliverable" id={d.id} redirectTo="/deliverables" iconOnly testId="deliverable-delete" />
+        ) : null}
+      </div>
     </div>
   );
 
@@ -890,6 +899,16 @@ export function DeliverableReview({
               <VersionStatusBadge status={v.status} />
               <span className="ms-auto text-xs text-subtle-foreground">{f.date(v.createdAt, 'medium')}</span>
             </button>
+            {side === 'agency' && perms.canDelete ? (
+              <div className="flex justify-end">
+                <RowActions
+                  label={t('edit.deleteVersion', { n: v.number })}
+                  del={{ type: 'deliverable_version', id: v.id }}
+                  onDeleted={() => void refresh()}
+                  testId="version-actions"
+                />
+              </div>
+            ) : null}
             {v.uploadedBy && side === 'agency' ? (
               <span className="text-xs text-muted-foreground">{t('uploadedBy', { name: v.uploadedBy.name })}</span>
             ) : null}

@@ -247,5 +247,6 @@
   },
   "requestWork": {
     "title": "Work on this request"
-  }
+  },
+  "editItem": "Edit item"
 }

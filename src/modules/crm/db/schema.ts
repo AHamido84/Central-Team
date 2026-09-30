@@ -14,7 +14,7 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
-import { createdAt, id, localized, updatedAt } from '@/lib/db/columns';
+import { createdAt, id, isDemo, localized, updatedAt } from '@/lib/db/columns';
 import { clients, packages } from '@/modules/clients/db/schema';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
 import { requestTypes } from '@/modules/requests/db/schema';
@@ -41,6 +41,7 @@ export const leadForms = pgTable(
     thankYou: localized('thank_you').notNull().default({}),
     submissions: integer('submissions').notNull().default(0),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    isDemo: isDemo(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -78,6 +79,7 @@ export const leads = pgTable(
     mergedIntoId: uuid('merged_into_id').references((): AnyPgColumn => leads.id, { onDelete: 'set null' }),
     lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).notNull().defaultNow(),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    isDemo: isDemo(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -168,6 +170,7 @@ export const deals = pgTable(
     lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).notNull().defaultNow(),
     staleNotifiedAt: timestamp('stale_notified_at', { withTimezone: true }),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    isDemo: isDemo(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -356,6 +359,7 @@ export const leadAssignmentRules = pgTable(
     cursor: integer('cursor').notNull().default(0),
     isActive: boolean('is_active').notNull().default(true),
     sortOrder: integer('sort_order').notNull().default(0),
+    isDemo: isDemo(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -372,6 +376,7 @@ export const crmWebhookTokens = pgTable(
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    isDemo: isDemo(),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('crm_webhook_tokens_hash_idx').on(t.tokenHash)],
@@ -385,6 +390,7 @@ export const salesTargets = pgTable(
     ownerId: uuid('owner_id').references(() => profiles.id, { onDelete: 'cascade' }),
     month: date('month').notNull(),
     amountMinor: integer('amount_minor').notNull(),
+    isDemo: isDemo(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

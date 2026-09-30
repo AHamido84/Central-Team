@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { PageHeader } from '@/components/patterns';
 import { requireAgency } from '@/lib/auth/context';
+import { can } from '@/lib/permissions/can';
 import { cn } from '@/lib/utils/cn';
 import { listRequestTypes } from '@/modules/requests/server/queries';
 import { StatusesEditor } from '@/modules/workflows/components/statuses-editor';
@@ -46,7 +47,11 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
         </ul>
       </nav>
       {active === 'templates' ? (
-        <TemplatesAdmin templates={templates} requestTypes={types.map((rt) => ({ id: rt.id, name: rt.name, icon: rt.icon }))} />
+        <TemplatesAdmin
+          templates={templates}
+          requestTypes={types.map((rt) => ({ id: rt.id, name: rt.name, icon: rt.icon }))}
+          canDelete={can(ctx.permissions, 'workflows:delete')}
+        />
       ) : (
         <StatusesEditor statuses={statuses} />
       )}

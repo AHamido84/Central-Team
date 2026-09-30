@@ -17,3 +17,4 @@ export * from '@/modules/capacity/db/schema';
 export * from '@/modules/integrations/db/schema';
 export * from '@/modules/automations/db/schema';
 export * from '@/modules/ai/db/schema';
+export * from '@/modules/data/db/schema';

@@ -29,12 +29,13 @@ import { DirIcon, FileTypeIcon } from '@/components/patterns';
 import { useFormat } from '@/components/providers';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
-import { ConfirmDialog, Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/overlays';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/overlays';
 import { Avatar, Badge, Checkbox, Kbd, NativeSelect, Popover, PopoverContent, PopoverTrigger, Skeleton } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
 import { localized, type Locale } from '@/lib/i18n/localized';
 import { acceptAttribute, publicAssetUrl } from '@/lib/storage';
 import { cn } from '@/lib/utils/cn';
+import { DeleteDialog } from '@/modules/data/components/delete-dialog';
 import { DeliverableStatusBadge } from '@/modules/deliverables/components/badges';
 import { createDeliverableAction } from '@/modules/deliverables/server/actions';
 import { FilePreviewDialog } from '@/modules/files/components/file-preview';
@@ -52,7 +53,6 @@ import {
   addManualTimeAction,
   addTaskAttachmentsAction,
   createTaskAction,
-  deleteTaskAction,
   deleteTimeEntryAction,
   removeTaskAttachmentAction,
   setDependencyAction,
@@ -284,6 +284,7 @@ function Checklist({ task, ctx }: { task: TaskDetail; ctx: DrawerContext }) {
   const [body, setBody] = useState('');
   const add = useAction(addChecklistItemAction, { refresh: false });
   const update = useAction(updateChecklistItemAction, { refresh: false });
+  const [editingItem, setEditingItem] = useState<string | null>(null);
   const done = task.checklistItems.filter((i) => i.isDone).length;
   return (
     <Section
@@ -309,9 +310,47 @@ function Checklist({ task, ctx }: { task: TaskDetail; ctx: DrawerContext }) {
               aria-label={item.body}
               data-testid="checklist-item"
             />
-            <span className={cn('min-w-0 flex-1 text-sm', item.isDone && 'text-muted-foreground line-through')} dir="auto">
-              {item.body}
-            </span>
+            {editingItem === item.id ? (
+              <Input
+                dir="auto"
+                defaultValue={item.body}
+                autoFocus
+                maxLength={500}
+                aria-label={t('editItem')}
+                className="h-7 flex-1 text-sm"
+                data-testid="checklist-edit-input"
+                onKeyDown={async (e) => {
+                  if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    setEditingItem(null);
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const value = e.currentTarget.value.trim();
+                    if (value && value !== item.body) {
+                      const res = await update.run({ itemId: item.id, body: value });
+                      if (res.ok) ctx.onRefresh(task.id);
+                    }
+                    setEditingItem(null);
+                  }
+                }}
+                onBlur={() => setEditingItem(null)}
+              />
+            ) : (
+              <span className={cn('min-w-0 flex-1 text-sm', item.isDone && 'text-muted-foreground line-through')} dir="auto">
+                {item.body}
+              </span>
+            )}
+            {ctx.canUpdate && editingItem !== item.id ? (
+              <button
+                type="button"
+                className="rounded p-0.5 text-subtle-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                onClick={() => setEditingItem(item.id)}
+                aria-label={t('editItem')}
+                data-testid="checklist-edit"
+              >
+                <Pencil className="size-3.5" />
+              </button>
+            ) : null}
             {ctx.canUpdate ? (
               <button
                 type="button"
@@ -923,7 +962,7 @@ export function TaskDrawer({
   const locale = useLocale() as Locale;
   const { data: task, isLoading, isError } = useTaskDetail(taskId);
   const setMembers = useAction(setTaskMembersAction, { refresh: false });
-  const remove = useAction(deleteTaskAction, { successMessage: t('tasks.deleted') });
+  const [deleting, setDeleting] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const status = task ? ctx.statuses.find((s) => s.id === task.statusId) : undefined;
   const doneStatus = ctx.statuses.find((s) => s.category === 'done');
@@ -1042,21 +1081,27 @@ export function TaskDrawer({
                 <span className="ms-auto flex items-center">
                   <Shortcuts />
                   {ctx.canDelete ? (
-                    <ConfirmDialog
-                      trigger={
-                        <Button variant="ghost" size="icon-sm" aria-label={t('tasks.delete')}>
-                          <Trash2 />
-                        </Button>
-                      }
-                      title={t('tasks.deleteTitle')}
-                      description={t('tasks.deleteBody')}
-                      confirmLabel={t('tasks.delete')}
-                      cancelLabel={t('common.cancel')}
-                      destructive
-                      onConfirm={async () => {
-                        if ((await remove.run({ taskId: task.id })).ok) onClose();
-                      }}
-                    />
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={t('tasks.delete')}
+                        onClick={() => setDeleting(true)}
+                        data-testid="drawer-delete"
+                      >
+                        <Trash2 />
+                      </Button>
+                      <DeleteDialog
+                        type="task"
+                        id={task.id}
+                        open={deleting}
+                        onOpenChange={setDeleting}
+                        onDeleted={() => {
+                          ctx.onRefresh(task.id);
+                          onClose();
+                        }}
+                      />
+                    </>
                   ) : null}
                 </span>
               </div>

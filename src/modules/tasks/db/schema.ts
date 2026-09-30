@@ -16,7 +16,7 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
-import { createdAt, id, localized, updatedAt } from '@/lib/db/columns';
+import { createdAt, id, localized, softDelete, updatedAt } from '@/lib/db/columns';
 import { clients } from '@/modules/clients/db/schema';
 import { departments } from '@/modules/departments/db/schema';
 import { files } from '@/modules/files/db/schema';
@@ -94,6 +94,7 @@ export const tasks = pgTable(
     requiresClientApproval: boolean('requires_client_approval').notNull().default(false),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    ...softDelete(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     /** Reminder sweep markers (one "due soon" and one "overdue" reminder per due date). */

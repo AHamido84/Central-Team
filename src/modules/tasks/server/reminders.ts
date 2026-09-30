@@ -6,6 +6,7 @@ import { dbAdmin } from '@/lib/db/client';
 import { deliverableVersions, deliverables, organizations, tasks } from '@/lib/db/schema';
 import { emitEvent } from '@/lib/events/emit';
 import { addDays, dayInZone } from '@/modules/tasks/constants';
+import { liveClient } from '@/lib/db/live';
 
 export type SweepResult = { dueSoon: number; overdue: number; approvalReminders: number };
 
@@ -31,6 +32,8 @@ export async function runReminderSweep(now = new Date()): Promise<SweepResult> {
           and(
             eq(tasks.organizationId, org.id),
             ne(tasks.statusCategory, 'done'),
+            isNull(tasks.deletedAt),
+            liveClient(tasks.clientId),
             isNotNull(tasks.dueDate),
             sql`${tasks.dueDate} between ${today}::date and ${tomorrow}::date`,
             or(isNull(tasks.dueSoonNotifiedFor), sql`${tasks.dueSoonNotifiedFor} <> ${tasks.dueDate}`),
@@ -54,6 +57,8 @@ export async function runReminderSweep(now = new Date()): Promise<SweepResult> {
           and(
             eq(tasks.organizationId, org.id),
             ne(tasks.statusCategory, 'done'),
+            isNull(tasks.deletedAt),
+            liveClient(tasks.clientId),
             lt(tasks.dueDate, today),
             or(isNull(tasks.overdueNotifiedFor), sql`${tasks.overdueNotifiedFor} <> ${tasks.dueDate}`),
           ),
@@ -79,6 +84,8 @@ export async function runReminderSweep(now = new Date()): Promise<SweepResult> {
           and(
             eq(deliverables.organizationId, org.id),
             eq(deliverables.status, 'client_review'),
+            isNull(deliverables.deletedAt),
+            liveClient(deliverables.clientId),
             lte(deliverableVersions.sentToClientAt, cutoff),
             or(isNull(deliverables.remindedAt), lte(deliverables.remindedAt, cutoff)),
           ),

@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, Badge } from '@/components/ui/primitives';
 import { localized, type Locale } from '@/lib/i18n/localized';
 import { publicAssetUrl } from '@/lib/storage';
+import { BulkDeleteButton } from '@/modules/data/components/bulk-delete';
+import { RowActions } from '@/modules/data/components/row-actions';
 import { clientStatuses, clientStatusTone, industries, type ClientStatus } from '@/modules/clients/constants';
 import type { ClientListItem } from '@/modules/clients/server/queries';
 import { ClientHealthBadge } from '@/modules/operations/components/health';
@@ -21,7 +23,19 @@ import type { ClientHealth, HealthReason } from '@/modules/operations/health';
 
 type HealthMap = Record<string, { health: ClientHealth; score: number; reasons: HealthReason[] }>;
 
-export function ClientsTable({ clients, canCreate, health }: { clients: ClientListItem[]; canCreate: boolean; health?: HealthMap }) {
+export function ClientsTable({
+  clients,
+  canCreate,
+  canEdit = false,
+  canDelete = false,
+  health,
+}: {
+  clients: ClientListItem[];
+  canCreate: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  health?: HealthMap;
+}) {
   const t = useTranslations();
   const locale = useLocale() as Locale;
   const f = useFormat();
@@ -104,9 +118,25 @@ export function ClientsTable({ clients, canCreate, health }: { clients: ClientLi
           <span className="text-muted-foreground">{row.original.lastMessageAt ? f.relative(row.original.lastMessageAt) : '—'}</span>
         ),
       },
+      ...(canEdit || canDelete
+        ? [
+            {
+              id: 'actions',
+              header: () => <span className="sr-only">{t('data.actions.column')}</span>,
+              enableSorting: false,
+              cell: ({ row }: { row: { original: ClientListItem } }) => (
+                <RowActions
+                  label={localized(row.original.name, locale)}
+                  onEdit={canEdit ? () => router.push(`/clients/${row.original.id}/edit`) : undefined}
+                  del={canDelete ? { type: 'client', id: row.original.id } : undefined}
+                />
+              ),
+            } satisfies ColumnDef<ClientListItem, unknown>,
+          ]
+        : []),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [locale, health],
+    [locale, health, canEdit, canDelete],
   );
 
   return (
@@ -115,6 +145,13 @@ export function ClientsTable({ clients, canCreate, health }: { clients: ClientLi
       data={clients}
       columns={columns}
       getRowId={(c) => c.id}
+      bulkActions={
+        canDelete
+          ? (rows, clear) => (
+              <BulkDeleteButton type="client" items={rows.map((c) => ({ id: c.id, name: localized(c.name, locale) }))} onDone={clear} />
+            )
+          : undefined
+      }
       onRowClick={(c) => router.push(`/clients/${c.id}`)}
       searchFn={(c, q) => (c.name.ar ?? '').toLowerCase().includes(q) || (c.name.en ?? '').toLowerCase().includes(q) || c.slug.includes(q)}
       searchPlaceholder={t('clients.searchPlaceholder')}

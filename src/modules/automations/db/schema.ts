@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { boolean, check, index, integer, jsonb, pgTable, smallint, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
-import { createdAt, id, updatedAt } from '@/lib/db/columns';
+import { createdAt, id, isDemo, updatedAt } from '@/lib/db/columns';
 import { domainEvents } from '@/lib/db/platform-schema';
 import type { AutomationAction, AutomationCondition, ActionResult, ConditionResult } from '@/modules/automations/types';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
@@ -26,6 +26,7 @@ export const automations = pgTable(
     lastRunAt: timestamp('last_run_at', { withTimezone: true }),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
     updatedBy: uuid('updated_by').references(() => profiles.id, { onDelete: 'set null' }),
+    isDemo: isDemo(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

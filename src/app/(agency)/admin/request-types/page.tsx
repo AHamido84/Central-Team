@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { PageHeader } from '@/components/patterns';
 import { requireAgency } from '@/lib/auth/context';
+import { can } from '@/lib/permissions/can';
 import { TypesAdmin } from '@/modules/requests/components/types-admin';
 import { listRequestTypes } from '@/modules/requests/server/queries';
 
@@ -20,7 +21,7 @@ export default async function RequestTypesPage() {
   return (
     <>
       <PageHeader title={t('title')} description={t('description')} />
-      <TypesAdmin types={types} />
+      <TypesAdmin types={types} canDelete={can(ctx.permissions, 'request_types:delete')} />
     </>
   );
 }

@@ -4,6 +4,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 
 import { PageHeader } from '@/components/patterns';
 import { BreadcrumbLabel } from '@/components/shell/breadcrumbs';
+import { can } from '@/lib/permissions/can';
 import { requireAgency } from '@/lib/auth/context';
 import { localized, type Locale } from '@/lib/i18n/localized';
 import { listAgencyPeople } from '@/modules/clients/server/queries';
@@ -47,6 +48,7 @@ export default async function WorkflowBuilderPage({ params }: { params: Promise<
         people={people.map((p) => ({ id: p.id, name: p.name }))}
         requestTypes={types.map((rt) => ({ id: rt.id, name: rt.name, icon: rt.icon }))}
         timeZone={ctx.organization.defaultTimezone}
+        canDelete={can(ctx.permissions, 'workflows:delete')}
       />
     </>
   );

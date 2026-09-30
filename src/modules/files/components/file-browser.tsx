@@ -13,6 +13,7 @@ import {
   List,
   Loader2,
   MoreHorizontal,
+  Pencil,
   Search,
   Trash2,
   Upload,
@@ -30,7 +31,6 @@ import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import {
-  ConfirmDialog,
   Dialog,
   DialogBody,
   DialogContent,
@@ -48,9 +48,10 @@ import { Avatar, Badge, Card, NativeSelect, Progress } from '@/components/ui/pri
 import { useAction } from '@/lib/actions/use-action';
 import { acceptAttribute, publicAssetUrl } from '@/lib/storage';
 import { cn } from '@/lib/utils/cn';
+import { DeleteDialog } from '@/modules/data/components/delete-dialog';
 import { FilePreviewDialog, downloadFile } from '@/modules/files/components/file-preview';
 import { useUpload } from '@/modules/files/components/use-upload';
-import { createFolderAction, deleteFileAction, updateFileAction } from '@/modules/files/server/actions';
+import { createFolderAction, updateFileAction, updateFolderAction } from '@/modules/files/server/actions';
 import type { FileItem, FolderItem } from '@/modules/files/server/queries';
 
 const kindFilters = ['all', 'image', 'video', 'pdf', 'document'] as const;
@@ -116,6 +117,66 @@ function NewFolderDialog({ clientId, open, onOpenChange }: { clientId: string; o
   );
 }
 
+function RenameFolderDialog({
+  folder,
+  onOpenChange,
+  onSave,
+}: {
+  folder: FolderItem | null;
+  onOpenChange: (open: boolean) => void;
+  onSave: (name: string) => Promise<void>;
+}) {
+  const t = useTranslations();
+  return (
+    <Dialog open={Boolean(folder)} onOpenChange={onOpenChange}>
+      <DialogContent closeLabel={t('common.close')}>
+        {folder ? <RenameFolderForm key={folder.id} initial={folder.name} onCancel={() => onOpenChange(false)} onSave={onSave} /> : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RenameFolderForm({
+  initial,
+  onCancel,
+  onSave,
+}: {
+  initial: string;
+  onCancel: () => void;
+  onSave: (name: string) => Promise<void>;
+}) {
+  const t = useTranslations();
+  const [name, setName] = useState(initial);
+  const [pending, setPending] = useState(false);
+  return (
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setPending(true);
+        await onSave(name.trim());
+        setPending(false);
+      }}
+    >
+      <DialogHeader>
+        <DialogTitle>{t('files.renameFolder')}</DialogTitle>
+      </DialogHeader>
+      <DialogBody>
+        <Field label={t('files.folderName')} required>
+          {(p) => <Input {...p} value={name} maxLength={120} onChange={(e) => setName(e.target.value)} data-testid="folder-name" />}
+        </Field>
+      </DialogBody>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          {t('common.cancel')}
+        </Button>
+        <Button type="submit" disabled={!name.trim()} loading={pending} data-testid="folder-save">
+          {t('common.save')}
+        </Button>
+      </DialogFooter>
+    </form>
+  );
+}
+
 /**
  * Files library shared by the agency client page and the portal. `side` controls management actions;
  * RLS has already removed internal items for client users before data reaches this component.
@@ -127,6 +188,8 @@ export function FileBrowser({
   side,
   canUpload,
   canManage,
+  canDelete,
+  userId,
 }: {
   clientId: string;
   folders: FolderItem[];
@@ -134,6 +197,8 @@ export function FileBrowser({
   side: 'agency' | 'client';
   canUpload: boolean;
   canManage: boolean;
+  canDelete: boolean;
+  userId: string;
 }) {
   const t = useTranslations();
   const f = useFormat();
@@ -152,7 +217,10 @@ export function FileBrowser({
   const input = useRef<HTMLInputElement>(null);
   const uploads = useUpload(() => router.refresh());
   const update = useAction(updateFileAction, { successMessage: t('common.saved') });
-  const remove = useAction(deleteFileAction, { successMessage: t('files.deleted') });
+  const [folderDeleting, setFolderDeleting] = useState<FolderItem | null>(null);
+  const [renaming, setRenaming] = useState<FolderItem | null>(null);
+  const updateFolder = useAction(updateFolderAction, { successMessage: t('common.saved') });
+  const mayDelete = (file: FileItem) => canDelete || file.uploadedBy === userId;
 
   const setFolder = (id: string | null) => {
     const next = new URLSearchParams(params);
@@ -219,8 +287,12 @@ export function FileBrowser({
                   <span className="truncate">{x.name}</span>
                 </DropdownMenuItem>
               ))}
+          </>
+        ) : null}
+        {mayDelete(file) ? (
+          <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem destructive onSelect={() => setDeleting(file)}>
+            <DropdownMenuItem destructive onSelect={() => setDeleting(file)} data-testid="file-delete">
               <Trash2 />
               {t('common.delete')}
             </DropdownMenuItem>
@@ -283,36 +355,83 @@ export function FileBrowser({
             </span>
           </button>
           {folders.map((folder) => (
-            <button
-              key={folder.id}
-              type="button"
-              onClick={() => setFolder(folder.id)}
-              className={cn(
-                'flex min-w-44 items-center gap-3 rounded-lg border p-3 text-start transition-colors',
-                folderId === folder.id ? 'border-primary bg-primary-soft/50' : 'border-border bg-surface hover:bg-surface-muted',
-              )}
-              data-testid="folder-card"
-            >
-              <span
+            <div key={folder.id} className="relative">
+              <button
+                type="button"
+                onClick={() => setFolder(folder.id)}
                 className={cn(
-                  'flex size-10 shrink-0 items-center justify-center rounded-md',
-                  folder.visibility === 'internal' ? 'bg-warning-soft text-warning' : 'bg-accent text-accent-foreground',
+                  'flex min-w-44 items-center gap-3 rounded-lg border p-3 text-start transition-colors',
+                  folderId === folder.id ? 'border-primary bg-primary-soft/50' : 'border-border bg-surface hover:bg-surface-muted',
                 )}
+                data-testid="folder-card"
               >
-                {folder.visibility === 'internal' ? (
-                  <FolderLock className="size-5" aria-hidden />
-                ) : (
-                  <Folder className="size-5" aria-hidden />
-                )}
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-medium">{folder.name}</span>
-                <span className="flex items-center gap-1.5 text-xs text-subtle-foreground">
-                  {t('files.fileCount', { count: folder.fileCount })}
-                  {folder.visibility === 'internal' ? <Badge tone="warning">{t('common.internal')}</Badge> : null}
+                <span
+                  className={cn(
+                    'flex size-10 shrink-0 items-center justify-center rounded-md',
+                    folder.visibility === 'internal' ? 'bg-warning-soft text-warning' : 'bg-accent text-accent-foreground',
+                  )}
+                >
+                  {folder.visibility === 'internal' ? (
+                    <FolderLock className="size-5" aria-hidden />
+                  ) : (
+                    <Folder className="size-5" aria-hidden />
+                  )}
                 </span>
-              </span>
-            </button>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium">{folder.name}</span>
+                  <span className="flex items-center gap-1.5 text-xs text-subtle-foreground">
+                    {t('files.fileCount', { count: folder.fileCount })}
+                    {folder.visibility === 'internal' ? <Badge tone="warning">{t('common.internal')}</Badge> : null}
+                  </span>
+                </span>
+              </button>
+              {side === 'agency' && (canManage || canDelete) ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="absolute end-1 top-1"
+                      aria-label={t('common.moreActions')}
+                      data-testid="folder-menu"
+                    >
+                      <MoreHorizontal />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {canManage ? (
+                      <>
+                        <DropdownMenuItem onSelect={() => setRenaming(folder)} data-testid="folder-rename">
+                          <Pencil />
+                          {t('files.renameFolder')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            void updateFolder.run({
+                              folderId: folder.id,
+                              name: folder.name,
+                              visibility: folder.visibility === 'client' ? 'internal' : 'client',
+                            })
+                          }
+                        >
+                          {folder.visibility === 'client' ? <EyeOff /> : <Eye />}
+                          {folder.visibility === 'client' ? t('files.makeInternal') : t('files.shareWithClient')}
+                        </DropdownMenuItem>
+                      </>
+                    ) : null}
+                    {canDelete ? (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem destructive onSelect={() => setFolderDeleting(folder)} data-testid="folder-delete">
+                          <Trash2 />
+                          {t('common.delete')}
+                        </DropdownMenuItem>
+                      </>
+                    ) : null}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
+            </div>
           ))}
         </div>
       </section>
@@ -502,17 +621,34 @@ export function FileBrowser({
 
       <FilePreviewDialog file={preview} onOpenChange={(o) => !o && setPreview(null)} />
       {side === 'agency' ? <NewFolderDialog clientId={clientId} open={newFolder} onOpenChange={setNewFolder} /> : null}
-      <ConfirmDialog
-        open={Boolean(deleting)}
-        onOpenChange={(o) => !o && setDeleting(null)}
-        title={t('files.deleteTitle')}
-        description={t('files.deleteBody', { name: deleting?.name ?? '' })}
-        confirmLabel={t('common.delete')}
-        cancelLabel={t('common.cancel')}
-        destructive
-        onConfirm={async () => {
-          if (deleting) await remove.run({ fileId: deleting.id });
-          setDeleting(null);
+      {deleting ? (
+        <DeleteDialog
+          type="file"
+          id={deleting.id}
+          open
+          undoable={side === 'agency'}
+          onOpenChange={(o) => !o && setDeleting(null)}
+          onDeleted={() => setDeleting(null)}
+        />
+      ) : null}
+      {folderDeleting ? (
+        <DeleteDialog
+          type="folder"
+          id={folderDeleting.id}
+          open
+          onOpenChange={(o) => !o && setFolderDeleting(null)}
+          onDeleted={() => {
+            if (folderId === folderDeleting.id) setFolder(null);
+            setFolderDeleting(null);
+          }}
+        />
+      ) : null}
+      <RenameFolderDialog
+        folder={renaming}
+        onOpenChange={(o) => !o && setRenaming(null)}
+        onSave={async (name) => {
+          if (!renaming) return;
+          if ((await updateFolder.run({ folderId: renaming.id, name, visibility: renaming.visibility })).ok) setRenaming(null);
         }}
       />
     </div>

@@ -65,5 +65,11 @@
   "ai_not_configured": "AI isn't set up yet: the provider keys are missing.",
   "ai_budget_exceeded": "Your agency has used this month's AI budget. An admin can raise it in AI settings.",
   "ai_refused": "The AI model declined this request. Try rephrasing it.",
-  "ai_unavailable": "The AI service didn't respond. Try again in a moment."
+  "ai_unavailable": "The AI service didn't respond. Try again in a moment.",
+  "in_use": "It's still in use, so it can't be deleted. The dialog lists what uses it.",
+  "reassign_required": "Choose who takes over this person's open work first.",
+  "parent_deleted": "Restore the item it belongs to first — it's in the Trash too.",
+  "reset_locked": "Data reset is locked. A Super Admin can unlock it with their password.",
+  "invalid_password": "That password isn't right.",
+  "confirmation_mismatch": "The confirmation text doesn't match."
 }

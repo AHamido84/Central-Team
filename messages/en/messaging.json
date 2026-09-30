@@ -32,5 +32,14 @@
   "noThreadsBody": "Start a new conversation with your team or client.",
   "unreadCount": "{count} unread",
   "selectThread": "Select a conversation",
-  "selectThreadBody": "Pick a conversation from the list to see its messages."
+  "selectThreadBody": "Pick a conversation from the list to see its messages.",
+  "own": {
+    "edit": "Edit",
+    "delete": "Delete",
+    "edited": "edited",
+    "save": "Save",
+    "cancel": "Cancel",
+    "actions": "Message actions",
+    "editLabel": "Edit message"
+  }
 }

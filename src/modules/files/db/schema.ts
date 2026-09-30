@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { bigint, check, index, integer, numeric, pgTable, text, timestamp, uuid, type AnyPgColumn } from 'drizzle-orm/pg-core';
 
-import { createdAt, id, updatedAt } from '@/lib/db/columns';
+import { createdAt, id, softDelete, updatedAt } from '@/lib/db/columns';
 import { clients } from '@/modules/clients/db/schema';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
 
@@ -22,6 +22,7 @@ export const fileFolders = pgTable(
     kind: text('kind').notNull().default('custom'),
     visibility: text('visibility').notNull().default('client'),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    ...softDelete(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -58,6 +59,8 @@ export const files = pgTable(
     durationSeconds: numeric('duration_seconds', { mode: 'number' }),
     uploadedBy: uuid('uploaded_by').references(() => profiles.id, { onDelete: 'set null' }),
     uploaderSide: text('uploader_side').notNull(),
+    deletedBy: uuid('deleted_by'),
+    deleteBatch: uuid('delete_batch'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),

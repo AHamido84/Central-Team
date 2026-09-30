@@ -900,6 +900,62 @@ erDiagram
 `ai_recommendation.decided`, `ai_settings.updated`, `ai_report.drafted`. `ai_insight.detected` is an automation trigger
 (subject: the campaign).
 
+## 3j. Feedback Round 1 — soft delete, Trash and data reset (ADR-080/081)
+
+**Soft-delete columns** (`deleted_at`, `deleted_by`, `delete_batch`) on `clients`, `client_users`, `organization_members`,
+`packages`, `request_types`, `workflow_templates`, `requests`, `tasks`, `file_folders`, `files`, `deliverables`,
+`deliverable_versions`, `threads`, `comments`. Every one of them has two **restrictive** policies: `<t>_not_deleted`
+(SELECT: `deleted_at is null`, or Trash mode for holders of the matching `:delete`) and `<t>_not_deleted_update`
+(UPDATE: live rows only). Existing queries therefore never see deleted rows — lists, searches, counts, dashboards, the
+portal and the assistant alike. A deleted **client** hides all its data through `app.agency_can_access_client` /
+`app.is_client_member`; service paths (sweeps, sync, AI detector) add `liveClient()` (`src/lib/db/live.ts`).
+
+| Table | Purpose |
+|---|---|
+| `trash_items` | One row per delete batch: `batch` (pk = `delete_batch` of every row it took), `entity_type` (13 kinds), `entity_id`, `title`, `client_id`, `counts` (what went with it), `meta` (e.g. a member's previous status), `deleted_by`, `deleted_at`. RLS: visible to holders of `<resource>:delete` who can reach the client. Writes only through `app.trash_*`. |
+| `data_reset_jobs` | A data reset run: `mode` (demo / operational / factory), `status`, `step`, `progress`, `counts`, `files_removed`, `error`, `requested_by`, timestamps. Super Admin reads; the service path writes. |
+| `organizations.data_reset_locked_at` | The reset lock. |
+| `is_demo` (boolean) | On seeded roots: `profiles`, `clients`, `packages`, `request_types`, `workflow_templates`, `leads`, `deals`, `lead_forms`, `lead_assignment_rules`, `crm_webhook_tokens`, `sales_targets`, `sla_policies`, `holidays`, `automations`, `integration_connections` (set by `app.mark_demo_data` at the end of the seed). |
+
+### Cascade rules (what goes with a delete; restore brings back the same batch)
+
+| Deleting… | Also moves to the Trash | Blocked when |
+|---|---|---|
+| Client | Everything of the client stays in place but is hidden by the access functions; its portal memberships stop working | — (always type the name) |
+| Portal user (`client_users`) | — (status → deactivated; restore puts the old status back) | — |
+| Team member (`organization_members`) | — (status → deactivated). Open tasks, requests, managed clients, leads and open deals move to the person picked in the dialog | Yourself; the last Super Admin; open work without a new owner |
+| Package | — | Clients have it this period |
+| Request type | — | Live requests use it |
+| Workflow template | — | Open tasks were generated from it; Sales onboarding uses it |
+| Request | Its tasks (and subtasks), deliverables and their versions, the request/task threads, attachment files | — |
+| Task | Its subtasks, deliverables, versions, task thread, attachment files | — |
+| Folder | Sub-folders and their files | — |
+| File | — | — |
+| Deliverable | Its versions and their files | — |
+| Deliverable version | Its files | Sent to the client or approved |
+| Message (`comments`) | — | — (authors delete their own) |
+
+Restore refuses (`parent_deleted`) while the parent (client, request, task, folder, deliverable) is itself in the Trash.
+**Purge** (`app.trash_purge`) deletes the batch for good — the FK cascades take the rest — and returns the Storage paths,
+which the action removes after commit; purging a member also deletes the login (`auth.users`) when nothing else holds it.
+While purging or resetting, `app.purging()` is on and the guard triggers that protect live rows (published reports,
+workflow step assignees, capacity, CRM, tasks/deliverables/campaigns before-triggers) stand aside.
+
+**Checklist items, departments and roles** are configuration rows: edited in place and deleted outright (departments move
+members, open tasks, workflow steps and pending invitations to another department if one is picked; roles must be unused).
+
+### Data reset scopes (`app.data_reset_run`, service role only)
+
+- **demo** — every `is_demo` root (and, for clients, everything client-scoped) plus demo users who are not the Super Admin.
+- **operational** — clients and all client data, requests, tasks, deliverables, files, messages, campaigns, reports, CRM
+  records, notifications, activity, time entries, AI conversations/insights. Keeps the organization, team, roles,
+  permissions, departments, request types, workflow templates, packages, SLA policies and settings.
+- **factory** — everything organization-scoped except the organization row and the Super Admin who runs it; then
+  `app.bootstrap_organization` re-creates roles, departments and defaults and the kept user gets Super Admin again.
+
+`app.audit_skip` suppresses per-row audit writes during the wipe; one `activity_log` entry (`data_reset`) is written after
+it, so it survives. Storage objects are listed first (`app.data_reset_paths`) and removed after the transaction commits.
+
 ## 4. Forward-looking sketch (all phases — not built in Phase 0)
 
 ```mermaid

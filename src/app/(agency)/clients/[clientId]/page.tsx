@@ -14,6 +14,7 @@ import { getFormatters } from '@/lib/i18n/server-format';
 import { can } from '@/lib/permissions/can';
 import { publicAssetUrl } from '@/lib/storage';
 import { cn } from '@/lib/utils/cn';
+import { DeleteButton } from '@/modules/data/components/delete-button';
 import { clientStatusTone, type ClientStatus } from '@/modules/clients/constants';
 import { AccountManagerCard, CompanyInfoCard, InternalNotesCard } from '@/modules/clients/components/client-overview';
 import { ClientUsersManager } from '@/modules/clients/components/client-users-manager';
@@ -91,14 +92,17 @@ export default async function ClientPage({
           </span>
         }
         actions={
-          canEdit ? (
-            <Button asChild variant="outline">
-              <Link href={`/clients/${clientId}/edit`} data-testid="edit-client">
-                <Pencil />
-                {t('common.edit')}
-              </Link>
-            </Button>
-          ) : null
+          <>
+            {canEdit ? (
+              <Button asChild variant="outline">
+                <Link href={`/clients/${clientId}/edit`} data-testid="edit-client">
+                  <Pencil />
+                  {t('common.edit')}
+                </Link>
+              </Button>
+            ) : null}
+            {can(ctx.permissions, 'clients:delete') ? <DeleteButton type="client" id={clientId} redirectTo="/clients" /> : null}
+          </>
         }
       />
 
@@ -182,6 +186,7 @@ export default async function ClientPage({
           clientId={clientId}
           clientName={name}
           canManage={can(ctx.permissions, 'client_users:manage')}
+          canDelete={can(ctx.permissions, 'client_users:delete')}
           meUserId={ctx.session.userId}
         />
       ) : null}
@@ -201,7 +206,13 @@ export default async function ClientPage({
       ) : null}
 
       {tab === 'files' ? (
-        <FilesTab clientId={clientId} canUpload={can(ctx.permissions, 'files:upload')} canManage={can(ctx.permissions, 'files:manage')} />
+        <FilesTab
+          clientId={clientId}
+          userId={ctx.session.userId}
+          canUpload={can(ctx.permissions, 'files:upload')}
+          canManage={can(ctx.permissions, 'files:manage')}
+          canDelete={can(ctx.permissions, 'files:delete')}
+        />
       ) : null}
 
       {tab === 'messages' ? (
@@ -241,11 +252,13 @@ async function UsersTab({
   clientId,
   clientName,
   canManage,
+  canDelete,
   meUserId,
 }: {
   clientId: string;
   clientName: string;
   canManage: boolean;
+  canDelete: boolean;
   meUserId: string;
 }) {
   const data = await listClientUsers(clientId);
@@ -257,6 +270,7 @@ async function UsersTab({
       invitations={data.invitations}
       roles={data.roles}
       canManage={canManage}
+      canDelete={canDelete}
       meUserId={meUserId}
     />
   );
@@ -310,7 +324,19 @@ async function PackageTab({
   );
 }
 
-async function FilesTab({ clientId, canUpload, canManage }: { clientId: string; canUpload: boolean; canManage: boolean }) {
+async function FilesTab({
+  clientId,
+  userId,
+  canUpload,
+  canManage,
+  canDelete,
+}: {
+  clientId: string;
+  userId: string;
+  canUpload: boolean;
+  canManage: boolean;
+  canDelete: boolean;
+}) {
   const library = await listClientLibrary(clientId);
   return (
     <FileBrowser
@@ -320,6 +346,8 @@ async function FilesTab({ clientId, canUpload, canManage }: { clientId: string; 
       side="agency"
       canUpload={canUpload}
       canManage={canManage}
+      canDelete={canDelete}
+      userId={userId}
     />
   );
 }

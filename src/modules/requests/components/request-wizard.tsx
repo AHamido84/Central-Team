@@ -547,6 +547,7 @@ export function RequestWizard({
                 kind: kindOf(k.mimeType),
                 visibility: 'client',
                 folderId: null,
+                uploadedBy: null,
                 uploaderName: null,
                 uploaderAvatar: null,
                 uploaderSide: 'client',

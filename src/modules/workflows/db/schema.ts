@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { boolean, check, index, integer, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
-import { createdAt, id, localized, updatedAt } from '@/lib/db/columns';
+import { createdAt, id, isDemo, localized, softDelete, updatedAt } from '@/lib/db/columns';
 import { departments } from '@/modules/departments/db/schema';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
 import { roles } from '@/modules/rbac/db/schema';
@@ -22,6 +22,8 @@ export const workflowTemplates = pgTable(
     /** The template "Convert to tasks" proposes for its request type. */
     isDefault: boolean('is_default').notNull().default(false),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    ...softDelete(),
+    isDemo: isDemo(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

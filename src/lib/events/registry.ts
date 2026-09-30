@@ -22,6 +22,7 @@ export type DomainEventPayloads = {
   // Organization
   'department.created': { departmentId: string };
   'department.updated': { departmentId: string };
+  'department.deleted': { departmentId: string; movedTo: string | null; members: number };
   'department.members_changed': { departmentId: string; added: string[]; removed: string[] };
   'feature_flag.toggled': { flagKey: string; enabled: boolean };
   'organization.updated': { fields: string[] };
@@ -45,6 +46,7 @@ export type DomainEventPayloads = {
     visibility: 'internal' | 'client';
     mentions: string[];
   };
+  'comment.edited': { commentId: string; threadId: string; clientId: string };
   // Requests (Phase 2)
   'request_type.created': { typeId: string };
   'request_type.updated': { typeId: string; fields: string[] };
@@ -192,6 +194,12 @@ export type DomainEventPayloads = {
   };
   'ai_settings.updated': { fields: string[] };
   'ai_report.drafted': { reportId: string; clientId: string; section: 'commentary' | 'next_steps' };
+  // Trash and data management (Feedback Round 1)
+  'trash.deleted': { batch: string; entityType: string; entityId: string; clientId: string | null; counts: Record<string, number> };
+  'trash.restored': { batch: string; entityType: string; entityId: string; clientId: string | null };
+  'trash.purged': { batch: string; entityType: string; entityId: string; files: number };
+  'data.reset': { jobId: string; mode: 'demo' | 'operational' | 'factory'; counts: Record<string, number>; filesRemoved: number };
+  'data.reset_lock_changed': { locked: boolean };
 };
 
 export type DomainEventType = keyof DomainEventPayloads;

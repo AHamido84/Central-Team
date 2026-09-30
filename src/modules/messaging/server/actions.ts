@@ -151,6 +151,30 @@ export const postCommentAction = defineAction({
   },
 });
 
+/** Authors edit their own messages (RLS: `comments_update` allows only the author; body and edited_at only). */
+export const editCommentAction = defineAction({
+  input: z.object({ commentId: z.uuid(), body: bodySchema }),
+  side: 'any',
+  rateLimit: { key: 'comment', max: 120, windowSeconds: 600 },
+  async handler({ input, tx, ctx }) {
+    const [row] = await tx
+      .update(comments)
+      .set({ body: input.body, editedAt: new Date() })
+      .where(and(eq(comments.id, input.commentId), eq(comments.authorId, ctx.session.userId)))
+      .returning({ threadId: comments.threadId, clientId: comments.clientId });
+    if (!row) throw new ActionFailure('forbidden');
+    await emitEvent(tx, {
+      type: 'comment.edited',
+      organizationId: ctx.organization.id,
+      actorId: ctx.session.userId,
+      aggregate: { type: 'comment', id: input.commentId },
+      clientId: row.clientId,
+      payload: { commentId: input.commentId, threadId: row.threadId, clientId: row.clientId },
+    });
+    return row;
+  },
+});
+
 export const markThreadReadAction = defineAction({
   input: z.object({ threadId: z.uuid() }),
   side: 'any',

@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { defineAction } from '@/lib/actions/define-action';
@@ -179,33 +179,6 @@ export const updateFileAction = defineAction({
   revalidate: (_i, r) => [`/clients/${r.clientId}`, '/portal/files'],
 });
 
-export const deleteFileAction = defineAction({
-  input: z.object({ fileId: z.uuid() }),
-  side: 'agency',
-  permission: 'files:manage',
-  async handler({ input, tx, ctx }) {
-    const [row] = await tx
-      .update(files)
-      .set({ deletedAt: new Date() })
-      .where(and(eq(files.id, input.fileId), isNull(files.deletedAt)))
-      .returning({ clientId: files.clientId, path: files.storagePath });
-    if (!row) throw new ActionFailure('not_found');
-    await emitEvent(tx, {
-      type: 'file.deleted',
-      organizationId: ctx.organization.id,
-      actorId: ctx.session.userId,
-      aggregate: { type: 'file', id: input.fileId },
-      clientId: row.clientId,
-      payload: { fileId: input.fileId },
-    });
-    return row;
-  },
-  async after({ result }) {
-    await supabaseAdmin().storage.from(CLIENT_FILES_BUCKET).remove([result.path]);
-  },
-  revalidate: (_i, r) => [`/clients/${r.clientId}`, '/portal/files'],
-});
-
 export const createFolderAction = defineAction({
   input: z.object({
     clientId: z.uuid(),
@@ -251,22 +224,6 @@ export const updateFolderAction = defineAction({
       .set({ name: input.name, visibility: input.visibility })
       .where(eq(fileFolders.id, input.folderId))
       .returning({ clientId: fileFolders.clientId });
-    if (!row) throw new ActionFailure('not_found');
-    return row;
-  },
-  revalidate: (_i, r) => [`/clients/${r.clientId}`, '/portal/files'],
-});
-
-export const deleteFolderAction = defineAction({
-  input: z.object({ folderId: z.uuid() }),
-  side: 'agency',
-  permission: 'files:manage',
-  async handler({ input, tx }) {
-    const [{ n }] = (await tx.execute<{ n: number }>(
-      sql`select count(*)::int as n from public.files where folder_id = ${input.folderId} and deleted_at is null`,
-    )) as unknown as [{ n: number }];
-    if (n > 0) throw new ActionFailure('conflict');
-    const [row] = await tx.delete(fileFolders).where(eq(fileFolders.id, input.folderId)).returning({ clientId: fileFolders.clientId });
     if (!row) throw new ActionFailure('not_found');
     return row;
   },

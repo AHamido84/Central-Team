@@ -40,7 +40,13 @@ export default async function ClientsPage() {
           ) : null
         }
       />
-      <ClientsTable clients={clients} canCreate={canCreate} health={health} />
+      <ClientsTable
+        clients={clients}
+        canCreate={canCreate}
+        canEdit={can(ctx.permissions, 'clients:update')}
+        canDelete={can(ctx.permissions, 'clients:delete')}
+        health={health}
+      />
     </>
   );
 }

@@ -79,6 +79,7 @@ export type CommentView = {
   authorAvatar: string | null;
   authorSide: 'agency' | 'client';
   createdAt: string;
+  editedAt: string | null;
   attachments: FileItem[];
 };
 
@@ -153,6 +154,7 @@ export async function getThread(threadId: string): Promise<ThreadDetail | null> 
         authorAvatar: avatar,
         authorSide: c.authorSide as 'agency' | 'client',
         createdAt: c.createdAt.toISOString(),
+        editedAt: c.editedAt?.toISOString() ?? null,
         attachments: attachments.filter((a) => a.commentId === c.id).map((a) => toFileItem(a.file, a.uploaderName, a.uploaderAvatar)),
       })),
       reads: reads.map((r) => ({ ...r, side: sideOf.get(r.userId) ?? 'agency', lastReadAt: r.lastReadAt.toISOString() })),

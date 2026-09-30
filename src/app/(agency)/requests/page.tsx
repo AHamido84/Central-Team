@@ -30,6 +30,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
         me={ctx.session.userId}
         people={people.map((p) => ({ id: p.id, name: p.name, avatarPath: p.avatar_path }))}
         canTriage={can(ctx.permissions, 'requests:triage')}
+        canDelete={can(ctx.permissions, 'requests:delete')}
         initialView={inboxViews.includes(view as InboxView) ? (view as InboxView) : 'new'}
         convert={
           ctx.flags['module.tasks'] && can(ctx.permissions, 'tasks:create')

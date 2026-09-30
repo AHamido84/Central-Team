@@ -117,7 +117,13 @@
     "empty": "No departments yet",
     "ledBy": "Led by {names}",
     "noLead": "No lead",
-    "manageMembers": "Members ({count})"
+    "manageMembers": "Members ({count})",
+    "delete": "Delete",
+    "deleteTitle": "Delete {name}?",
+    "deleteBody": "Departments are deleted right away (they don't go to the Trash). {count, plural, =0 {It has no members.} one {Its # member can move to another department.} other {Its # members can move to another department.}} Open tasks and workflow steps move with them.",
+    "moveTo": "Move members and work to",
+    "moveNone": "Don't move (they lose this department)",
+    "deleted": "Department deleted"
   },
   "organization": {
     "title": "Agency settings",

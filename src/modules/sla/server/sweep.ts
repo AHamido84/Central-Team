@@ -8,6 +8,7 @@ import { emitEvent } from '@/lib/events/emit';
 import { responseState, slaState, type RequestStatus } from '@/modules/requests/constants';
 import { zonedInstant } from '@/modules/sla/calendar';
 import type { BreachKind, BreachLevel } from '@/modules/sla/constants';
+import { liveClient } from '@/lib/db/live';
 
 export type SlaSweepResult = { atRisk: number; breached: number; resolved: number };
 
@@ -50,6 +51,8 @@ export async function runSlaSweep(now = new Date()): Promise<SlaSweepResult> {
           and(
             eq(requests.organizationId, org.id),
             notInArray(requests.status, ['draft', ...ended]),
+            isNull(requests.deletedAt),
+            liveClient(requests.clientId),
             isNotNull(requests.submittedAt),
             or(isNull(requests.deliveredAt), and(isNull(requests.firstResponseAt), isNotNull(requests.responseDueAt))),
           ),

@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { defineAction } from '@/lib/actions/define-action';
@@ -63,6 +63,52 @@ export const updateDepartmentAction = defineAction({
     return null;
   },
   revalidate: ['/admin/departments'],
+});
+
+/**
+ * Departments are configuration, so they are deleted outright (no Trash, ADR-080). Members, open tasks, workflow steps
+ * and pending invitations can move to another department first; otherwise they simply lose the department.
+ */
+export const deleteDepartmentAction = defineAction({
+  input: z.object({ departmentId: z.uuid(), moveTo: z.uuid().nullable() }),
+  side: 'agency',
+  permission: 'departments:manage',
+  async handler({ input, tx, ctx }) {
+    if (input.moveTo === input.departmentId) throw new ActionFailure('validation');
+    const members = await tx
+      .select({ userId: departmentMembers.userId })
+      .from(departmentMembers)
+      .where(eq(departmentMembers.departmentId, input.departmentId));
+    if (input.moveTo) {
+      const [target] = await tx.select({ id: departments.id }).from(departments).where(eq(departments.id, input.moveTo));
+      if (!target) throw new ActionFailure('not_found');
+      if (members.length) {
+        await tx
+          .insert(departmentMembers)
+          .values(members.map((m) => ({ departmentId: target.id, userId: m.userId, organizationId: ctx.organization.id, isLead: false })))
+          .onConflictDoNothing();
+      }
+      for (const table of ['tasks', 'workflow_template_steps', 'invitations'] as const) {
+        await tx.execute(
+          sql`update ${sql.identifier('public')}.${sql.identifier(table)} set department_id = ${target.id}::uuid where department_id = ${input.departmentId}::uuid`,
+        );
+      }
+    }
+    const [row] = await tx
+      .delete(departments)
+      .where(and(eq(departments.id, input.departmentId), eq(departments.organizationId, ctx.organization.id)))
+      .returning({ id: departments.id });
+    if (!row) throw new ActionFailure('not_found');
+    await emitEvent(tx, {
+      type: 'department.deleted',
+      organizationId: ctx.organization.id,
+      actorId: ctx.session.userId,
+      aggregate: { type: 'department', id: row.id },
+      payload: { departmentId: row.id, movedTo: input.moveTo, members: members.length },
+    });
+    return null;
+  },
+  revalidate: ['/admin/departments', '/team', '/tasks'],
 });
 
 export const setDepartmentMembersAction = defineAction({

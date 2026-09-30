@@ -26,11 +26,11 @@ import { useFormat } from '@/components/providers';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/form';
 import { Input, Textarea } from '@/components/ui/input';
-import { ConfirmDialog } from '@/components/ui/overlays';
 import { Badge, Card, Checkbox, NativeSelect, Switch } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
 import { localized, type Locale, type LocalizedText } from '@/lib/i18n/localized';
 import { cn } from '@/lib/utils/cn';
+import { DeleteDialog } from '@/modules/data/components/delete-dialog';
 import { dayInZone } from '@/modules/tasks/constants';
 import { TemplateSettingsDialog, type RequestTypeOption } from '@/modules/workflows/components/templates-admin';
 import {
@@ -43,7 +43,7 @@ import {
   type DeliverableType,
 } from '@/modules/workflows/constants';
 import { saveStepsSchema, type TemplateStepInput } from '@/modules/workflows/schemas';
-import { deleteTemplateAction, saveTemplateStepsAction } from '@/modules/workflows/server/actions';
+import { saveTemplateStepsAction } from '@/modules/workflows/server/actions';
 import type { TemplateDetail } from '@/modules/workflows/server/queries';
 
 type Option = { id: string; name: LocalizedText | string };
@@ -455,7 +455,9 @@ export function WorkflowBuilder({
   people,
   requestTypes,
   timeZone,
+  canDelete,
 }: {
+  canDelete: boolean;
   template: TemplateDetail;
   departments: Option[];
   roles: Option[];
@@ -471,7 +473,7 @@ export function WorkflowBuilder({
   const [dirty, setDirty] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const save = useAction(saveTemplateStepsAction, { successMessage: t('workflows.builder.saved'), onSuccess: () => setDirty(false) });
-  const remove = useAction(deleteTemplateAction, { successMessage: t('workflows.deleted') });
+  const [deleting, setDeleting] = useState(false);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -553,22 +555,26 @@ export function WorkflowBuilder({
               <Settings2 />
               {t('workflows.editSettings')}
             </Button>
-            <ConfirmDialog
-              trigger={
-                <Button variant="ghost" size="sm" aria-label={t('workflows.delete')}>
+            {canDelete ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={t('workflows.delete')}
+                  onClick={() => setDeleting(true)}
+                  data-testid="template-delete"
+                >
                   <Trash2 />
                 </Button>
-              }
-              title={t('workflows.deleteTitle')}
-              description={t('workflows.deleteBody')}
-              confirmLabel={t('workflows.delete')}
-              cancelLabel={t('common.cancel')}
-              destructive
-              onConfirm={async () => {
-                const res = await remove.run({ templateId: template.id });
-                if (res.ok) router.push('/admin/workflows');
-              }}
-            />
+                <DeleteDialog
+                  type="workflow_template"
+                  id={template.id}
+                  open={deleting}
+                  onOpenChange={setDeleting}
+                  onDeleted={() => router.push('/admin/workflows')}
+                />
+              </>
+            ) : null}
           </div>
         </Card>
 

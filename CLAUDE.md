@@ -129,7 +129,8 @@ Rules:
   website form, the lead webhook and platform lead ads — no session exists), integration token storage in Vault, platform
   calls with their bookkeeping (sync, discovery, webhook processing, WhatsApp sends) and the automation engine (ADR-067/071),
   AI bookkeeping and background work (usage rows, cached explanations after an RLS-checked lookup, detector runs, the
-  assistant indexer, scheduled-report auto-drafts, index status — ADR-073/075), and the seed. Every use needs a comment why.
+  assistant indexer, scheduled-report auto-drafts, index status — ADR-073/075), Storage cleanup after a Trash purge, the
+  data reset job and the Super Admin backup export (ADR-080/081), and the seed. Every use needs a comment why.
 - **Errors**: actions return `{ ok: true, data } | { ok: false, error: { code, message?, fieldErrors? } }`;
   error `code`s are translated in the UI. Never leak DB error text to users.
 - **Commits**: Conventional Commits (`feat(auth): …`, `fix(rbac): …`, `docs: …`). One logical change per commit.

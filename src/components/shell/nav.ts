@@ -36,6 +36,8 @@ import {
   Sparkles,
   Lightbulb,
   BrainCircuit,
+  Trash2,
+  DatabaseBackup,
 } from 'lucide-react';
 
 import { can, type PermissionSet } from '@/lib/permissions/can';
@@ -52,6 +54,8 @@ export type NavItem = {
   /** Any of these permissions grants visibility (empty = everyone on this side). */
   anyOf?: Permission[];
   flag?: string;
+  /** Only the Super Admin sees it. */
+  superAdminOnly?: boolean;
 };
 
 export type NavSection = { key: 'sectionHome' | 'sectionClients' | 'sectionSales' | 'sectionAdmin'; items: NavItem[] };
@@ -125,6 +129,25 @@ export const agencyNav: NavSection[] = [
       { key: 'packages', href: '/admin/packages', icon: Package, anyOf: ['packages:manage'], flag: 'module.clients' },
       { key: 'features', href: '/admin/features', icon: Blocks, anyOf: ['feature_flags:manage'] },
       { key: 'audit', href: '/admin/audit', icon: ScrollText, anyOf: ['audit_log:read'] },
+      {
+        key: 'trash',
+        href: '/admin/trash',
+        icon: Trash2,
+        anyOf: [
+          'clients:delete',
+          'client_users:delete',
+          'users:delete',
+          'packages:delete',
+          'request_types:delete',
+          'workflows:delete',
+          'requests:delete',
+          'tasks:delete',
+          'files:delete',
+          'deliverables:delete',
+          'messages:delete',
+        ],
+      },
+      { key: 'dataManagement', href: '/admin/data', icon: DatabaseBackup, superAdminOnly: true },
       { key: 'organization', href: '/admin/organization', icon: Building2, anyOf: ['organization:update'] },
     ],
   },
@@ -141,7 +164,13 @@ export const portalNav: NavItem[] = [
   { key: 'company', href: '/portal/company', icon: Building2 },
 ];
 
-export function isNavItemVisible(item: NavItem, perms: PermissionSet | readonly string[], flags: Record<string, boolean>): boolean {
+export function isNavItemVisible(
+  item: NavItem,
+  perms: PermissionSet | readonly string[],
+  flags: Record<string, boolean>,
+  superAdmin = false,
+): boolean {
+  if (item.superAdminOnly && !superAdmin) return false;
   if (item.flag && !flags[item.flag]) return false;
   if (item.anyOf && item.anyOf.length > 0 && !item.anyOf.some((p) => can(perms, p))) return false;
   return true;

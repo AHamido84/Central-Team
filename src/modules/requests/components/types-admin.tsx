@@ -17,6 +17,7 @@ import { useAction } from '@/lib/actions/use-action';
 import { localized, type Locale } from '@/lib/i18n/localized';
 import { cn } from '@/lib/utils/cn';
 import { packageItemTypes } from '@/modules/clients/constants';
+import { RowActions } from '@/modules/data/components/row-actions';
 import { TypeIcon, typeIconMap } from '@/modules/requests/components/badges';
 import { requestPriorities, typeCategories, typeIcons } from '@/modules/requests/constants';
 import { typeSettingsSchema, type TypeSettingsInput } from '@/modules/requests/schemas';
@@ -266,8 +267,9 @@ export function TypeSettingsDialog({
 }
 
 /** Request types list for the agency: active state, SLA, package item, questions and usage per type. */
-export function TypesAdmin({ types }: { types: RequestTypeItem[] }) {
+export function TypesAdmin({ types, canDelete = false }: { types: RequestTypeItem[]; canDelete?: boolean }) {
   const t = useTranslations();
+  const router = useRouter();
   const locale = useLocale() as Locale;
   const f = useFormat();
   const [creating, setCreating] = useState(false);
@@ -292,7 +294,7 @@ export function TypesAdmin({ types }: { types: RequestTypeItem[] }) {
       ) : (
         <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3" data-testid="types-list">
           {types.map((type) => (
-            <li key={type.id}>
+            <li key={type.id} className="relative">
               <Link
                 href={`/admin/request-types/${type.id}`}
                 className="group block h-full rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
@@ -323,6 +325,13 @@ export function TypesAdmin({ types }: { types: RequestTypeItem[] }) {
                   </p>
                 </Card>
               </Link>
+              <div className="absolute end-2 top-2">
+                <RowActions
+                  label={localized(type.name, locale)}
+                  onEdit={() => router.push(`/admin/request-types/${type.id}`)}
+                  del={canDelete ? { type: 'request_type', id: type.id } : undefined}
+                />
+              </div>
             </li>
           ))}
         </ul>

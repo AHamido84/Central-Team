@@ -90,28 +90,6 @@ export const updateTemplateAction = defineAction({
   revalidate: (i) => ['/admin/workflows', `/admin/workflows/${i.templateId}`],
 });
 
-export const deleteTemplateAction = defineAction({
-  input: z.object({ templateId: z.uuid() }),
-  side: 'agency',
-  permission: 'workflows:manage',
-  async handler({ input, tx, ctx }) {
-    const [row] = await tx
-      .delete(workflowTemplates)
-      .where(eq(workflowTemplates.id, input.templateId))
-      .returning({ id: workflowTemplates.id });
-    if (!row) throw new ActionFailure('not_found');
-    await emitEvent(tx, {
-      type: 'workflow_template.deleted',
-      organizationId: ctx.organization.id,
-      actorId: ctx.session.userId,
-      aggregate: { type: 'workflow_template', id: input.templateId },
-      payload: { templateId: input.templateId },
-    });
-    return null;
-  },
-  revalidate: ['/admin/workflows'],
-});
-
 /**
  * Saves the builder's whole step list. Step ids are kept (generated tasks reference them), removed steps are
  * deleted; dependencies are validated again by a deferred trigger at commit.

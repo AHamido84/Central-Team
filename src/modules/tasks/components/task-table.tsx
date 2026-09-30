@@ -1,13 +1,12 @@
 'use client';
 
-import { ArrowDown, ArrowUp, ArrowUpDown, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { memo, useMemo, useState } from 'react';
 
 import { useFormat } from '@/components/providers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ConfirmDialog } from '@/components/ui/overlays';
 import { Badge, Checkbox, NativeSelect } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
 import { localized, type Locale, type LocalizedText } from '@/lib/i18n/localized';
@@ -15,6 +14,7 @@ import { cn } from '@/lib/utils/cn';
 import { TaskRef, useDuration, type StatusOption } from '@/modules/tasks/components/badges';
 import { PeoplePicker, type PersonOption } from '@/modules/tasks/components/people-picker';
 import { orderedGroups, useGroupLabel } from '@/modules/tasks/components/task-list';
+import { BulkDeleteButton } from '@/modules/data/components/bulk-delete';
 import { taskPriorities, type Grouping, type SortKey, type TaskPriority } from '@/modules/tasks/constants';
 import { groupTasks, sortTasks } from '@/modules/tasks/filter';
 import type { TaskPatch } from '@/modules/tasks/schemas';
@@ -212,7 +212,6 @@ export function TaskTable(props: Props) {
   const runBulk = async (patch: Omit<Parameters<typeof bulkUpdateTasksAction>[0], 'taskIds'>) => {
     const res = await bulk.run({ taskIds: chosen, ...patch });
     if (res.ok) {
-      if (patch.delete) setSelected(new Set());
       onChanged();
     }
   };
@@ -279,19 +278,13 @@ export function TaskTable(props: Props) {
             />
           </div>
           {canDelete ? (
-            <ConfirmDialog
-              trigger={
-                <Button variant="ghost" size="sm" className="text-danger">
-                  <Trash2 />
-                  {t('tasks.table.delete')}
-                </Button>
-              }
-              title={t('tasks.table.deleteTitle', { count: chosen.length })}
-              description={t('tasks.table.deleteBody')}
-              confirmLabel={t('tasks.table.delete')}
-              cancelLabel={t('common.cancel')}
-              destructive
-              onConfirm={() => runBulk({ delete: true })}
+            <BulkDeleteButton
+              type="task"
+              items={tasks.filter((x) => selected.has(x.id)).map((x) => ({ id: x.id, name: x.title }))}
+              onDone={() => {
+                setSelected(new Set());
+                onChanged();
+              }}
             />
           ) : null}
           <Button

@@ -198,5 +198,14 @@
   "calendar": {
     "title": "Content calendar",
     "description": "Approved and scheduled content by publishing date."
+  },
+  "edit": {
+    "button": "Edit",
+    "title": "Edit deliverable",
+    "name": "Title",
+    "scheduledFor": "Scheduled for",
+    "internalReview": "Needs internal review",
+    "clientApproval": "Needs client approval",
+    "deleteVersion": "Delete version {n}"
   }
 }

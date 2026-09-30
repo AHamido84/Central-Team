@@ -28,6 +28,8 @@ export default async function PortalFilesPage() {
         side="client"
         canUpload={can(ctx.permissions, 'portal_files:upload')}
         canManage={false}
+        canDelete={false}
+        userId={ctx.session.userId}
       />
     </>
   );

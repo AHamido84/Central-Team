@@ -10,6 +10,8 @@ export type ShellData = {
   user: { id: string; name: string; email: string; avatarUrl: string | null };
   organization: { name: string; logoUrl: string | null; brandColor: string | null };
   permissions: string[];
+  /** Super Admin-only screens (data management) are hidden from everyone else. */
+  superAdmin: boolean;
   flags: Record<string, boolean>;
   client: { id: string; name: string; logoUrl: string | null; roleName: string } | null;
   clients: { id: string; name: string }[];
@@ -30,6 +32,7 @@ export function toShellData(ctx: AppContext, locale: Locale): ShellData {
       brandColor: ctx.organization.brand.primaryColor ?? null,
     },
     permissions: [...ctx.permissions],
+    superAdmin: ctx.side === 'agency' && ctx.isSuperAdmin,
     flags: ctx.flags,
     client:
       ctx.side === 'client'

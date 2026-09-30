@@ -576,7 +576,8 @@ Focused improvements on Phases 0–8 — no new phase. Each item extends the exi
 - **Checklist items, departments and roles** are small configuration rows: they get edit + hard delete (departments
   ask where members go; roles must be unused), not Trash.
 - **Permissions**: `<resource>:delete` (soft) and `<resource>:purge` (permanent) for clients, client_users, users,
-  packages, request_types, workflows, requests, tasks, files, deliverables, messages; `trash:read`. Seeded: Super Admin
+  packages, request_types, workflows, requests, tasks, files, deliverables, messages (the Trash shows each entry to whoever
+  holds its `:delete`, so no separate `trash:read`). Seeded: Super Admin
   / Admin all; Account Manager and Team Lead `:delete` within their clients; Specialists only their own comments and
   files they uploaded (never other people's work). Enforced by RLS/SQL functions, mirrored by `can()`.
 - **UI**: a row-actions menu (edit / delete) on every list and detail page that lacked one; edit forms where missing
@@ -584,13 +585,22 @@ Focused improvements on Phases 0–8 — no new phase. Each item extends the exi
   + bulk delete in list/table views; an in-page confirm dialog that lists the impact ("12 requests, 48 tasks, 30
   files") and asks to type the item's name for cascading deletes; `/admin/trash` (filter by type, restore, purge,
   empty trash). Everything is audited (soft delete = update with before/after, purge = delete).
-- **Data management** (`/settings/data`, Super Admin only): three reset options with a live checklist and counts —
+- **Data management** (`/admin/data`, Super Admin only): three reset options with a live checklist and counts —
   demo data only (`is_demo = true` on seeded roots: users, clients, leads, deals, packages, request types, workflow
   templates, SLA policies, holidays, automations, connections, CRM settings rows; the seed and the deploy migration mark
   them), all operational data, factory reset (then the organization is re-bootstrapped). One-click backup ZIP (JSON per
   table + storage file list), password re-entry, typed phrase, a background job with progress and a result summary,
   Storage cleanup, and a **lock** (unlock needs the password). Schema: `organizations.data_reset_locked_at`,
   `data_reset_jobs` (mode, status, step, counts, error, requested_by). The audit entry is written after the wipe.
+
+**Status**
+- [x] Soft delete + Trash functions, RLS (restrictive policies), permissions and grants; `trash_items` (ADR-080)
+- [x] Delete dialog with impact, blockers, reassign and type-to-confirm; Undo toast; bulk delete (clients, requests, tasks)
+- [x] Edit/delete wired on clients, portal users, team members, packages, request types, workflow templates, requests,
+  tasks/subtasks, checklist items, own messages, files, folders, deliverables/versions, departments (roles already had it)
+- [x] `/admin/trash` (filter, restore, purge, empty) and `/admin/data` (backup ZIP, three reset scopes with counts,
+  password + phrase, progress, lock) (ADR-081)
+- [x] DB tests (`tests/db/trash.test.ts`) and e2e (`e2e/trash.spec.ts`)
 
 ### FR1.2 Tasks performance + drawer
 - Profile first (EXPLAIN ANALYZE of `listTasks` as a user, network waterfall, React Profiler) with a **1,000-task

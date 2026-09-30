@@ -15,6 +15,7 @@ import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTi
 import { Badge, Card, NativeSelect, Switch } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
 import { localized, type Locale, type LocalizedText } from '@/lib/i18n/localized';
+import { RowActions } from '@/modules/data/components/row-actions';
 import { TypeIcon } from '@/modules/requests/components/badges';
 import type { TypeIcon as TypeIconKey } from '@/modules/requests/constants';
 import { templateSettingsSchema } from '@/modules/workflows/schemas';
@@ -193,8 +194,17 @@ export function TemplateSettingsDialog({
   );
 }
 
-export function TemplatesAdmin({ templates, requestTypes }: { templates: TemplateSummary[]; requestTypes: RequestTypeOption[] }) {
+export function TemplatesAdmin({
+  templates,
+  requestTypes,
+  canDelete = false,
+}: {
+  templates: TemplateSummary[];
+  requestTypes: RequestTypeOption[];
+  canDelete?: boolean;
+}) {
   const t = useTranslations();
+  const router = useRouter();
   const locale = useLocale() as Locale;
   const f = useFormat();
   const [open, setOpen] = useState(false);
@@ -214,7 +224,7 @@ export function TemplatesAdmin({ templates, requestTypes }: { templates: Templat
       ) : (
         <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3" data-testid="workflows-list">
           {templates.map((tpl) => (
-            <li key={tpl.id} className="min-w-0">
+            <li key={tpl.id} className="relative min-w-0">
               <Link
                 href={`/admin/workflows/${tpl.id}`}
                 className="group block h-full rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
@@ -247,6 +257,13 @@ export function TemplatesAdmin({ templates, requestTypes }: { templates: Templat
                   <p className="text-xs text-subtle-foreground">{t('workflows.updated', { when: f.relative(tpl.updatedAt) })}</p>
                 </Card>
               </Link>
+              <div className="absolute end-2 top-2">
+                <RowActions
+                  label={localized(tpl.name, locale)}
+                  onEdit={() => router.push(`/admin/workflows/${tpl.id}`)}
+                  del={canDelete ? { type: 'workflow_template', id: tpl.id } : undefined}
+                />
+              </div>
             </li>
           ))}
         </ul>

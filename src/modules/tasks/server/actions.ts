@@ -206,22 +206,6 @@ export const bulkUpdateTasksAction = defineAction({
   async handler({ input, tx, ctx }) {
     const rows = await tx.select().from(tasks).where(inArray(tasks.id, input.taskIds));
     if (rows.length !== input.taskIds.length) throw new ActionFailure('not_found');
-    if (input.delete) {
-      if (!can(ctx.permissions, 'tasks:delete')) throw new ActionFailure('forbidden');
-      const deleted = await tx.delete(tasks).where(inArray(tasks.id, input.taskIds)).returning({ id: tasks.id, clientId: tasks.clientId });
-      if (deleted.length !== rows.length) throw new ActionFailure('forbidden');
-      for (const d of deleted) {
-        await emitEvent(tx, {
-          type: 'task.deleted',
-          organizationId: ctx.organization.id,
-          actorId: ctx.session.userId,
-          aggregate: { type: 'task', id: d.id },
-          clientId: d.clientId,
-          payload: { taskId: d.id, clientId: d.clientId },
-        });
-      }
-      return { updated: deleted.length };
-    }
     const patch: Partial<typeof tasks.$inferInsert> = {};
     if (input.statusId) patch.statusId = input.statusId;
     if (input.priority) patch.priority = input.priority;
@@ -240,27 +224,6 @@ export const bulkUpdateTasksAction = defineAction({
     }
     if (input.assigneeId) for (const r of rows) await addAssignees(tx, ctx, r, [input.assigneeId]);
     return { updated: rows.length };
-  },
-  revalidate: taskPaths,
-});
-
-export const deleteTaskAction = defineAction({
-  input: z.object({ taskId: z.uuid() }),
-  side: 'agency',
-  permission: 'tasks:delete',
-  async handler({ input, tx, ctx }) {
-    const current = await loadTask(tx, input.taskId);
-    const [row] = await tx.delete(tasks).where(eq(tasks.id, current.id)).returning({ id: tasks.id });
-    if (!row) throw new ActionFailure('forbidden');
-    await emitEvent(tx, {
-      type: 'task.deleted',
-      organizationId: ctx.organization.id,
-      actorId: ctx.session.userId,
-      aggregate: { type: 'task', id: current.id },
-      clientId: current.clientId,
-      payload: { taskId: current.id, clientId: current.clientId },
-    });
-    return null;
   },
   revalidate: taskPaths,
 });
@@ -287,17 +250,15 @@ export const setTaskMembersAction = defineAction({
     const added = [...want].filter((id) => !have.has(id));
     if (input.role === 'assignee') await addAssignees(tx, ctx, task, added);
     else if (added.length) {
-      await tx
-        .insert(taskMembers)
-        .values(
-          added.map((userId) => ({
-            taskId: task.id,
-            userId,
-            role: 'watcher',
-            organizationId: ctx.organization.id,
-            clientId: task.clientId,
-          })),
-        );
+      await tx.insert(taskMembers).values(
+        added.map((userId) => ({
+          taskId: task.id,
+          userId,
+          role: 'watcher',
+          organizationId: ctx.organization.id,
+          clientId: task.clientId,
+        })),
+      );
     }
     return { taskId: task.id };
   },

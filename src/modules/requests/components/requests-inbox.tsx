@@ -16,6 +16,7 @@ import { useAction } from '@/lib/actions/use-action';
 import { localized, type Locale } from '@/lib/i18n/localized';
 import { publicAssetUrl } from '@/lib/storage';
 import { cn } from '@/lib/utils/cn';
+import { BulkDeleteButton } from '@/modules/data/components/bulk-delete';
 import { ExtraBadge, PriorityBadge, RequestStatusBadge, ResponseBadge, SlaBadge, TypeIcon } from '@/modules/requests/components/badges';
 import { BriefView } from '@/modules/requests/components/brief-fields';
 import { agencyAllowed, StatusActionButtons } from '@/modules/requests/components/request-detail';
@@ -173,6 +174,7 @@ export function RequestsInbox({
   me,
   people,
   canTriage,
+  canDelete = false,
   showClient = true,
   initialView = 'new',
   convert,
@@ -181,6 +183,7 @@ export function RequestsInbox({
   me: string;
   people: { id: string; name: string; avatarPath: string | null }[];
   canTriage: boolean;
+  canDelete?: boolean;
   showClient?: boolean;
   initialView?: InboxView;
   /** "Convert to tasks" in the preview drawer (when tasks are enabled and allowed). */
@@ -415,50 +418,57 @@ export function RequestsInbox({
           { id: 'type', label: t('requests.type'), options: types.map(([value, label]) => ({ value, label })) },
         ]}
         bulkActions={
-          canTriage
+          canTriage || canDelete
             ? (selected, clear) => (
                 <>
-                  <NativeSelect
-                    aria-label={t('requests.bulkAssign')}
-                    className="h-8 min-w-40 sm:h-8"
-                    value=""
-                    disabled={triage.pending}
-                    onChange={async (e) => {
-                      const v = e.target.value;
-                      if (!v) return;
-                      const res = await triage.run({ requestIds: selected.map((r) => r.id), assigneeId: v === '__none' ? null : v });
-                      if (res.ok) clear();
-                    }}
-                    data-testid="bulk-assign"
-                  >
-                    <option value="">{t('requests.bulkAssign')}</option>
-                    <option value="__none">{t('requests.unassigned')}</option>
-                    {people.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                  <NativeSelect
-                    aria-label={t('requests.bulkPriority')}
-                    className="h-8 min-w-36 sm:h-8"
-                    value=""
-                    disabled={triage.pending}
-                    onChange={async (e) => {
-                      const v = e.target.value as RequestPriority | '';
-                      if (!v) return;
-                      const res = await triage.run({ requestIds: selected.map((r) => r.id), priority: v });
-                      if (res.ok) clear();
-                    }}
-                    data-testid="bulk-priority"
-                  >
-                    <option value="">{t('requests.bulkPriority')}</option>
-                    {requestPriorities.map((p) => (
-                      <option key={p} value={p}>
-                        {t(`requests.priorities.${p}`)}
-                      </option>
-                    ))}
-                  </NativeSelect>
+                  {canDelete ? (
+                    <BulkDeleteButton type="request" items={selected.map((r) => ({ id: r.id, name: r.title }))} onDone={clear} />
+                  ) : null}
+                  {canTriage ? (
+                    <>
+                      <NativeSelect
+                        aria-label={t('requests.bulkAssign')}
+                        className="h-8 min-w-40 sm:h-8"
+                        value=""
+                        disabled={triage.pending}
+                        onChange={async (e) => {
+                          const v = e.target.value;
+                          if (!v) return;
+                          const res = await triage.run({ requestIds: selected.map((r) => r.id), assigneeId: v === '__none' ? null : v });
+                          if (res.ok) clear();
+                        }}
+                        data-testid="bulk-assign"
+                      >
+                        <option value="">{t('requests.bulkAssign')}</option>
+                        <option value="__none">{t('requests.unassigned')}</option>
+                        {people.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </NativeSelect>
+                      <NativeSelect
+                        aria-label={t('requests.bulkPriority')}
+                        className="h-8 min-w-36 sm:h-8"
+                        value=""
+                        disabled={triage.pending}
+                        onChange={async (e) => {
+                          const v = e.target.value as RequestPriority | '';
+                          if (!v) return;
+                          const res = await triage.run({ requestIds: selected.map((r) => r.id), priority: v });
+                          if (res.ok) clear();
+                        }}
+                        data-testid="bulk-priority"
+                      >
+                        <option value="">{t('requests.bulkPriority')}</option>
+                        {requestPriorities.map((p) => (
+                          <option key={p} value={p}>
+                            {t(`requests.priorities.${p}`)}
+                          </option>
+                        ))}
+                      </NativeSelect>
+                    </>
+                  ) : null}
                   <Button variant="ghost" size="sm" onClick={clear}>
                     {t('common.cancel')}
                   </Button>

@@ -15,7 +15,7 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
-import { createdAt, id, updatedAt } from '@/lib/db/columns';
+import { createdAt, id, softDelete, updatedAt } from '@/lib/db/columns';
 import { campaigns } from '@/modules/campaigns/db/schema';
 import { clients } from '@/modules/clients/db/schema';
 import { files } from '@/modules/files/db/schema';
@@ -55,6 +55,7 @@ export const deliverables = pgTable(
     /** Last "still waiting for your approval" reminder. */
     remindedAt: timestamp('reminded_at', { withTimezone: true }),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    ...softDelete(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -92,6 +93,7 @@ export const deliverableVersions = pgTable(
     submittedAt: timestamp('submitted_at', { withTimezone: true }),
     sentToClientAt: timestamp('sent_to_client_at', { withTimezone: true }),
     decidedAt: timestamp('decided_at', { withTimezone: true }),
+    ...softDelete(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

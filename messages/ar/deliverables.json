@@ -198,5 +198,14 @@
   "calendar": {
     "title": "تقويم المحتوى",
     "description": "المحتوى المعتمد والمجدول حسب تاريخ النشر."
+  },
+  "edit": {
+    "button": "تعديل",
+    "title": "تعديل التسليم",
+    "name": "العنوان",
+    "scheduledFor": "موعد النشر",
+    "internalReview": "يحتاج مراجعة داخلية",
+    "clientApproval": "يحتاج موافقة العميل",
+    "deleteVersion": "حذف الإصدار {n}"
   }
 }

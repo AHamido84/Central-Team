@@ -946,6 +946,9 @@ async function main() {
     },
   ]);
 
+  // Everything above is demo data: Settings → Data management can remove it in one go (ADR-081).
+  await db.execute(sql`select app.mark_demo_data(${ORG_ID}::uuid)`);
+
   const [usersCount] = await db.execute<{ count: number }>(sql`select count(*)::int as count from auth.users`);
   const [clientsCount] = await db
     .select({ n: sql<number>`count(*)::int` })

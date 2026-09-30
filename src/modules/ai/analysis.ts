@@ -20,6 +20,7 @@ import {
 } from '@/modules/ai/insights-core';
 import { addDays } from '@/modules/campaigns/metrics';
 import { loadKpis, loadMetricRows, shapeOf } from '@/modules/campaigns/snapshot';
+import { liveClient } from '@/lib/db/live';
 
 export type AnalysisEvent =
   | { type: 'ai_insight.detected'; payload: DomainEventPayloads['ai_insight.detected'] }
@@ -179,6 +180,7 @@ export async function campaignsToAnalyze(tx: Tx, organizationId: string, today: 
     .where(
       and(
         eq(campaigns.organizationId, organizationId),
+        liveClient(campaigns.clientId),
         sql`(${campaigns.status} in ('active','paused') or (${campaigns.status} = 'completed' and ${campaigns.endDate} >= ${addDays(today, -14)}::date))`,
       ),
     );

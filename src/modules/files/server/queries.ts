@@ -27,6 +27,8 @@ export type FileItem = {
   uploaderName: string | null;
   uploaderAvatar: string | null;
   uploaderSide: 'agency' | 'client';
+  /** Uploaders may delete their own files (ADR-080). */
+  uploadedBy: string | null;
   createdAt: string;
   /** Short-lived signed URL for image thumbnails (only for rows the caller could already read via RLS). */
   thumbUrl?: string | null;
@@ -94,6 +96,7 @@ export function toFileItem(file: typeof files.$inferSelect, uploaderName: string
     uploaderName,
     uploaderAvatar,
     uploaderSide: file.uploaderSide as FileItem['uploaderSide'],
+    uploadedBy: file.uploadedBy,
     createdAt: file.createdAt.toISOString(),
   };
 }

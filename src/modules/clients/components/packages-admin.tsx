@@ -19,6 +19,7 @@ import { localized, type Locale } from '@/lib/i18n/localized';
 import { packageItemTypes } from '@/modules/clients/constants';
 import { savePackageAction } from '@/modules/clients/server/actions';
 import type { PackageWithItems } from '@/modules/clients/server/queries';
+import { DeleteButton } from '@/modules/data/components/delete-button';
 
 const schema = z
   .object({
@@ -171,7 +172,7 @@ function PackageDialog({ pkg, open, onOpenChange }: { pkg: PackageWithItems | nu
   );
 }
 
-export function PackagesAdmin({ packages }: { packages: PackageWithItems[] }) {
+export function PackagesAdmin({ packages, canDelete = false }: { packages: PackageWithItems[]; canDelete?: boolean }) {
   const t = useTranslations();
   const locale = useLocale() as Locale;
   const f = useFormat();
@@ -220,7 +221,9 @@ export function PackagesAdmin({ packages }: { packages: PackageWithItems[] }) {
                 ))}
               </ul>
               <div className="mt-auto flex items-center justify-between gap-2 pt-5">
-                <span className="text-xs text-subtle-foreground">{t('clients.packages.activeClients', { count: p.clientCount })}</span>
+                <span className="me-auto text-xs text-subtle-foreground">
+                  {t('clients.packages.activeClients', { count: p.clientCount })}
+                </span>
                 <Button
                   variant="outline"
                   size="sm"
@@ -232,6 +235,7 @@ export function PackagesAdmin({ packages }: { packages: PackageWithItems[] }) {
                   <Pencil />
                   {t('common.edit')}
                 </Button>
+                {canDelete ? <DeleteButton type="package" id={p.id} iconOnly testId="package-delete" /> : null}
               </div>
             </Card>
           ))}

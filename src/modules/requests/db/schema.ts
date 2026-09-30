@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { boolean, check, date, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
-import { createdAt, id, localized, updatedAt } from '@/lib/db/columns';
+import { createdAt, id, isDemo, localized, softDelete, updatedAt } from '@/lib/db/columns';
 import { campaigns } from '@/modules/campaigns/db/schema';
 import { clients } from '@/modules/clients/db/schema';
 import { files } from '@/modules/files/db/schema';
@@ -29,6 +29,8 @@ export const requestTypes = pgTable(
     schemaVersion: integer('schema_version').notNull().default(1),
     sortOrder: integer('sort_order').notNull().default(0),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    ...softDelete(),
+    isDemo: isDemo(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -87,6 +89,7 @@ export const requests = pgTable(
     responseDueAt: timestamp('response_due_at', { withTimezone: true }),
     slaPausedAt: timestamp('sla_paused_at', { withTimezone: true }),
     slaPausedDays: integer('sla_paused_days').notNull().default(0),
+    ...softDelete(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

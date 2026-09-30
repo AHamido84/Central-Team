@@ -66,6 +66,12 @@ export const actionErrorCodes = [
   'ai_budget_exceeded',
   'ai_refused',
   'ai_unavailable',
+  'in_use',
+  'reassign_required',
+  'parent_deleted',
+  'reset_locked',
+  'invalid_password',
+  'confirmation_mismatch',
   'unknown',
 ] as const;
 
@@ -128,6 +134,10 @@ const raisedCodes = new Set<ActionErrorCode>([
   'connection_not_connected',
   'channel_client_mismatch',
   'template_not_approved',
+  'in_use',
+  'reassign_required',
+  'parent_deleted',
+  'reset_locked',
 ]);
 
 /** Maps thrown errors (ActionFailure, Postgres errors raised by RLS/triggers) to a safe error code. */
@@ -139,6 +149,7 @@ export function toActionError(error: unknown): ActionError {
     const raised = [...raisedCodes].find((c) => message === c);
     if (raised) return { code: raised };
     if (pg.code === '42501') return { code: 'forbidden' };
+    if (pg.code === 'P0002') return { code: 'not_found' };
     if (pg.code === '23505') return { code: 'conflict' };
     if (pg.code === '23503' && message.includes('task_statuses')) return { code: 'status_in_use' };
     if (pg.code === '23503' && message.includes('delete')) return { code: 'role_in_use' };

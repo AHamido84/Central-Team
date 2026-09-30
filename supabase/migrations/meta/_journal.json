@@ -57,6 +57,13 @@
       "when": 1790763978547,
       "tag": "20260930102618_ai_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790791024724,
+      "tag": "20260930175704_soft_delete_data_reset",
+      "breakpoints": true
     }
   ]
 }

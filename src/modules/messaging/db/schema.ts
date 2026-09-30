@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { check, index, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
-import { createdAt, id, updatedAt } from '@/lib/db/columns';
+import { createdAt, id, softDelete, updatedAt } from '@/lib/db/columns';
 import { clients } from '@/modules/clients/db/schema';
 import { files } from '@/modules/files/db/schema';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
@@ -27,6 +27,7 @@ export const threads = pgTable(
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
     lastCommentAt: timestamp('last_comment_at', { withTimezone: true }).notNull().defaultNow(),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
+    ...softDelete(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -61,6 +62,8 @@ export const comments = pgTable(
       .default(sql`'{}'::uuid[]`),
     editedAt: timestamp('edited_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    deletedBy: uuid('deleted_by'),
+    deleteBatch: uuid('delete_batch'),
     createdAt: createdAt(),
   },
   (t) => [

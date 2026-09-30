@@ -13,6 +13,7 @@ import { addDays, daysBetween } from '@/modules/campaigns/metrics';
 import { defaultReportSections, nextRunAfter, periodEndingBefore } from '@/modules/campaigns/periods';
 import { buildReportSnapshot, refreshCampaignHealth } from '@/modules/campaigns/server/analysis';
 import { dayInZone } from '@/modules/tasks/constants';
+import { liveClient } from '@/lib/db/live';
 
 export type CampaignSweepResult = { started: number; completed: number; stale: number; reports: number };
 
@@ -31,11 +32,25 @@ export async function runCampaignSweep(now = new Date()): Promise<CampaignSweepR
       const toStart = await tx
         .select({ id: campaigns.id, clientId: campaigns.clientId, status: campaigns.status })
         .from(campaigns)
-        .where(and(eq(campaigns.organizationId, org.id), eq(campaigns.status, 'planned'), lte(campaigns.startDate, today)));
+        .where(
+          and(
+            eq(campaigns.organizationId, org.id),
+            eq(campaigns.status, 'planned'),
+            lte(campaigns.startDate, today),
+            liveClient(campaigns.clientId),
+          ),
+        );
       const toComplete = await tx
         .select({ id: campaigns.id, clientId: campaigns.clientId, status: campaigns.status })
         .from(campaigns)
-        .where(and(eq(campaigns.organizationId, org.id), inArray(campaigns.status, ['active', 'paused']), lt(campaigns.endDate, today)));
+        .where(
+          and(
+            eq(campaigns.organizationId, org.id),
+            inArray(campaigns.status, ['active', 'paused']),
+            lt(campaigns.endDate, today),
+            liveClient(campaigns.clientId),
+          ),
+        );
       if (toStart.length)
         await tx
           .update(campaigns)
@@ -76,7 +91,7 @@ export async function runCampaignSweep(now = new Date()): Promise<CampaignSweepR
       const live = await tx
         .select({ id: campaigns.id })
         .from(campaigns)
-        .where(and(eq(campaigns.organizationId, org.id), inArray(campaigns.status, ['active', 'paused'])));
+        .where(and(eq(campaigns.organizationId, org.id), inArray(campaigns.status, ['active', 'paused']), liveClient(campaigns.clientId)));
       for (const c of live) await refreshCampaignHealth(tx, c.id, null);
 
       // Stale: an active campaign that started a while ago with no numbers for STALE_METRICS_DAYS.

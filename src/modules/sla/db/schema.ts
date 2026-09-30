@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { boolean, check, date, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
-import { createdAt, id, localized, updatedAt } from '@/lib/db/columns';
+import { createdAt, id, isDemo, localized, updatedAt } from '@/lib/db/columns';
 import { clients } from '@/modules/clients/db/schema';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
 import { requestTypes, requests } from '@/modules/requests/db/schema';
@@ -31,6 +31,7 @@ export const slaPolicies = pgTable(
     isActive: boolean('is_active').notNull().default(true),
     sortOrder: integer('sort_order').notNull().default(0),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    isDemo: isDemo(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -53,6 +54,7 @@ export const holidays = pgTable(
       .references(() => organizations.id, { onDelete: 'cascade' }),
     date: date('date').notNull(),
     name: localized('name').notNull(),
+    isDemo: isDemo(),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('holidays_org_date_idx').on(t.organizationId, t.date)],

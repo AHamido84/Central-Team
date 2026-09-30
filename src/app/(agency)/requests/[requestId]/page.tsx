@@ -12,6 +12,7 @@ import { localized } from '@/lib/i18n/localized';
 import { getFormatters } from '@/lib/i18n/server-format';
 import { can } from '@/lib/permissions/can';
 import { publicAssetUrl } from '@/lib/storage';
+import { DeleteButton } from '@/modules/data/components/delete-button';
 import { CampaignLinkField } from '@/modules/campaigns/components/campaign-link';
 import { listCampaignOptions } from '@/modules/campaigns/server/queries';
 import { listAgencyPeople } from '@/modules/clients/server/queries';
@@ -112,6 +113,9 @@ export default async function AgencyRequestPage({ params }: { params: Promise<{ 
             <RequestStatusBadge status={request.status} />
             <PriorityBadge priority={request.priority} />
             {request.isExtra ? <ExtraBadge /> : null}
+            {can(ctx.permissions, 'requests:delete') ? (
+              <DeleteButton type="request" id={request.id} redirectTo="/requests" iconOnly testId="request-delete" />
+            ) : null}
           </span>
         }
       />

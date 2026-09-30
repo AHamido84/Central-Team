@@ -43,5 +43,7 @@
   "previewFailed": "تعذّرت معاينة الملف.",
   "noPreview": "لا تتوفر معاينة لهذا النوع من الملفات.",
   "recentFiles": "أحدث الملفات",
-  "noRecentFiles": "لا ملفات مشتركة بعد"
+  "noRecentFiles": "لا ملفات مشتركة بعد",
+  "renameFolder": "إعادة تسمية المجلد",
+  "folderName": "اسم المجلد"
 }
