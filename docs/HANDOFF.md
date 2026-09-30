@@ -105,8 +105,8 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 |---|---|
 | URL | https://centralteam.vercel.app (Vercel project `centralteam`, Hobby plan) |
 | Database | Supabase project `udqhetkwsqpyyuurajcb` (created through the Vercel ↔ Supabase integration) |
-| Deployed from | branch `claude/stoic-cray-wud1ib` (Phase 4, commit `ee2e20c`). **Phases 5 and 6 are pushed but not deployed** — waiting for the owner's go and a Vercel token |
-| Data | the demo seed (agency "Ofoq", 5 clients, 23 users, password `Passw0rd!` for all) + Phase 4 demo campaigns |
+| Deployed from | branch `claude/stoic-cray-wud1ib`, commit `70541bb` (Phases 0–6), deployment `dpl_5GC5GRe1SgdUKCYfQcdJ4SFBJ55m` on 2026-09-30 — migrations through `20260930020100` applied, Phase 5 SLA and Phase 6 sales demo data loaded |
+| Data | the demo seed (agency "Ofoq", 5 clients, 25 users incl. `majed@` / `ruba@ofoq.test`, password `Passw0rd!` for all) + demo campaigns, SLA data and sales pipeline |
 
 How it works:
 - **Deploy** = a Vercel production build of the branch. `vercel.json` runs `pnpm db:deploy && pnpm build`:
@@ -121,8 +121,9 @@ How it works:
   the claims are mirrored into `app_metadata` (ADR-046). Site URL / redirect URLs in Supabase Auth should be set to the
   Vercel URL (owner's task) for magic links and password resets.
 - **Cron**: daily at 05:00 UTC (08:00 Riyadh) — reminder sweep, campaign sweep, SLA breach sweep, CRM sweep (follow-ups due, quiet deals), dispatcher safety net (ADR-044/055/066).
-- **Network (cloud sessions)**: `api.vercel.com` must be allowed; direct Postgres (port 5432/6543) to Supabase is
-  blocked from the sandbox, so DB changes only happen through the Vercel build.
+- **Network (cloud sessions)**: `api.vercel.com` must be allowed; Supabase (Postgres and HTTPS) is blocked from the
+  sandbox, so DB changes only happen through the Vercel build. The site answers `curl`, but headless Chromium can't
+  load its scripts through the sandbox proxy (forms submit as plain HTML), so check the logged-in UI from a real browser.
 
 ## Open items (need the owner)
 
