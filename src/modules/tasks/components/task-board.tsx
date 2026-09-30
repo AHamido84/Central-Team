@@ -26,6 +26,7 @@ import { Avatar } from '@/components/ui/primitives';
 import { localized, type Locale, type LocalizedText } from '@/lib/i18n/localized';
 import { publicAssetUrl } from '@/lib/storage';
 import { cn } from '@/lib/utils/cn';
+import { ShowMore, useRenderLimit } from '@/modules/tasks/components/show-more';
 import { statusDot, type StatusOption } from '@/modules/tasks/components/badges';
 import { TaskCard } from '@/modules/tasks/components/task-card';
 import { positionBetween, type Swimlane } from '@/modules/tasks/constants';
@@ -115,6 +116,8 @@ function Column({
   const f = useFormat();
   const { setNodeRef, isOver } = useDroppable({ id: `${lane}${SEP}${status.id}`, data: { statusId: status.id, lane } });
   const name = localized(status.name, locale);
+  const { limit, more } = useRenderLimit();
+  const shown = tasks.length > limit ? tasks.slice(0, limit) : tasks;
   return (
     <section
       className={cn('flex w-72 shrink-0 flex-col rounded-xl bg-surface-muted/60', isOver && 'ring-2 ring-primary/60')}
@@ -140,14 +143,15 @@ function Column({
           ) : null}
         </header>
       ) : null}
-      <SortableContext items={tasks.map((task) => `${lane}${SEP}${task.id}`)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={shown.map((task) => `${lane}${SEP}${task.id}`)} strategy={verticalListSortingStrategy}>
         <div
           ref={setNodeRef}
           className={cn('grid min-h-16 content-start gap-2 overflow-y-auto px-2 pb-3', showHeader ? 'max-h-[calc(100dvh-18rem)]' : 'pt-2')}
         >
-          {tasks.map((task) => (
+          {shown.map((task) => (
             <SortableCard key={task.id} task={task} lane={lane} today={today} onOpen={onOpen} showClient={showClient} />
           ))}
+          <ShowMore hidden={tasks.length - shown.length} onMore={more} />
           {tasks.length === 0 ? (
             <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-subtle-foreground">
               {t('dropHere')}

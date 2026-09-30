@@ -248,5 +248,10 @@
   "requestWork": {
     "title": "Work on this request"
   },
-  "editItem": "Edit item"
+  "editItem": "Edit item",
+  "discardTitle": "Discard your changes?",
+  "discardBody": "You have edits that aren't saved yet.",
+  "discard": "Discard",
+  "keepEditing": "Keep editing",
+  "showMore": "Show {count} more"
 }

@@ -704,6 +704,39 @@ and a single `data_reset` audit entry is written afterwards so it survives. The 
 secrets or hashes, plus a list of Storage objects) is a service path for the Super Admin and is itself audited.
 *Rejected*: running the wipe inside the request (timeouts on large tenants); SQL `truncate` (ignores tenant boundaries).
 
+### ADR-082 — Tasks performance: access computed once per statement, History-API drawer, bounded rendering
+2026-09-30 · Accepted
+**Profiling** (1,000 tasks via `pnpm db:seed:perf`, production build, median of 3–5 runs, Playwright timings incl.
+its own overhead; `EXPLAIN ANALYZE` of the Tasks query as the RLS user):
+
+| Measure | Before | After |
+|---|---|---|
+| Tasks query in Postgres — admin / specialist | 8,447 ms / 5,748 ms | ~95 ms / ~115 ms |
+| `/tasks` load until cards are interactive — admin / specialist | 8.9 s / 7.1 s | 0.95 s / 0.89 s |
+| Open a task (drawer) | 10.1 s | 0.51 s |
+| Close the drawer | 9.8 s | 0.50 s |
+| Switch to list / table / board | 1.6 / 2.5 / 1.6 s | 0.56 / 0.32 / 0.47 s |
+| Filter by text | 0.31 s | 0.13 s |
+| Cards mounted on the board | 665 | 200 (40 per column + "show more") |
+
+**Findings.** (1) Every policy called a SECURITY DEFINER access function per row —
+`(select app.agency_can_read_tasks(t.client_id))` is a correlated SubPlan (~2 ms each), and the list query's seven
+correlated subqueries repeated it for every child row (checklists, members, comments, deliverables…). (2) Profiles were
+checked per row with `can_see_profile()` (~0.35 ms × every assignee). (3) Opening/closing the drawer and switching the
+layout used `router.replace`, a server round trip that re-ran all seven page queries; the task thread in the drawer also
+called `router.refresh()` after its read receipt. (4) Every view mounted every task (665 sortable cards).
+
+**Fixes.** Array functions with the same rules (`app.agency_client_ids()`, `agency_task_client_ids()`,
+`agency_request_client_ids()`, `member_client_ids()`, `agency_org_ids()`, `org_ids()`, `visible_profile_ids()`), used as
+`client_id = any ((select app.…())::uuid[])` so Postgres evaluates them once (InitPlan); a migration rewrote every
+matching policy, and `tests/db/rls-performance.test.ts` proves equivalence for every seeded user and fails if a per-row
+call comes back. The list query aggregates child tables once over the page of ids. `?task=` and `?layout=` change via
+the History API (open = push, so Back closes; switching = replace; close = back or strip), the embedded conversation
+no longer refreshes the router, and columns/groups mount 15–40 rows with "show more".
+**Rule for new policies**: use the array functions, never a per-row access function on a column.
+*Rejected*: caching permissions in JWT claims (stale after role changes until re-login); list virtualization (drag &
+drop across virtualized columns is fragile; bounded rendering was enough).
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

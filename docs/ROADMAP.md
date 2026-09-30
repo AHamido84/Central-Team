@@ -613,6 +613,13 @@ Focused improvements on Phases 0–8 — no new phase. Each item extends the exi
   shareable), swipe on mobile, "discard changes?" for unsaved edits, focus returns to the row, opening another task
   replaces the content. Playwright covers each close path.
 
+**Status**
+- [x] `pnpm db:seed:perf` (1,000 tasks), profiling and before/after numbers (ADR-082)
+- [x] RLS access computed once per statement; set-based Tasks query; History-API drawer/layout state; bounded rendering
+- [x] Drawer closes by X (sticky), Esc, click outside, browser Back (`?task=` shareable), swipe on mobile; discard
+  prompt for unsaved edits; focus returns to the row; switching tasks replaces the content
+- [x] `e2e/tasks-drawer.spec.ts` (every close method), `tests/db/rls-performance.test.ts`
+
 ### FR1.3 Convert to tasks with a review step
 - `planWorkflow()` builds an editable plan from the template (no writes); the dialog shows it: add ad-hoc tasks,
   remove steps, rename, assignee / department / reviewer / priority / dates, reorder, dependencies, with dates

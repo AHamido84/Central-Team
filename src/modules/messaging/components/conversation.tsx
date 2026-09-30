@@ -111,11 +111,17 @@ export function Conversation({
   side,
   canWrite,
   backHref,
+  refreshOnRead = true,
 }: {
   initial: ThreadDetail;
   me: { userId: string };
   side: 'agency' | 'client';
   canWrite: boolean;
+  /**
+   * Refresh server data (thread list unread counts) after the read receipt. Off where no unread counts are on screen
+   * (the task drawer): a refresh there re-rendered the whole Tasks page on the server each time a task opened.
+   */
+  refreshOnRead?: boolean;
   /** Mobile "back to list" link; omitted when the conversation is embedded (e.g. on a request page). */
   backHref?: string;
 }) {
@@ -164,11 +170,13 @@ export function Conversation({
   const lastId = data.comments.at(-1)?.id;
   useEffect(() => {
     // Refresh server data (thread list unread counts) after recording the read receipt.
-    void markThreadReadAction({ threadId }).then(() => router.refresh());
+    void markThreadReadAction({ threadId }).then(() => {
+      if (refreshOnRead) router.refresh();
+    });
     // Scroll the message list only — never the page (the conversation can be embedded, e.g. on a request page).
     const el = scroller.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [threadId, lastId, router]);
+  }, [threadId, lastId, router, refreshOnRead]);
 
   const [editing, setEditing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);

@@ -11,6 +11,7 @@ import { publicAssetUrl } from '@/lib/storage';
 import { cn } from '@/lib/utils/cn';
 import { DeliverableStatusBadge } from '@/modules/deliverables/components/badges';
 import { PriorityBadge } from '@/modules/requests/components/badges';
+import { Limited } from '@/modules/tasks/components/show-more';
 import { categoryIcon, DueDate, statusDot, TaskRef, type StatusOption } from '@/modules/tasks/components/badges';
 import type { Grouping } from '@/modules/tasks/constants';
 import { groupTasks } from '@/modules/tasks/filter';
@@ -94,7 +95,7 @@ const Row = memo(function Row({
       >
         <Icon className="size-4" aria-hidden />
       </button>
-      <button type="button" className="min-w-0 flex-1 text-start" onClick={() => onOpen(task.id)}>
+      <button type="button" className="min-w-0 flex-1 text-start" onClick={() => onOpen(task.id)} data-task-focus={task.id}>
         <span className={cn('block truncate text-sm font-medium', done && 'text-muted-foreground line-through')}>
           <bdi>{task.title}</bdi>
         </span>
@@ -169,18 +170,27 @@ export function TaskList({
               </button>
             ) : null}
             {!isCollapsed ? (
-              <ul>
-                {list.map((task) => (
-                  <Row
-                    key={task.id}
-                    task={task}
-                    status={statuses.find((s) => s.id === task.statusId)}
-                    today={today}
-                    onOpen={onOpen}
-                    onToggleDone={onToggleDone}
-                  />
-                ))}
-              </ul>
+              <Limited items={list} step={groupBy === 'none' ? 40 : 15}>
+                {(shown, showMore) => (
+                  <ul>
+                    {shown.map((task) => (
+                      <Row
+                        key={task.id}
+                        task={task}
+                        status={statuses.find((s) => s.id === task.statusId)}
+                        today={today}
+                        onOpen={onOpen}
+                        onToggleDone={onToggleDone}
+                      />
+                    ))}
+                    {list.length > shown.length ? (
+                      <li className="flex justify-center border-t border-border py-1">
+                        {showMore(list.length - shown.length, () => undefined)}
+                      </li>
+                    ) : null}
+                  </ul>
+                )}
+              </Limited>
             ) : null}
           </section>
         );

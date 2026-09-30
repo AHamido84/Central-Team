@@ -248,5 +248,10 @@
   "requestWork": {
     "title": "العمل على الطلب"
   },
-  "editItem": "تعديل البند"
+  "editItem": "تعديل البند",
+  "discardTitle": "تجاهل التعديلات؟",
+  "discardBody": "لديك تعديلات لم تُحفظ بعد.",
+  "discard": "تجاهل",
+  "keepEditing": "متابعة التعديل",
+  "showMore": "عرض {count} أخرى"
 }

@@ -11,6 +11,7 @@ import { Badge, Checkbox, NativeSelect } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
 import { localized, type Locale, type LocalizedText } from '@/lib/i18n/localized';
 import { cn } from '@/lib/utils/cn';
+import { Limited } from '@/modules/tasks/components/show-more';
 import { TaskRef, useDuration, type StatusOption } from '@/modules/tasks/components/badges';
 import { PeoplePicker, type PersonOption } from '@/modules/tasks/components/people-picker';
 import { orderedGroups, useGroupLabel } from '@/modules/tasks/components/task-list';
@@ -88,6 +89,7 @@ const TableRow = memo(function TableRow({
           type="button"
           className="block w-full truncate text-start text-sm font-medium hover:underline"
           onClick={() => onOpen(task.id)}
+          data-task-focus={task.id}
         >
           <bdi>{task.title}</bdi>
         </button>
@@ -336,21 +338,34 @@ export function TaskTable(props: Props) {
                     </th>
                   </tr>
                 ) : null}
-                {list.map((task) => (
-                  <TableRow
-                    key={`${key}-${task.id}`}
-                    task={task}
-                    statuses={statuses}
-                    people={people}
-                    today={today}
-                    selected={selected.has(task.id)}
-                    onSelect={(on) => setSelected((s) => new Set(on ? [...s, task.id] : [...s].filter((x) => x !== task.id)))}
-                    canUpdate={canUpdate}
-                    onOpen={onOpen}
-                    onPatch={onPatch}
-                    onChanged={onChanged}
-                  />
-                ))}
+                <Limited items={list}>
+                  {(shown, showMore) => (
+                    <>
+                      {shown.map((task) => (
+                        <TableRow
+                          key={`${key}-${task.id}`}
+                          task={task}
+                          statuses={statuses}
+                          people={people}
+                          today={today}
+                          selected={selected.has(task.id)}
+                          onSelect={(on) => setSelected((s) => new Set(on ? [...s, task.id] : [...s].filter((x) => x !== task.id)))}
+                          canUpdate={canUpdate}
+                          onOpen={onOpen}
+                          onPatch={onPatch}
+                          onChanged={onChanged}
+                        />
+                      ))}
+                      {list.length > shown.length ? (
+                        <tr className="border-b border-border">
+                          <td colSpan={11} className="py-1 text-center">
+                            {showMore(list.length - shown.length, () => undefined)}
+                          </td>
+                        </tr>
+                      ) : null}
+                    </>
+                  )}
+                </Limited>
               </tbody>
             );
           })}

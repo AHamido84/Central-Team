@@ -50,6 +50,7 @@ export const TaskCard = memo(function TaskCard({
       )}
       data-testid="task-card"
       data-task-id={task.id}
+      data-task-focus={task.id}
     >
       <div className="flex items-start gap-2">
         <p className={cn('min-w-0 flex-1 text-sm leading-snug font-medium', done && 'line-through decoration-subtle-foreground')}>

@@ -23,13 +23,13 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { DirIcon, FileTypeIcon } from '@/components/patterns';
 import { useFormat } from '@/components/providers';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/overlays';
+import { ConfirmDialog, Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/overlays';
 import { Avatar, Badge, Checkbox, Kbd, NativeSelect, Popover, PopoverContent, PopoverTrigger, Skeleton } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
 import { localized, type Locale } from '@/lib/i18n/localized';
@@ -115,6 +115,17 @@ function Prop({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** Unsaved edits inside the drawer register here so closing it can ask "discard changes?" first. */
+const DirtyContext = createContext<((key: string, dirty: boolean) => void) | null>(null);
+
+function useDirty(key: string, dirty: boolean) {
+  const set = useContext(DirtyContext);
+  useEffect(() => {
+    set?.(key, dirty);
+    return () => set?.(key, false);
+  }, [set, key, dirty]);
+}
+
 function TitleEditor({
   task,
   ctx,
@@ -128,6 +139,7 @@ function TitleEditor({
 }) {
   const t = useTranslations('tasks');
   const [value, setValue] = useState(task.title);
+  useDirty('title', editing && value.trim() !== task.title);
   if (editing && ctx.canUpdate) {
     return (
       <form
@@ -180,6 +192,7 @@ function Description({ task, ctx }: { task: TaskDetail; ctx: DrawerContext }) {
   const t = useTranslations('tasks');
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(task.description);
+  useDirty('description', editing && value !== task.description);
   if (editing) {
     return (
       <div className="grid gap-2">
@@ -237,6 +250,7 @@ function Description({ task, ctx }: { task: TaskDetail; ctx: DrawerContext }) {
 function Tags({ task, ctx }: { task: TaskDetail; ctx: DrawerContext }) {
   const t = useTranslations('tasks');
   const [value, setValue] = useState('');
+  useDirty('tag', value.trim() !== '');
   const add = () => {
     const tag = value.trim().toLowerCase().replace(/\s+/g, '-').slice(0, 30);
     setValue('');
@@ -282,6 +296,7 @@ function Tags({ task, ctx }: { task: TaskDetail; ctx: DrawerContext }) {
 function Checklist({ task, ctx }: { task: TaskDetail; ctx: DrawerContext }) {
   const t = useTranslations('tasks');
   const [body, setBody] = useState('');
+  useDirty('checklist', body.trim() !== '');
   const add = useAction(addChecklistItemAction, { refresh: false });
   const update = useAction(updateChecklistItemAction, { refresh: false });
   const [editingItem, setEditingItem] = useState<string | null>(null);
@@ -965,6 +980,41 @@ export function TaskDrawer({
   const [deleting, setDeleting] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const status = task ? ctx.statuses.find((s) => s.id === task.statusId) : undefined;
+
+  // Unsaved edits → "discard changes?" before the drawer closes or switches to another task.
+  const dirty = useRef(new Map<string, boolean>());
+  const setDirty = useCallback((key: string, value: boolean) => void dirty.current.set(key, value), []);
+  const [pending, setPending] = useState<{ open: string | null } | null>(null);
+  const guard = (next: string | null) => {
+    if ([...dirty.current.values()].some(Boolean)) setPending({ open: next });
+    else if (next) onOpen(next);
+    else onClose();
+  };
+  const requestClose = () => guard(null);
+  const openOther = (id: string) => guard(id);
+
+  // Focus goes back to the row / card that opened the task.
+  const lastId = useRef<string | null>(null);
+  useEffect(() => {
+    if (taskId) lastId.current = taskId;
+  }, [taskId]);
+
+  // Swipe towards the edge the drawer came from closes it (touch devices).
+  const touch = useRef<{ x: number; y: number } | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    const p = e.touches[0];
+    touch.current = p ? { x: p.clientX, y: p.clientY } : null;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = touch.current;
+    const p = e.changedTouches[0];
+    touch.current = null;
+    if (!start || !p) return;
+    const dx = p.clientX - start.x;
+    const dy = p.clientY - start.y;
+    const towardsEdge = document.documentElement.dir === 'rtl' ? -dx : dx;
+    if (towardsEdge > 80 && Math.abs(dy) < Math.abs(dx) * 0.6) requestClose();
+  };
   const doneStatus = ctx.statuses.find((s) => s.category === 'done');
   const reopenStatus = ctx.statuses.find((s) => s.category === 'active') ?? ctx.statuses[0];
 
@@ -984,8 +1034,8 @@ export function TaskDrawer({
       if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const i = order.indexOf(taskId);
-      if ((e.key === 'j' || e.key === 'J') && i >= 0 && i < order.length - 1) onOpen(order[i + 1]!);
-      else if ((e.key === 'k' || e.key === 'K') && i > 0) onOpen(order[i - 1]!);
+      if ((e.key === 'j' || e.key === 'J') && i >= 0 && i < order.length - 1) openOther(order[i + 1]!);
+      else if ((e.key === 'k' || e.key === 'K') && i > 0) openOther(order[i - 1]!);
       else if (e.key === 'e' || e.key === 'E') setEditingTitle(true);
       else if (e.key === 'd' || e.key === 'D') toggleDone();
       else if (e.key === 'c' || e.key === 'C')
@@ -995,6 +1045,7 @@ export function TaskDrawer({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- openOther reads refs; re-binding per render is unnecessary
   }, [taskId, order, onOpen, toggleDone]);
 
   const members = (role: 'assignee' | 'watcher') => async (ids: string[]) => {
@@ -1004,247 +1055,282 @@ export function TaskDrawer({
   };
 
   return (
-    <Sheet open={Boolean(taskId)} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent
-        closeLabel={t('common.close')}
-        className="w-[min(100vw,40rem)] p-0"
-        data-testid="task-drawer"
-        aria-describedby={undefined}
-      >
-        {!task ? (
-          <div className="grid gap-3 p-5">
-            <SheetTitle className="sr-only">{t('tasks.loading')}</SheetTitle>
-            {isError ? (
-              <p className="text-sm text-danger">{t('tasks.loadFailed')}</p>
-            ) : isLoading ? (
-              <>
-                <Skeleton className="h-6 w-2/3" />
-                <Skeleton className="h-4 w-1/3" />
-                <Skeleton className="h-32 w-full" />
-              </>
-            ) : null}
-          </div>
-        ) : (
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto" data-task-id={task.id}>
-            <div className="grid gap-3 px-5 pe-12 pt-5 pb-4">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-subtle-foreground">
-                <TaskRef number={task.number} />
-                {task.parentId ? (
-                  <button type="button" className="hover:underline" onClick={() => onOpen(task.parentId!)}>
-                    {t('tasks.parentTask')}
-                  </button>
-                ) : null}
-                {task.requestId ? (
-                  <Link href={`/requests/${task.requestId}`} className="inline-flex items-center gap-1 hover:underline">
-                    <ExternalLink className="size-3" aria-hidden />
-                    <bdi dir="ltr">{task.requestReference}</bdi>
-                  </Link>
-                ) : null}
-                {task.stepName ? <Badge tone="outline">{localized(task.stepName, locale)}</Badge> : null}
-              </div>
-              <SheetTitle asChild>
-                <div>
-                  <TitleEditor key={task.id} task={task} ctx={ctx} editing={editingTitle} setEditing={setEditingTitle} />
-                </div>
-              </SheetTitle>
-              <SheetDescription className="sr-only">{localized(task.clientName, locale)}</SheetDescription>
-              <div className="flex flex-wrap items-center gap-2">
-                <NativeSelect
-                  value={task.statusId}
-                  disabled={!ctx.canUpdate}
-                  onChange={(e) => void ctx.onPatch(task.id, { statusId: e.target.value })}
-                  aria-label={t('tasks.fields.status')}
-                  className="h-8 w-auto text-sm"
-                  data-testid="drawer-status"
-                >
-                  {ctx.statuses.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {localized(s.name, locale)}
-                    </option>
-                  ))}
-                </NativeSelect>
-                <NativeSelect
-                  value={task.priority}
-                  disabled={!ctx.canUpdate}
-                  onChange={(e) => void ctx.onPatch(task.id, { priority: e.target.value as TaskPriority })}
-                  aria-label={t('tasks.fields.priority')}
-                  className="h-8 w-auto text-sm"
-                  data-testid="drawer-priority"
-                >
-                  {taskPriorities.map((p) => (
-                    <option key={p} value={p}>
-                      {t(`requests.priorities.${p}`)}
-                    </option>
-                  ))}
-                </NativeSelect>
-                <TaskStatusBadge status={status} className="hidden sm:inline-flex" />
-                <span className="ms-auto flex items-center">
-                  <Shortcuts />
-                  {ctx.canDelete ? (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={t('tasks.delete')}
-                        onClick={() => setDeleting(true)}
-                        data-testid="drawer-delete"
-                      >
-                        <Trash2 />
-                      </Button>
-                      <DeleteDialog
-                        type="task"
-                        id={task.id}
-                        open={deleting}
-                        onOpenChange={setDeleting}
-                        onDeleted={() => {
-                          ctx.onRefresh(task.id);
-                          onClose();
-                        }}
-                      />
-                    </>
+    <DirtyContext.Provider value={setDirty}>
+      <Sheet open={Boolean(taskId)} onOpenChange={(o) => !o && requestClose()}>
+        <SheetContent
+          closeLabel={t('common.close')}
+          className="w-[min(100vw,40rem)] p-0"
+          data-testid="task-drawer"
+          aria-describedby={undefined}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            const id = lastId.current;
+            if (id) document.querySelector<HTMLElement>(`[data-task-focus="${id}"]`)?.focus();
+          }}
+        >
+          {!task ? (
+            <div className="grid gap-3 p-5">
+              <SheetTitle className="sr-only">{t('tasks.loading')}</SheetTitle>
+              {isError ? (
+                <p className="text-sm text-danger">{t('tasks.loadFailed')}</p>
+              ) : isLoading ? (
+                <>
+                  <Skeleton className="h-6 w-2/3" />
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-32 w-full" />
+                </>
+              ) : null}
+            </div>
+          ) : (
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto" data-task-id={task.id}>
+              <div className="grid gap-3 px-5 pe-12 pt-5 pb-4">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-subtle-foreground">
+                  <TaskRef number={task.number} />
+                  {task.parentId ? (
+                    <button type="button" className="hover:underline" onClick={() => openOther(task.parentId!)}>
+                      {t('tasks.parentTask')}
+                    </button>
                   ) : null}
-                </span>
-              </div>
-              {task.blocked ? (
-                <p className="flex items-center gap-2 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger" data-testid="drawer-blocked">
-                  <Lock className="size-4" aria-hidden />
-                  {t('tasks.blockedBanner', { count: task.blockedBy.filter((b) => b.statusCategory !== 'done').length })}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="grid gap-2.5 border-t border-border px-5 py-4" data-testid="drawer-properties">
-              <Prop label={t('tasks.fields.client')}>
-                <span className="truncate">{localized(task.clientName, locale)}</span>
-              </Prop>
-              <Prop label={t('tasks.fields.assignees')}>
-                <PeoplePicker
-                  people={ctx.people}
-                  value={task.assignees.map((a) => a.id)}
-                  onChange={members('assignee')}
-                  label={t('tasks.fields.assignees')}
-                  disabled={!ctx.canUpdate}
-                  testId="drawer-assignees"
-                />
-              </Prop>
-              <Prop label={t('tasks.fields.reviewer')}>
-                <PeoplePicker
-                  people={ctx.people}
-                  value={task.reviewer ? [task.reviewer.id] : []}
-                  single
-                  onChange={(ids) => void ctx.onPatch(task.id, { reviewerId: ids[0] ?? null }).then(() => ctx.onRefresh(task.id))}
-                  label={t('tasks.fields.reviewer')}
-                  disabled={!ctx.canUpdate}
-                />
-              </Prop>
-              <Prop label={t('tasks.fields.watchers')}>
-                <PeoplePicker
-                  people={ctx.people}
-                  value={task.watchers.map((a) => a.id)}
-                  onChange={members('watcher')}
-                  label={t('tasks.fields.watchers')}
-                  disabled={!ctx.canUpdate}
-                />
-              </Prop>
-              <Prop label={t('tasks.fields.department')}>
-                <NativeSelect
-                  value={task.departmentId ?? ''}
-                  disabled={!ctx.canUpdate}
-                  onChange={(e) => void ctx.onPatch(task.id, { departmentId: e.target.value || null })}
-                  aria-label={t('tasks.fields.department')}
-                  className="h-8"
-                >
-                  <option value="">{t('tasks.noDepartment')}</option>
-                  {ctx.departments.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {localized(d.name, locale)}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </Prop>
-              <Prop label={t('tasks.fields.dates')}>
+                  {task.requestId ? (
+                    <Link href={`/requests/${task.requestId}`} className="inline-flex items-center gap-1 hover:underline">
+                      <ExternalLink className="size-3" aria-hidden />
+                      <bdi dir="ltr">{task.requestReference}</bdi>
+                    </Link>
+                  ) : null}
+                  {task.stepName ? <Badge tone="outline">{localized(task.stepName, locale)}</Badge> : null}
+                </div>
+                <SheetTitle asChild>
+                  <div>
+                    <TitleEditor key={task.id} task={task} ctx={ctx} editing={editingTitle} setEditing={setEditingTitle} />
+                  </div>
+                </SheetTitle>
+                <SheetDescription className="sr-only">{localized(task.clientName, locale)}</SheetDescription>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Input
-                    type="date"
-                    dir="ltr"
-                    value={task.startDate ?? ''}
-                    max={task.dueDate ?? undefined}
+                  <NativeSelect
+                    value={task.statusId}
                     disabled={!ctx.canUpdate}
-                    onChange={(e) => void ctx.onPatch(task.id, { startDate: e.target.value || null })}
-                    aria-label={t('tasks.fields.startDate')}
-                    className="h-8 w-36"
-                  />
-                  <DirIcon icon={ArrowUpRight} className="hidden" />
-                  <Input
-                    type="date"
-                    dir="ltr"
-                    value={task.dueDate ?? ''}
-                    min={task.startDate ?? undefined}
+                    onChange={(e) => void ctx.onPatch(task.id, { statusId: e.target.value })}
+                    aria-label={t('tasks.fields.status')}
+                    className="h-8 w-auto text-sm"
+                    data-testid="drawer-status"
+                  >
+                    {ctx.statuses.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {localized(s.name, locale)}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  <NativeSelect
+                    value={task.priority}
                     disabled={!ctx.canUpdate}
-                    onChange={(e) => void ctx.onPatch(task.id, { dueDate: e.target.value || null })}
-                    aria-label={t('tasks.fields.dueDate')}
-                    className="h-8 w-36"
-                    data-testid="drawer-due"
-                  />
-                  <DueDate date={task.dueDate} done={task.statusCategory === 'done'} today={ctx.today} />
+                    onChange={(e) => void ctx.onPatch(task.id, { priority: e.target.value as TaskPriority })}
+                    aria-label={t('tasks.fields.priority')}
+                    className="h-8 w-auto text-sm"
+                    data-testid="drawer-priority"
+                  >
+                    {taskPriorities.map((p) => (
+                      <option key={p} value={p}>
+                        {t(`requests.priorities.${p}`)}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  <TaskStatusBadge status={status} className="hidden sm:inline-flex" />
+                  <span className="ms-auto flex items-center">
+                    <Shortcuts />
+                    {ctx.canDelete ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={t('tasks.delete')}
+                          onClick={() => setDeleting(true)}
+                          data-testid="drawer-delete"
+                        >
+                          <Trash2 />
+                        </Button>
+                        <DeleteDialog
+                          type="task"
+                          id={task.id}
+                          open={deleting}
+                          onOpenChange={setDeleting}
+                          onDeleted={() => {
+                            ctx.onRefresh(task.id);
+                            onClose();
+                          }}
+                        />
+                      </>
+                    ) : null}
+                  </span>
                 </div>
-              </Prop>
-              <Prop label={t('tasks.fields.estimate')}>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    dir="ltr"
-                    min={0}
-                    step={15}
-                    defaultValue={task.estimateMinutes ?? ''}
-                    key={`${task.id}-${task.estimateMinutes}`}
+                {task.blocked ? (
+                  <p
+                    className="flex items-center gap-2 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger"
+                    data-testid="drawer-blocked"
+                  >
+                    <Lock className="size-4" aria-hidden />
+                    {t('tasks.blockedBanner', { count: task.blockedBy.filter((b) => b.statusCategory !== 'done').length })}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="grid gap-2.5 border-t border-border px-5 py-4" data-testid="drawer-properties">
+                <Prop label={t('tasks.fields.client')}>
+                  <span className="truncate">{localized(task.clientName, locale)}</span>
+                </Prop>
+                <Prop label={t('tasks.fields.assignees')}>
+                  <PeoplePicker
+                    people={ctx.people}
+                    value={task.assignees.map((a) => a.id)}
+                    onChange={members('assignee')}
+                    label={t('tasks.fields.assignees')}
                     disabled={!ctx.canUpdate}
-                    onBlur={(e) => {
-                      const v = e.target.value === '' ? null : Math.max(0, Math.round(Number(e.target.value)));
-                      if (v !== task.estimateMinutes) void ctx.onPatch(task.id, { estimateMinutes: v });
-                    }}
-                    aria-label={t('tasks.fields.estimate')}
-                    className="h-8 w-24"
+                    testId="drawer-assignees"
                   />
-                  <span className="text-xs text-muted-foreground">{t('tasks.time.minutesUnit')}</span>
-                </div>
-              </Prop>
-              <Prop label={t('tasks.fields.tags')}>
-                <Tags task={task} ctx={ctx} />
-              </Prop>
-            </div>
+                </Prop>
+                <Prop label={t('tasks.fields.reviewer')}>
+                  <PeoplePicker
+                    people={ctx.people}
+                    value={task.reviewer ? [task.reviewer.id] : []}
+                    single
+                    onChange={(ids) => void ctx.onPatch(task.id, { reviewerId: ids[0] ?? null }).then(() => ctx.onRefresh(task.id))}
+                    label={t('tasks.fields.reviewer')}
+                    disabled={!ctx.canUpdate}
+                  />
+                </Prop>
+                <Prop label={t('tasks.fields.watchers')}>
+                  <PeoplePicker
+                    people={ctx.people}
+                    value={task.watchers.map((a) => a.id)}
+                    onChange={members('watcher')}
+                    label={t('tasks.fields.watchers')}
+                    disabled={!ctx.canUpdate}
+                  />
+                </Prop>
+                <Prop label={t('tasks.fields.department')}>
+                  <NativeSelect
+                    value={task.departmentId ?? ''}
+                    disabled={!ctx.canUpdate}
+                    onChange={(e) => void ctx.onPatch(task.id, { departmentId: e.target.value || null })}
+                    aria-label={t('tasks.fields.department')}
+                    className="h-8"
+                  >
+                    <option value="">{t('tasks.noDepartment')}</option>
+                    {ctx.departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {localized(d.name, locale)}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </Prop>
+                <Prop label={t('tasks.fields.dates')}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input
+                      type="date"
+                      dir="ltr"
+                      value={task.startDate ?? ''}
+                      max={task.dueDate ?? undefined}
+                      disabled={!ctx.canUpdate}
+                      onChange={(e) => void ctx.onPatch(task.id, { startDate: e.target.value || null })}
+                      aria-label={t('tasks.fields.startDate')}
+                      className="h-8 w-36"
+                    />
+                    <DirIcon icon={ArrowUpRight} className="hidden" />
+                    <Input
+                      type="date"
+                      dir="ltr"
+                      value={task.dueDate ?? ''}
+                      min={task.startDate ?? undefined}
+                      disabled={!ctx.canUpdate}
+                      onChange={(e) => void ctx.onPatch(task.id, { dueDate: e.target.value || null })}
+                      aria-label={t('tasks.fields.dueDate')}
+                      className="h-8 w-36"
+                      data-testid="drawer-due"
+                    />
+                    <DueDate date={task.dueDate} done={task.statusCategory === 'done'} today={ctx.today} />
+                  </div>
+                </Prop>
+                <Prop label={t('tasks.fields.estimate')}>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      dir="ltr"
+                      min={0}
+                      step={15}
+                      defaultValue={task.estimateMinutes ?? ''}
+                      key={`${task.id}-${task.estimateMinutes}`}
+                      disabled={!ctx.canUpdate}
+                      onBlur={(e) => {
+                        const v = e.target.value === '' ? null : Math.max(0, Math.round(Number(e.target.value)));
+                        if (v !== task.estimateMinutes) void ctx.onPatch(task.id, { estimateMinutes: v });
+                      }}
+                      aria-label={t('tasks.fields.estimate')}
+                      className="h-8 w-24"
+                    />
+                    <span className="text-xs text-muted-foreground">{t('tasks.time.minutesUnit')}</span>
+                  </div>
+                </Prop>
+                <Prop label={t('tasks.fields.tags')}>
+                  <Tags task={task} ctx={ctx} />
+                </Prop>
+              </div>
 
-            <section className="grid gap-2 border-t border-border px-5 py-4">
-              <h3 className="text-sm font-semibold">{t('tasks.fields.description')}</h3>
-              <Description key={`${task.id}:${task.description}`} task={task} ctx={ctx} />
-            </section>
+              <section className="grid gap-2 border-t border-border px-5 py-4">
+                <h3 className="text-sm font-semibold">{t('tasks.fields.description')}</h3>
+                <Description key={`${task.id}:${task.description}`} task={task} ctx={ctx} />
+              </section>
 
-            <Checklist task={task} ctx={ctx} />
-            {!task.parentId ? <Subtasks task={task} ctx={ctx} onOpen={onOpen} /> : null}
-            <Dependencies task={task} ctx={ctx} onOpen={onOpen} />
-            <Deliverables task={task} ctx={ctx} />
-            <Attachments task={task} ctx={ctx} />
-            <TimeTracking task={task} ctx={ctx} />
+              <Checklist task={task} ctx={ctx} />
+              {!task.parentId ? <Subtasks task={task} ctx={ctx} onOpen={openOther} /> : null}
+              <Dependencies task={task} ctx={ctx} onOpen={openOther} />
+              <Deliverables task={task} ctx={ctx} />
+              <Attachments task={task} ctx={ctx} />
+              <TimeTracking task={task} ctx={ctx} />
 
-            <Section icon={MessageSquare} title={t('tasks.comments')} testId="drawer-comments">
-              <p className="text-xs text-subtle-foreground">{t('tasks.commentsInternal')}</p>
-              {task.thread ? (
-                <div className="h-[28rem] overflow-hidden rounded-lg border border-border">
-                  <Conversation key={task.thread.thread.id} initial={task.thread} me={{ userId: ctx.me }} side="agency" canWrite />
+              <Section icon={MessageSquare} title={t('tasks.comments')} testId="drawer-comments">
+                <p className="text-xs text-subtle-foreground">{t('tasks.commentsInternal')}</p>
+                {task.thread ? (
+                  <div className="h-[28rem] overflow-hidden rounded-lg border border-border">
+                    <Conversation
+                      key={task.thread.thread.id}
+                      initial={task.thread}
+                      me={{ userId: ctx.me }}
+                      side="agency"
+                      canWrite
+                      refreshOnRead={false}
+                    />
+                  </div>
+                ) : null}
+              </Section>
+              {status?.category !== 'done' && ctx.canUpdate ? (
+                <div className="sticky bottom-0 border-t border-border bg-surface-raised/95 px-5 py-3 backdrop-blur">
+                  <Button onClick={toggleDone} className="w-full" data-testid="drawer-mark-done">
+                    <CheckCircle2 />
+                    {t('tasks.markDone')}
+                  </Button>
                 </div>
               ) : null}
-            </Section>
-            {status?.category !== 'done' && ctx.canUpdate ? (
-              <div className="sticky bottom-0 border-t border-border bg-surface-raised/95 px-5 py-3 backdrop-blur">
-                <Button onClick={toggleDone} className="w-full" data-testid="drawer-mark-done">
-                  <CheckCircle2 />
-                  {t('tasks.markDone')}
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        )}
-      </SheetContent>
-    </Sheet>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+      <ConfirmDialog
+        open={Boolean(pending)}
+        onOpenChange={(o) => !o && setPending(null)}
+        title={t('tasks.discardTitle')}
+        description={t('tasks.discardBody')}
+        confirmLabel={t('tasks.discard')}
+        cancelLabel={t('tasks.keepEditing')}
+        destructive
+        onConfirm={() => {
+          const next = pending?.open ?? null;
+          dirty.current.clear();
+          setPending(null);
+          if (next) onOpen(next);
+          else onClose();
+        }}
+      />
+    </DirtyContext.Provider>
   );
 }

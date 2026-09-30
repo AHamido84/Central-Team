@@ -1,9 +1,9 @@
 'use client';
 
 import { KanbanSquare, SearchX } from 'lucide-react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { EmptyState } from '@/components/patterns';
@@ -43,28 +43,54 @@ export type WorkspaceProps = {
 
 const storageKey = (me: string) => `tasks-workspace:${me}`;
 
-/** Hook shared by /tasks and /my-work: drawer state in the URL (?task=), optimistic edits, running timer. */
+/**
+ * Hook shared by /tasks and /my-work: drawer state in the URL (?task=, shareable), optimistic edits, running timer.
+ * The URL changes through the History API, not the router, so opening or closing a task never re-renders the page on
+ * the server (ADR-082). Opening pushes a history entry (browser Back closes the drawer); switching to another task
+ * replaces it; closing goes back to the entry we pushed, or strips the parameter when the page was opened on a task.
+ */
 export function useDrawer(
   tasks: TaskListItem[],
   statuses: StatusOption[],
   base: Omit<DrawerContext, 'allTasks' | 'onPatch' | 'onRefresh' | 'timer' | 'onTimerChange'> & { timer: RunningTimer },
 ) {
-  const router = useRouter();
-  const pathname = usePathname();
   const params = useSearchParams();
   const openTaskId = params.get('task');
+  const openRef = useRef(openTaskId);
+  useEffect(() => {
+    openRef.current = openTaskId;
+  }, [openTaskId]);
   const [timer, setTimer] = useState<RunningTimer>(base.timer);
   const mutations = useTaskMutations(statuses);
-  const setOpen = useCallback(
-    (id: string | null) => {
-      const next = new URLSearchParams(params.toString());
-      if (id) next.set('task', id);
-      else next.delete('task');
-      const q = next.toString();
-      router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
-    },
-    [params, pathname, router],
-  );
+  // Only our own keys go into the history state: Next.js copies its internals in and ignores entries that already
+  // carry them, which would leave useSearchParams out of sync.
+  const setOpen = useCallback((id: string | null) => {
+    const url = new URL(window.location.href);
+    const current = url.searchParams.get('task');
+    const pushed = Boolean((window.history.state as { taskDrawer?: boolean } | null)?.taskDrawer);
+    if (id) {
+      url.searchParams.set('task', id);
+      if (current) window.history.replaceState({ taskDrawer: pushed }, '', url);
+      else window.history.pushState({ taskDrawer: true }, '', url);
+    } else if (current) {
+      if (pushed) window.history.back();
+      else {
+        url.searchParams.delete('task');
+        window.history.replaceState({ taskDrawer: false }, '', url);
+      }
+      // A router refresh that started while the drawer was open (e.g. after a delete) can finish after Back and write
+      // the old `?task=` into the address bar again; strip it if the drawer is still closed.
+      for (const delay of [300, 1200]) {
+        window.setTimeout(() => {
+          const now = new URL(window.location.href);
+          if (now.searchParams.get('task') === current && !openRef.current) {
+            now.searchParams.delete('task');
+            window.history.replaceState({ taskDrawer: false }, '', now);
+          }
+        }, delay);
+      }
+    }
+  }, []);
   const ctx: DrawerContext = {
     ...base,
     allTasks: tasks,
@@ -80,8 +106,6 @@ export function TasksWorkspace(props: WorkspaceProps) {
   const { statuses, people, clients, departments, me, today, perms } = props;
   const t = useTranslations();
   const locale = useLocale() as Locale;
-  const router = useRouter();
-  const pathname = usePathname();
   const params = useSearchParams();
   const tasks = useTasks(props.initialTasks);
   const [views, setViews] = useState(props.views);
@@ -133,9 +157,11 @@ export function TasksWorkspace(props: WorkspaceProps) {
 
   const setLayout = (l: TaskLayout) => {
     setLayoutState(l);
-    const next = new URLSearchParams(params.toString());
-    next.set('layout', l);
-    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+    // History API, not the router: switching views is purely client-side (ADR-082).
+    const url = new URL(window.location.href);
+    url.searchParams.set('layout', l);
+    const pushed = Boolean((window.history.state as { taskDrawer?: boolean } | null)?.taskDrawer);
+    window.history.replaceState({ taskDrawer: pushed }, '', url);
   };
 
   const filtered = useMemo(() => applyFilters(tasks, config, me, today), [tasks, config, me, today]);

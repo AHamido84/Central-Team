@@ -137,46 +137,71 @@ export type TaskScope = { clientId?: string; requestId?: string; ids?: string[];
  */
 export async function listTasks(scope: TaskScope = {}): Promise<TaskListItem[]> {
   const doneDays = scope.includeDoneDays ?? 30;
+  // One pass over the page of tasks, then one grouped query per child table (ADR-082) — not a correlated subquery per
+  // task, which multiplied every child table's RLS check by the number of tasks.
   const rows = await withRls((tx) =>
     tx.execute<Row>(sql`
-      select t.id, t.number, t.title, t.client_id, c.name as client_name, c.logo_path as client_logo,
-        t.request_id, r.reference, t.parent_id, t.status_id, t.status_category, t.priority,
-        t.start_date::text, t.due_date::text, t.estimate_minutes, t.tags, t.department_id, t.reviewer_id, t.position,
-        coalesce((
-          select json_agg(json_build_object('id', p.id, 'name', p.full_name, 'avatarPath', p.avatar_path) order by p.full_name)
-          from public.task_members m join public.profiles p on p.id = m.user_id
-          where m.task_id = t.id and m.role = 'assignee'
-        ), '[]'::json) as assignees,
-        (select count(*)::int from public.tasks s where s.parent_id = t.id) as subtasks,
-        (select count(*)::int from public.tasks s where s.parent_id = t.id and s.status_category = 'done') as subtasks_done,
-        (select count(*)::int from public.task_checklist_items i where i.task_id = t.id) as checklist,
-        (select count(*)::int from public.task_checklist_items i where i.task_id = t.id and i.is_done) as checklist_done,
-        (select count(*)::int from public.threads th join public.comments cm on cm.thread_id = th.id
-          where th.subject_type = 'task' and th.subject_id = t.id and cm.deleted_at is null) as comments,
-        exists (
-          select 1 from public.task_dependencies d join public.tasks b on b.id = d.depends_on_id
-          where d.task_id = t.id and b.status_category <> 'done'
-        ) as blocked,
-        (select json_build_object('id', dl.id, 'status', dl.status) from public.deliverables dl
-          where dl.task_id = t.id order by dl.created_at limit 1) as deliverable,
-        t.created_at, t.updated_at, t.completed_at
-      from public.tasks t
-      join public.clients c on c.id = t.client_id
-      left join public.requests r on r.id = t.request_id
-      where (t.status_category <> 'done' or t.completed_at > now() - make_interval(days => ${doneDays}))
-        ${scope.clientId ? sql`and t.client_id = ${scope.clientId}` : sql``}
-        ${scope.requestId ? sql`and t.request_id = ${scope.requestId}` : sql``}
-        ${scope.parentId ? sql`and t.parent_id = ${scope.parentId}` : sql``}
-        ${
-          scope.ids
-            ? sql`and t.id in (${sql.join(
-                [...scope.ids, '00000000-0000-0000-0000-000000000000'].map((id) => sql`${id}::uuid`),
-                sql`, `,
-              )})`
-            : sql``
-        }
-      order by t.position, t.number
-      limit 2000`),
+      with base as (
+        select t.id, t.number, t.title, t.client_id, t.request_id, t.parent_id, t.status_id, t.status_category, t.priority,
+          t.start_date, t.due_date, t.estimate_minutes, t.tags, t.department_id, t.reviewer_id, t.position,
+          t.created_at, t.updated_at, t.completed_at
+        from public.tasks t
+        where (t.status_category <> 'done' or t.completed_at > now() - make_interval(days => ${doneDays}))
+          ${scope.clientId ? sql`and t.client_id = ${scope.clientId}` : sql``}
+          ${scope.requestId ? sql`and t.request_id = ${scope.requestId}` : sql``}
+          ${scope.parentId ? sql`and t.parent_id = ${scope.parentId}` : sql``}
+          ${
+            scope.ids
+              ? sql`and t.id in (${sql.join(
+                  [...scope.ids, '00000000-0000-0000-0000-000000000000'].map((id) => sql`${id}::uuid`),
+                  sql`, `,
+                )})`
+              : sql``
+          }
+        order by t.position, t.number
+        limit 2000
+      ),
+      page as (select coalesce(array_agg(id), '{}') as ids from base)
+      select b.id, b.number, b.title, b.client_id, c.name as client_name, c.logo_path as client_logo,
+        b.request_id, r.reference, b.parent_id, b.status_id, b.status_category, b.priority,
+        b.start_date::text, b.due_date::text, b.estimate_minutes, b.tags, b.department_id, b.reviewer_id, b.position,
+        coalesce(a.assignees, '[]'::json) as assignees,
+        coalesce(st.n, 0) as subtasks, coalesce(st.done, 0) as subtasks_done,
+        coalesce(ck.n, 0) as checklist, coalesce(ck.done, 0) as checklist_done,
+        coalesce(cm.n, 0) as comments, coalesce(bl.blocked, false) as blocked, dl.deliverable,
+        b.created_at, b.updated_at, b.completed_at
+      from base b
+      join public.clients c on c.id = b.client_id
+      left join public.requests r on r.id = b.request_id
+      left join (
+        select m.task_id,
+          json_agg(json_build_object('id', p.id, 'name', p.full_name, 'avatarPath', p.avatar_path) order by p.full_name) as assignees
+        from public.task_members m join public.profiles p on p.id = m.user_id
+        where m.role = 'assignee' and m.task_id = any ((select ids from page)::uuid[])
+        group by m.task_id
+      ) a on a.task_id = b.id
+      left join (
+        select s.parent_id, count(*)::int as n, (count(*) filter (where s.status_category = 'done'))::int as done
+        from public.tasks s where s.parent_id = any ((select ids from page)::uuid[]) group by s.parent_id
+      ) st on st.parent_id = b.id
+      left join (
+        select i.task_id, count(*)::int as n, (count(*) filter (where i.is_done))::int as done
+        from public.task_checklist_items i where i.task_id = any ((select ids from page)::uuid[]) group by i.task_id
+      ) ck on ck.task_id = b.id
+      left join (
+        select th.subject_id, count(*)::int as n from public.threads th join public.comments x on x.thread_id = th.id
+        where th.subject_type = 'task' and th.subject_id = any ((select ids from page)::uuid[]) and x.deleted_at is null
+        group by th.subject_id
+      ) cm on cm.subject_id = b.id
+      left join (
+        select distinct d.task_id, true as blocked from public.task_dependencies d join public.tasks bb on bb.id = d.depends_on_id
+        where bb.status_category <> 'done' and d.task_id = any ((select ids from page)::uuid[])
+      ) bl on bl.task_id = b.id
+      left join (
+        select distinct on (d.task_id) d.task_id, json_build_object('id', d.id, 'status', d.status) as deliverable
+        from public.deliverables d where d.task_id = any ((select ids from page)::uuid[]) order by d.task_id, d.created_at
+      ) dl on dl.task_id = b.id
+      order by b.position, b.number`),
   );
   return rows.map(toItem);
 }

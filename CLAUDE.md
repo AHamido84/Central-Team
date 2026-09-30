@@ -65,6 +65,7 @@ cp .env.example .env.local   # then paste keys from `supabase status -o env`
 pnpm db:start           # start local Supabase (Docker)
 pnpm db:reset           # drop + migrate + seed (1 agency, 12 staff incl. a sales manager and rep, 5 Saudi clients, files, threads, request types + requests, workflows, ~320 tasks, deliverables at every review stage, campaigns with ~90 days of metrics, reports, SLA policies, holidays and a breach log, leads, deals in every stage, quotes, capacity settings, sandbox integrations with synced numbers, WhatsApp templates and automations)
 pnpm dev                # Next.js dev server on http://localhost:3000
+pnpm db:seed:perf       # top the demo agency up to 1,000 tasks (or: pnpm db:seed:perf 3000) for profiling
 pnpm db:generate        # drizzle-kit: generate SQL migration from schema changes
 pnpm lint               # ESLint (incl. RTL logical-properties rule and no hardcoded JSX text)
 pnpm typecheck          # tsc --noEmit (message keys are type-checked)
@@ -157,7 +158,8 @@ Rules:
 ## 8. Security rules
 
 1. **RLS enabled on every table**, including lookup tables. A migration that creates a table without
-   RLS + policies fails CI (`test:db` asserts it).
+   RLS + policies fails CI (`test:db` asserts it). Policies test access with the array functions
+   (`client_id = any ((select app.agency_client_ids())::uuid[])`), never a per-row access function (ADR-082).
 2. **The database is the source of truth for authorization.** `app.has_permission()` in Postgres decides;
    the TS `can()` mirrors it for UI and early rejection only, and is computed from the same DB data.
 3. App DB queries run as role `authenticated` with the user's JWT claims (`withRls`). Service role is the

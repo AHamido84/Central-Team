@@ -111,9 +111,11 @@ export function SheetContent({
         {...props}
       >
         {children}
+        {/* Stays in place while the sheet's body scrolls (the scroll container is inside). */}
         <DialogPrimitive.Close
-          className="absolute end-3 top-3 rounded-md p-1.5 text-subtle-foreground hover:bg-surface-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="absolute end-3 top-3 z-10 rounded-md bg-surface-raised/90 p-1.5 text-subtle-foreground backdrop-blur-sm hover:bg-surface-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           aria-label={closeLabel}
+          data-testid="sheet-close"
         >
           <X className="size-4" />
         </DialogPrimitive.Close>
