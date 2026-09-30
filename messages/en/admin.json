@@ -23,7 +23,10 @@
     "campaigns": "Campaigns & reports",
     "operations": "Operations & SLA",
     "crm": "Sales (CRM)",
-    "capacity": "Capacity planning"
+    "capacity": "Capacity planning",
+    "integrations": "Integrations",
+    "automations": "Automations",
+    "ai": "AI intelligence"
   },
   "users": {
     "title": "Team & invitations",

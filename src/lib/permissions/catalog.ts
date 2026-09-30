@@ -64,6 +64,8 @@ export const agencyPermissions = [
   'automations:read',
   'automations:manage',
   'whatsapp:send',
+  'ai:use',
+  'ai:manage',
 ] as const;
 
 export const clientPermissions = [

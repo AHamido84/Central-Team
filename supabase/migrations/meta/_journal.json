@@ -50,6 +50,13 @@
       "when": 1790748907897,
       "tag": "20260930061507_integrations_automations",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790763978547,
+      "tag": "20260930102618_ai_intelligence",
+      "breakpoints": true
     }
   ]
 }
