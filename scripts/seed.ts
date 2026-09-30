@@ -19,6 +19,7 @@ import { hashInvitationToken } from '../src/modules/invitations/server/tokens';
 import { artworkPng, simplePdf } from './seed-assets';
 import { seedCampaignsData } from './seed-campaigns';
 import { seedCrmData } from './seed-crm';
+import { seedIntegrationsData } from './seed-integrations';
 import { seedSlaData } from './seed-sla';
 import { seedRequestsData } from './seed-requests';
 import { seedTasksData } from './seed-tasks';
@@ -865,6 +866,15 @@ async function main() {
 
   await seedSlaData({ db, ids, clientIds, orgId: ORG_ID });
   await seedCrmData({
+    db,
+    ids,
+    clientIds,
+    orgId: ORG_ID,
+    today: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+      new Date(),
+    ),
+  });
+  await seedIntegrationsData({
     db,
     ids,
     clientIds,

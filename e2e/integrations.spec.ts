@@ -25,14 +25,15 @@ test('sandbox connect → map → sync → metrics on the campaign → automatio
       select c.organization_id as org, c.id as client, (select id from auth.users where email = 'sara@ofoq.test') as sara
       from public.clients c where c.slug = 'najd-heritage'`;
     // A live campaign for Najd with a Snapchat channel, owned by Sara (the rule notifies the owner).
-    [{ id: campaignId }] = await db<{ id: string }[]>`
+    const [campaign] = await db<{ id: string }[]>`
       insert into public.campaigns (organization_id, client_id, name, status, start_date, end_date, budget_minor, owner_id)
       values (${ctx!.org}, ${ctx!.client}, ${campaignName}, 'active', current_date - 20, current_date + 20, 5000000, ${ctx!.sara})
       returning id`;
-    const [{ id: channelId }] = await db<
-      { id: string }[]
-    >`insert into public.campaign_channels (organization_id, client_id, campaign_id, platform, name)
+    campaignId = campaign!.id;
+    const [channel] = await db<{ id: string }[]>`
+      insert into public.campaign_channels (organization_id, client_id, campaign_id, platform, name)
       values (${ctx!.org}, ${ctx!.client}, ${campaignId}, 'snapchat', 'Snap') returning id`;
+    const channelId = channel!.id;
 
     const page = await (await browser.newContext({ locale: 'en-US' })).newPage();
     await page.context().addCookies([{ name: 'NEXT_LOCALE', value: 'en', url: 'http://localhost:3000' }]);
@@ -70,8 +71,8 @@ test('sandbox connect → map → sync → metrics on the campaign → automatio
     await expect(account.getByTestId('account-sync')).toBeChecked();
     await page.getByTestId('tab-campaigns').click();
     const link = page.getByTestId('campaign-link').first();
-    await link.getByTestId('campaign-channel').selectOption(channelId!);
-    await expect(link.getByTestId('campaign-channel')).toHaveValue(channelId!);
+    await link.getByTestId('campaign-channel').selectOption(channelId);
+    await expect(link.getByTestId('campaign-channel')).toHaveValue(channelId);
 
     // 4. Sync now → the run succeeds and writes three days (today and the two before) for the channel.
     await page.getByTestId('tab-sync').click();

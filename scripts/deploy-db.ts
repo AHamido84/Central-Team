@@ -74,6 +74,12 @@ async function main() {
           env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
         });
         if (crm.status !== 0) throw new Error(`CRM seed failed with exit code ${crm.status}`);
+        // And Phase 7: sandbox connections, mappings, synced numbers, WhatsApp templates and automations, once.
+        const integrations = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-integrations-standalone.ts'], {
+          stdio: 'inherit',
+          env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
+        });
+        if (integrations.status !== 0) throw new Error(`integrations seed failed with exit code ${integrations.status}`);
       } else {
         const [org] = await sql<{ count: number }[]>`select count(*)::int as count from public.organizations`;
         if ((org?.count ?? 0) === 0) {
