@@ -49,7 +49,16 @@ describe('RLS on every AI table', () => {
     const rows = await sql<{ relname: string; relrowsecurity: boolean }[]>`
       select relname, relrowsecurity from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r' and relname like 'ai\\_%'`;
     expect(rows.map((r) => r.relname).sort()).toEqual(
-      ['ai_chunks', 'ai_conversations', 'ai_insights', 'ai_messages', 'ai_recommendations', 'ai_settings', 'ai_usage'].sort(),
+      [
+        'ai_chunks',
+        'ai_conversations',
+        'ai_credentials',
+        'ai_insights',
+        'ai_messages',
+        'ai_recommendations',
+        'ai_settings',
+        'ai_usage',
+      ].sort(),
     );
     expect(rows.every((r) => r.relrowsecurity)).toBe(true);
     for (const t of rows) expect((await attempt(null, (tx) => tx.unsafe(`select * from public.${t.relname}`)))?.code).toBe('42501');

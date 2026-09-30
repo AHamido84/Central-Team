@@ -35,6 +35,7 @@ Built single-agency first, but **multi-tenant ready**: every tenant-scoped row c
 | 6 — CRM & Capacity | Leads (manual, CSV, public form, webhook; dedup/merge; assignment rules), pipelines & deals, quotes, won → client, follow-ups, sales dashboard, capacity planning with simulator | **Done** |
 | 7 — Integrations & Automation | Provider interface + sandbox, connections with Vault tokens (Meta, WhatsApp, TikTok, Snapchat, Google), daily metric sync, signed lead-ad webhooks, WhatsApp notifications and lead messages, automation engine with builder, dry run and run log | **Done** |
 | 8 — AI Intelligence | Campaign insights (code-computed anomalies + pacing) with recommendations → tasks, AI explanations, AI-drafted report text (AR/EN), assistant with permission-aware retrieval (pgvector) and citations; `AiProvider` (Claude + Voyage) with a mock | **Done** |
+| FR1 — Feedback Round 1 | Edit/delete everywhere with Trash and data reset, tasks performance + drawer, reviewed convert-to-tasks, per-field task permissions, AI keys in `/admin/ai`, personal connected accounts (Meta, TikTok, Snapchat, Google Ads, X, LinkedIn), email change fix (ADR-080…087) | **Done** |
 
 Current state & gotchas: `docs/HANDOFF.md` (read first in a new session). Details: `docs/ROADMAP.md`. Architecture: `docs/ARCHITECTURE.md`. Data: `docs/DATA_MODEL.md`.
 UI: `docs/UI.md`. Decisions: `docs/DECISIONS.md` (append-only, numbered).

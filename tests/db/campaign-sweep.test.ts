@@ -14,10 +14,15 @@ const startedAt = new Date();
 const later = new Date(Date.now() + 7 * 86_400_000);
 let schedule: { id: string; next_run_on: string; last_run_at: Date | null };
 let planned: string[];
+let runOn: string;
 
 beforeAll(async () => {
   [schedule] = (await sql`select id, next_run_on::text, last_run_at from public.report_schedules limit 1`) as unknown as [typeof schedule];
   planned = (await sql<{ id: string }[]>`select id from public.campaigns where status = 'planned'`).map((r) => r.id);
+  // The seed schedules the first run for the next month start in Riyadh; seeded just after a month boundary that is
+  // weeks away. Pin it to this month's start so "a week from now" always covers exactly one due period.
+  [{ runOn }] = (await sql`update public.report_schedules set next_run_on = date_trunc('month', now() at time zone 'Asia/Riyadh')::date
+    where id = ${schedule.id} returning next_run_on::text as "runOn"`) as unknown as [{ runOn: string }];
 });
 
 afterAll(async () => {
@@ -48,8 +53,7 @@ describe('campaign sweep', () => {
       select r.status, r.period_start::text, r.period_end::text, r.title,
         (select count(*)::int from public.report_sections s where s.report_id = r.id) as sections
       from public.reports r where r.schedule_id = ${schedule.id} and r.created_at >= ${startedAt}`;
-    // The schedule's first run is the 1st of next month → the month that just ended.
-    const runOn = schedule.next_run_on;
+    // The schedule runs on the 1st of this month → the month that just ended.
     const prev = new Date(`${runOn}T12:00:00Z`);
     prev.setUTCMonth(prev.getUTCMonth() - 1);
     expect(report).toMatchObject({ status: 'draft', period_start: `${prev.toISOString().slice(0, 7)}-01` });

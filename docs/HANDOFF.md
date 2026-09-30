@@ -1,6 +1,6 @@
 # Handoff — state of the project
 
-Last updated: 2026-09-30 (Phase 8) · Branch: `claude/stoic-cray-wud1ib` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
+Last updated: 2026-09-30 (Feedback Round 1) · Branch: `claude/sharp-euler-zr273f` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
 
 ## Where we are
 
@@ -15,6 +15,7 @@ Last updated: 2026-09-30 (Phase 8) · Branch: `claude/stoic-cray-wud1ib` · Read
 | 6 — CRM & Capacity | **Built.** Leads (manual, CSV import with mapping, public embeddable form `/f/[token]` with honeypot + signed ticket + rate limits, inbound webhook), Saudi phone normalisation, duplicates + merge, assignment rules with round-robin; configurable pipelines, Kanban with drag & drop (+ keyboard), deal page (stage bar, contacts, activities, files, quotes with AR/EN print), won → client in one step (client, package, portal invitation, onboarding tasks); follow-ups view, due / quiet-deal reminders and sales notifications; sales dashboard (pipeline by stage, conversion, win rate, cycle, sources, per person, forecast vs target); capacity planning (`/capacity`: 8-week department heatmap, over-allocated people, "can we take this client?" simulator, hours / time off / service effort); Sales Manager + Sales Rep roles |
 | 7 — Integrations & Automation | **Built, not deployed yet.** One `IntegrationProvider` interface with live adapters (Meta Ads + Pages + lead ads, WhatsApp Cloud API, TikTok, Snapchat, Google Ads / GA4) and a deterministic **sandbox** per platform; OAuth with signed state + nonce cookie, tokens only in Supabase Vault; `/admin/integrations` (connect / reconnect / disconnect / test, health with expiry, account → client and platform campaign → channel mapping, sync now, backfill ≤ 90 days, sync log with retries, webhook log, WhatsApp templates and messages); daily idempotent sync into `metrics_daily`; signed webhooks `/api/hooks/[provider]` → lead ads into `ingestLead()`; WhatsApp notifications (opt-in + per-category switch) and template messages from lead / deal pages with delivery status; automation engine (`/admin/automations`: trigger catalog, conditions, 6 action types, dry run, run log, retries, loop guard) |
 | 8 — AI Intelligence | **Built, not deployed yet.** Campaign insights computed by code (robust z-score anomalies on complete days, KPI and budget pacing, delivery stopped) with rule-based recommendations and computed impact → one click to a task; `/insights` + campaign Insights tab + detail with an AI explanation; notifications (`ai_insight`) and an automation trigger; "Draft with AI" for report commentary / next steps in the report's language (and optional auto-drafts for scheduled reports); `/assistant` with private conversations, retrieval through pgvector **inside the user's RLS** (a chunk is visible only if its source row is) and validated citations; `/admin/ai` (switch, sensitivity, budget + usage, provider status, index rebuild). Everything behind `AiProvider` (Claude via the Anthropic SDK + Voyage embeddings) with a deterministic mock |
+| Feedback Round 1 | **Built, not deployed.** Soft delete + Trash + bulk delete + data reset (ADR-080/081); tasks performance (1,000 tasks interactive < 1 s) and a History-API drawer (ADR-082); reviewed conversion plan + ad-hoc tasks (ADR-083); per-field task permissions enforced by the DB (ADR-084); AI keys in Vault from `/admin/ai` (ADR-085); personal connected accounts incl. X / LinkedIn (ADR-086); email change fixed (ADR-087) |
 
 Verified green on a fresh seed: `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 220 unit tests, 187 DB tests
 (RLS, dispatcher, approval state machine, reminders, campaign sweep, SLA calendar parity, SLA triggers/RLS, SLA sweep,
@@ -159,6 +160,20 @@ How it works:
   sandbox, so DB changes only happen through the Vercel build. The site answers `curl`, but headless Chromium can't
   load its scripts through the sandbox proxy (forms submit as plain HTML), so check the logged-in UI from a real browser.
 
+46. **Guard triggers silently keep server-owned columns**: `integration_connections` updates by users keep only `name`
+    (and `owner_id` for managers, ADR-086) — a wrong column doesn't error, it just doesn't change. Check the guard first
+    when an UPDATE "succeeds" without effect.
+47. **Don't redefine an existing `app.*` function by accident**: `app.member_has_permission(org, user, perm)` already
+    exists (CRM, used by service-path consumers) — grep the migrations before creating a helper with a generic name.
+48. **Timestamps copied through a JS `Date` lose microseconds** and never compare equal to the column again: copy in
+    SQL (`set x = y`), as the expiry warning does.
+49. **Events inserted by database triggers on GoTrue's connection** (e.g. `user.email_changed`) are dispatched only when
+    something schedules a dispatch — `/auth/confirm` calls `scheduleEventDispatch()`; otherwise the cron picks them up.
+50. **GoTrue auto-confirm ignores double confirmation**: keep `enable_confirmations = true` (ADR-087). GoTrue answers
+    `otp_expired` for used, replaced and expired links alike, and refuses another email within `max_frequency` (1 s).
+51. **The factory reset deletes tables in `information_schema` order with retries**: triggers that re-validate a row on
+    any UPDATE can fire through `on delete set null` — validate only when the checked columns change.
+
 ## Email delivery (auth emails and app emails)
 
 Two senders: **Supabase Auth** sends magic links, password resets and email-change confirmations; the **app** sends its
@@ -252,6 +267,39 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
    triggers it. `/notifications` shows `ai_insight` alerts for campaign owners / account managers.
 9. Repeat the screens in AR / EN × light / dark × mobile / desktop.
 
+## Feedback Round 1 — manual test checklist (local: `pnpm db:reset`, password `Passw0rd!`)
+
+1. **Trash & edit/delete** (`sara@`): delete a client from its page → the dialog lists the impact and wants the name
+   typed → it disappears everywhere and appears in `/admin/trash`; restore it; delete again and purge (files leave
+   Storage). Bulk-delete two requests from the inbox. Edit a file name, a deliverable title, your own message, a
+   checklist item. Delete a department (move members to another). Delete a team member (their open tasks go to the
+   person you pick).
+2. **Data management** (`/admin/data`, Super Admin only): counts per option; download the backup ZIP; run "demo" with
+   your password + `DELETE ALL DATA` → progress, then only non-demo data remains; the audit log still shows the reset;
+   lock the reset and try again → refused.
+3. **Tasks performance & drawer**: `pnpm db:seed:perf 1000`, `/tasks` loads in about a second in list / board / table;
+   open a task → the URL gains `?task=`; close with X, Esc, a click outside, browser Back and (mobile) a swipe; type in a
+   field then close → "Discard changes?"; focus returns to the row; copy the URL into a new tab → the same task opens.
+4. **Convert to tasks** (`noura@`): an accepted request → Convert → review: rename, reassign, change dates / priority,
+   remove one, add an ad-hoc task, reorder, set a dependency → Create. The request page lists the tasks ("Outside
+   workflow" badge on the ad-hoc one) with Add task / edit / delete; progress recalculates.
+5. **Task field permissions**: as `khalid@` (Specialist) a task assigned to him → only status, checklist, comments and
+   time are editable; the others show a lock with the reason (drawer, table, card menu). As `lama@` (Team Lead) → her
+   department's tasks fully editable. Bulk edit in the table; History tab lists every change; new reviewers / watchers
+   get notifications.
+6. **AI keys** (`/admin/ai`): add an Anthropic key → only `sk-…abcd` shows; Load models / Test connection (fails
+   cleanly with a fake key); monthly limit; switch off → env fallback shown; delete.
+7. **Connected accounts** (`khalid@`, sandbox on): Settings → Connected accounts → Connect (Meta, sandbox, any token of
+   8+ characters, an expiry date within 7 days) → masked token, "Expiring soon" badge; Test connection → ad accounts;
+   pick a client for one; Fetch campaigns → the list. As `sara@`: `/admin/integrations` → "People's connected accounts"
+   shows it masked → Reassign to `omar@` → it leaves Khalid's list. As a client user there is no such page.
+8. **Email change** (`omar@`): Settings → Profile → try your own address (error "already your email"), `sara@ofoq.test`
+   ("already uses this email"), then a new address → pending box with both addresses, Resend and Cancel, and the
+   Mailpit link (local only). In Mailpit open the link to the old address → "One more confirmation"; the new one →
+   "Your email is changed"; the old inbox gets a security notice; sign in with the new address. As `sara@`: Team →
+   a member → Sign-in email → Change email.
+9. Repeat the new screens in AR / EN × light / dark × mobile / desktop.
+
 ## Starting a new session
 
 1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md`; then `bash scripts/bootstrap.sh` (or `pnpm db:start` +
@@ -266,7 +314,7 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
    branch through the Vercel API (`POST /v13/deployments` with `gitSource` for repo id `1393530120`) and read the
    build log for the `[deploy-db]` / seed lines. Revoke-and-rotate reminders are under "Open items".
 4. Work on branch `claude/stoic-cray-wud1ib` (or the one the owner names); Conventional Commits; plan in ROADMAP +
-   DATA_MODEL before building a phase; decisions in DECISIONS (next ADR: **080**).
+   DATA_MODEL before building a phase; decisions in DECISIONS (next ADR: **088**).
 
 ## After Phase 8
 
