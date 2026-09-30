@@ -813,6 +813,55 @@ erDiagram
 | `member_capacity`, `time_off`, `service_efforts` | read `capacity:read` (own hours and time off always); write `capacity:manage`; rows only for agency members (trigger) | — |
 | `app.capacity_tasks` / `app.capacity_packages` / `app.capacity_deals` | definer functions, `capacity:read` or `42501`; numbers only (ids, dates, estimates, quantities, probabilities) — ADR-060 | — |
 
+## 3h. Phase 7 — integrations & automation
+
+```mermaid
+erDiagram
+  organizations ||--o{ integration_connections : ""
+  integration_connections ||--|| integration_secrets : "Vault secret id (service only)"
+  integration_connections ||--o{ integration_accounts : "ad accounts · pages · numbers · properties"
+  clients ||--o{ integration_accounts : "mapped to"
+  integration_accounts ||--o{ integration_campaign_links : "platform campaigns"
+  campaign_channels ||--o{ integration_campaign_links : "mapped to"
+  integration_connections ||--o{ integration_sync_runs : "sync log"
+  integration_connections ||--o{ integration_webhook_events : "inbound"
+  integration_connections ||--o{ whatsapp_templates : ""
+  integration_connections ||--o{ whatsapp_messages : ""
+  leads ||--o{ whatsapp_messages : ""
+  profiles ||--o| whatsapp_opt_ins : ""
+  automations ||--o{ automation_runs : ""
+  domain_events ||--o{ automation_runs : "trigger"
+```
+
+| Table | Key columns | Notes |
+|---|---|---|
+| `integration_connections` | `provider` (`meta · whatsapp · tiktok · snapchat · google`), `mode` (`live · sandbox`), `name`, `status` (`connected · expired · error · disconnected`), `external_user_id`, `external_name`, `scopes text[]`, `token_expires_at`, `settings jsonb` (WhatsApp phone number / WABA id, Google customer id), `last_checked_at`, `last_synced_at`, `last_error_code`, `last_error_message`, `connected_by`, `connected_at`, `disconnected_at` | **No token column.** Status and error columns are server-owned (only the service path changes them). "Expiring" is derived (expiry within 7 days). |
+| `integration_secrets` | `connection_id` (pk), `secret_id` (a `vault.secrets` id) | RLS on, **no policies**, no grants to `authenticated`/`anon`: only `app.integration_put_secret / get_secret / drop_secret` (security definer, `execute` for `service_role` and the owner only) touch it. The secret is the JSON token set (access, refresh, expiry). |
+| `integration_accounts` | `connection_id`, `kind` (`ad_account · page · whatsapp_number · analytics_property`), `external_id`, `name`, `currency`, `timezone`, `client_id?`, `sync_enabled`, `metadata jsonb`, `last_synced_at` | Unique (connection, kind, external id); `(kind, external_id)` indexed to route webhooks. |
+| `integration_campaign_links` | `account_id`, `external_campaign_id`, `name`, `platform_status`, `channel_id?` (`campaign_channels`), `last_seen_at` | Unique (account, external campaign). Trigger: the channel's campaign belongs to the account's client. Several platform campaigns may feed one channel (summed). |
+| `integration_sync_runs` | `connection_id`, `account_id?`, `trigger` (`manual · scheduled · backfill · retry`), `date_from`, `date_to`, `status` (`queued · running · succeeded · failed`), `attempts`, `next_attempt_at`, `rows_written`, `campaigns`, `error_code`, `error_message`, `requested_by`, `started_at`, `finished_at` | Written by the service path; users insert only `queued` manual / backfill runs (≤ 90 days, trigger-checked). Failed runs retry with backoff up to 3 attempts. |
+| `integration_webhook_events` | `provider`, `connection_id?`, `account_id?`, `external_id` (platform event / lead id), `topic` (`lead · message_status · message · verification · other`), `signature_valid`, `status` (`received · processed · ignored · failed · rejected`), `attempts`, `error`, `payload jsonb`, `lead_id?`, `received_at`, `processed_at` | Unique (provider, external id): a replayed delivery is a no-op. Rejected (bad signature) rows keep no payload. |
+| `whatsapp_templates` | `connection_id`, `name`, `language` (`ar · en`), `category` (`utility · marketing · authentication`), `status` (`approved · pending · rejected · paused`), `body` (with `{{1}}…`), `param_count`, `is_notification`, `synced_at` | Unique (connection, name, language); at most one notification template per org and language. |
+| `whatsapp_messages` | `connection_id`, `to_phone` (E.164), `template_name`, `language`, `params text[]`, `body` (rendered), `purpose` (`notification · lead · automation`), `lead_id?`, `deal_id?`, `recipient_user_id?`, `automation_run_id?`, `external_id` (wamid), `status` (`queued · sent · delivered · read · failed`), `error_code`, `error_message`, `attempts`, `sent_by`, `sent_at`, `delivered_at`, `read_at`, `failed_at` | Status only moves forward (trigger); status webhooks update it by `external_id`. |
+| `whatsapp_opt_ins` | `user_id` + `organization_id` (pk), `phone` (E.164), `opted_in_at`, `opted_out_at` | Own row only. A user gets WhatsApp notifications only with an active opt-in **and** the category's WhatsApp switch on. |
+| `automations` | `name`, `description`, `is_active`, `trigger_type` (a `domain_events` type from the catalog), `match` (`all · any`), `conditions jsonb` (`[{field, op, value}]`), `actions jsonb` (`[{id, type, config}]`), `run_count`, `failure_count`, `last_run_at`, `created_by`, `updated_by` | Zod-validated on save and re-validated by the engine; counters are server-owned. |
+| `automation_runs` | `automation_id`, `event_id?`, `event_type`, `dry_run`, `status` (`running · succeeded · failed · skipped`), `skip_reason` (`conditions · loop_depth · loop_self · rate_limited`), `depth`, `attempts`, `conditions jsonb` (per-condition result), `actions jsonb` (per-action status, output, error), `error`, `started_at`, `finished_at` | Unique (automation, event) for real runs: one run per rule × event; a retry resumes it and skips completed actions. |
+
+**Columns added**: `notification_preferences.whatsapp boolean default false`; `domain_events.automation_depth smallint
+default 0` and `domain_events.automation_chain uuid[] default '{}'` (events emitted by an automation action carry the
+depth + 1 and the chain of rules that led to them — the loop guard reads both).
+
+**RLS**
+
+| Table | Agency | Client users |
+|---|---|---|
+| `integration_connections`, `integration_accounts`, `integration_campaign_links`, `integration_sync_runs`, `integration_webhook_events`, `whatsapp_templates` | read `integrations:read`; write `integrations:manage` (connections: name only — tokens, status and health through the service path; runs: insert queued manual/backfill only; webhook events: read only) | — |
+| `integration_secrets`, `vault.*` | none (service role only) | none |
+| `whatsapp_messages` | read `whatsapp:send`, or `leads:read` / `deals:read` for rows on a lead / deal, or `integrations:read`; insert only through the service path after an RLS-checked lead / deal lookup | — |
+| `whatsapp_opt_ins` | own row | — (agency channel only) |
+| `automations` | read `automations:read`; write `automations:manage` | — |
+| `automation_runs` | read `automations:read`; written by the engine (service path) | — |
+
 ## 4. Forward-looking sketch (all phases — not built in Phase 0)
 
 ```mermaid
@@ -870,5 +919,5 @@ erDiagram
 | 4 Campaigns | **Built** — see §3e | Metrics not partitioned (ADR-048); published reports are snapshots |
 | 5 Ops | **Built** — see §3f | SLA tables + read models over earlier phases |
 | 6 CRM | **Built** — see §3g | Won deal → creates client |
-| 7 Integrations | `integration_connections` (tokens in Supabase Vault), `ad_accounts`, `social_accounts`, `webhook_events`, `sync_jobs`, `automations`, `automation_runs`, `whatsapp_templates` | Automation triggers = `domain_events` types |
+| 7 Integrations | **Built** — see §3h | Tokens in Supabase Vault; automation triggers = `domain_events` types |
 | 8 AI | `ai_insights`, `ai_recommendations`, `ai_conversations`, `ai_messages`, `embeddings` (pgvector) | Every AI output linked to source records for traceability |
