@@ -36,6 +36,13 @@
       "when": 1790710940162,
       "tag": "20260929194220_operations_sla",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790733588332,
+      "tag": "20260930015948_crm_capacity",
+      "breakpoints": true
     }
   ]
 }

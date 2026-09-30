@@ -21,7 +21,9 @@
     "approvals": "Approvals",
     "calendar": "Calendar",
     "campaigns": "Campaigns & reports",
-    "operations": "Operations & SLA"
+    "operations": "Operations & SLA",
+    "crm": "Sales (CRM)",
+    "capacity": "Capacity planning"
   },
   "users": {
     "title": "Team & invitations",

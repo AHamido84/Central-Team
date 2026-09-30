@@ -12,3 +12,5 @@ export * from '@/modules/deliverables/db/schema';
 export * from '@/modules/tasks/db/schema';
 export * from '@/modules/workflows/db/schema';
 export * from '@/modules/sla/db/schema';
+export * from '@/modules/crm/db/schema';
+export * from '@/modules/capacity/db/schema';
