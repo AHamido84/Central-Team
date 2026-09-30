@@ -50,6 +50,17 @@ export const actionErrorCodes = [
   'already_converted_deal',
   'onboarding_not_configured',
   'onboarding_not_permitted',
+  'integration_not_configured',
+  'integration_auth_failed',
+  'integration_permission_denied',
+  'integration_rate_limited',
+  'integration_unavailable',
+  'connection_not_connected',
+  'channel_client_mismatch',
+  'invalid_phone',
+  'template_not_approved',
+  'no_phone',
+  'webhook_url_blocked',
   'unknown',
 ] as const;
 
@@ -109,6 +120,9 @@ const raisedCodes = new Set<ActionErrorCode>([
   'report_published',
   'invalid_stage',
   'invalid_merge',
+  'connection_not_connected',
+  'channel_client_mismatch',
+  'template_not_approved',
 ]);
 
 /** Maps thrown errors (ActionFailure, Postgres errors raised by RLS/triggers) to a safe error code. */

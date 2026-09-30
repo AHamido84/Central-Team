@@ -79,7 +79,7 @@ export async function insertLead(
   orgId: string,
   actorId: string | null,
   values: LeadValues,
-  opts: { via: 'manual' | 'import' | 'form' | 'webhook'; useRules: boolean; status?: LeadStatus },
+  opts: { via: 'manual' | 'import' | IntakeChannel; useRules: boolean; status?: LeadStatus },
 ): Promise<{ leadId: string; ownerId: string | null }> {
   let ownerId = values.ownerId;
   let ruleId: string | null = null;
@@ -134,12 +134,21 @@ export async function insertLead(
 
 export type IntakeResult = { leadId: string; duplicate: boolean };
 
+/** Public form, the generic webhook, or a platform lead ad (Phase 7, `/api/hooks/[provider]`). */
+export type IntakeChannel = 'form' | 'webhook' | 'lead_ad';
+
+const resubmittedSubject: Record<IntakeChannel, string> = {
+  form: 'resubmitted_form',
+  webhook: 'resubmitted_webhook',
+  lead_ad: 'resubmitted_lead_ad',
+};
+
 /**
  * Public form and webhook intake, with the service connection (listed service path, CLAUDE.md §6): the caller is not a
  * user, so the checks happen before this runs (spam protection / Bearer token). Idempotent on `external_ref`; a repeat
  * submission from a known phone or email becomes an activity on that lead instead of a duplicate.
  */
-export async function ingestLead(orgId: string, values: LeadValues & { message: string }, via: 'form' | 'webhook'): Promise<IntakeResult> {
+export async function ingestLead(orgId: string, values: LeadValues & { message: string }, via: IntakeChannel): Promise<IntakeResult> {
   return dbAdmin.transaction(async (tx) => {
     if (values.externalRef) {
       const [same] = await tx
@@ -154,7 +163,7 @@ export async function ingestLead(orgId: string, values: LeadValues & { message: 
         organizationId: orgId,
         leadId: existing.id,
         type: 'note',
-        subject: via === 'form' ? 'resubmitted_form' : 'resubmitted_webhook',
+        subject: resubmittedSubject[via],
         body: [values.message, values.services.length ? `services: ${values.services.join(', ')}` : ''].filter(Boolean).join('\n'),
         ownerId: existing.ownerId,
         completedAt: new Date(),

@@ -16,6 +16,9 @@ export type StoredEvent<T extends DomainEventType = DomainEventType> = {
   actorId: string | null;
   payload: DomainEventPayloads[T];
   occurredAt: Date;
+  /** Automation actions that led to this event (loop guard, ADR-071). */
+  automationDepth: number;
+  automationChain: string[];
 };
 
 type AnyStoredEvent = { [T in DomainEventType]: StoredEvent<T> }[DomainEventType];
@@ -63,6 +66,8 @@ type ClaimedRow = {
   actor_id: string | null;
   payload: unknown;
   occurred_at: Date | string;
+  automation_depth: number;
+  automation_chain: string[] | null;
 };
 
 export type DispatchResult = { delivered: number; failed: number };
@@ -108,7 +113,7 @@ export async function dispatchPendingEvents(consumers: readonly Consumer[], opts
       returning d.event_id, d.consumer, d.attempts
     )
     select c.event_id, c.consumer, c.attempts, e.organization_id, e.type, e.aggregate_type, e.aggregate_id,
-           e.client_id, e.actor_id, e.payload, e.occurred_at
+           e.client_id, e.actor_id, e.payload, e.occurred_at, e.automation_depth, e.automation_chain
     from claimed c join public.domain_events e on e.id = c.event_id
     order by e.occurred_at`);
 
@@ -125,6 +130,8 @@ export async function dispatchPendingEvents(consumers: readonly Consumer[], opts
       actorId: row.actor_id,
       payload: row.payload,
       occurredAt: new Date(row.occurred_at),
+      automationDepth: row.automation_depth ?? 0,
+      automationChain: row.automation_chain ?? [],
     } as AnyStoredEvent;
     try {
       await consumer.handle(event);

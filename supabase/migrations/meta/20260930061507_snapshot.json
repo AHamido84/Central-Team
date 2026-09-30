@@ -1,5 +1,5 @@
 {
-  "id": "8fa02424-6d30-462a-b72c-850ebd01af75",
+  "id": "57cf607e-393a-4d5c-86a0-5051c47979ac",
   "prevId": "55f86c96-c200-4ac2-bd9b-fc9ac2c3a151",
   "version": "7",
   "dialect": "postgresql",
@@ -15349,6 +15349,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "language_code": {
+          "name": "language_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
         },
         "category": {
           "name": "category",

@@ -64,7 +64,9 @@
   },
   "systemSubjects": {
     "resubmitted_form": "أرسل نموذج الموقع مرة أخرى",
-    "resubmitted_webhook": "وصل مرة أخرى عبر تكامل"
+    "resubmitted_webhook": "وصل مرة أخرى عبر تكامل",
+    "resubmitted_lead_ad": "عبّأ نموذج إعلان العملاء مرة أخرى",
+    "whatsapp_sent": "أُرسلت رسالة واتساب"
   },
   "leads": {
     "title": "العملاء المحتملون",

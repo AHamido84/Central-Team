@@ -49,5 +49,16 @@
   "deal_not_won": "Mark the deal as won first.",
   "already_converted_deal": "This deal was already turned into a client.",
   "onboarding_not_configured": "Set the onboarding request type and workflow in Sales settings first.",
-  "onboarding_not_permitted": "Your role can't start this onboarding workflow. Ask an account manager, or turn off onboarding and convert the request from the inbox later."
+  "onboarding_not_permitted": "Your role can't start this onboarding workflow. Ask an account manager, or turn off onboarding and convert the request from the inbox later.",
+  "integration_not_configured": "This platform isn't configured on the server yet (app keys are missing).",
+  "integration_auth_failed": "The platform refused or expired the authorization. Reconnect and try again.",
+  "integration_permission_denied": "The connected account doesn't have the required permissions on the platform.",
+  "integration_rate_limited": "The platform is limiting requests right now. Try again shortly.",
+  "integration_unavailable": "Couldn't reach the platform. Try again shortly.",
+  "connection_not_connected": "The connection is not active. Reconnect it first.",
+  "channel_client_mismatch": "The selected channel belongs to a different client than the ad account.",
+  "invalid_phone": "That phone number can't receive WhatsApp messages.",
+  "template_not_approved": "This template isn't approved by WhatsApp.",
+  "no_phone": "There is no mobile number to send the message to.",
+  "webhook_url_blocked": "This address is not allowed (it must be a public HTTPS URL)."
 }

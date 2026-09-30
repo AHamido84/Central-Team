@@ -14,6 +14,8 @@ const PUBLIC_PREFIXES = [
   '/f/',
   '/api/public/',
   '/api/webhooks/',
+  // Platform webhooks (Phase 7): every request is signature-checked in the route.
+  '/api/hooks/',
 ];
 /** Routes a signed-in user should not see (they bounce to their home). */
 const GUEST_ONLY = ['/login', '/forgot-password'];

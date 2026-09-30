@@ -209,6 +209,8 @@ export const whatsappTemplates = pgTable(
       .references(() => integrationConnections.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     language: text('language').notNull(),
+    /** The platform's exact language code (`en_US`), used when sending. */
+    languageCode: text('language_code').notNull().default(''),
     category: text('category').notNull().default('utility'),
     status: text('status').notNull().default('approved'),
     body: text('body').notNull().default(''),

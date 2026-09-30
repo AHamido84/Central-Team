@@ -43,6 +43,10 @@ const serverSchema = z.object({
     .regex(/^\d{10}$/)
     .optional(),
   GOOGLE_LEAD_WEBHOOK_KEY: z.string().min(8).optional(),
+  GOOGLE_ADS_API_VERSION: z
+    .string()
+    .regex(/^v\d+$/)
+    .default('v21'),
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;

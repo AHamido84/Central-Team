@@ -137,6 +137,26 @@
     "deal_won": {
       "title": "Deal won: {title}",
       "body": "{reference} closed for {valueSar} SAR."
+    },
+    "integration_expired": {
+      "title": "{provider} connection expired",
+      "body": "Reconnect “{name}” to keep syncing and receiving leads."
+    },
+    "integration_sync_failed": {
+      "title": "{provider} sync failed",
+      "body": "Syncing “{name}” didn't complete after several attempts: {error}."
+    },
+    "automation_failed": {
+      "title": "An automation failed",
+      "body": "“{name}” didn't complete after retrying."
+    },
+    "automation_message": {
+      "title": "{title}",
+      "body": "{body}"
+    },
+    "whatsapp_failed": {
+      "title": "A WhatsApp message could not be sent",
+      "body": "The message to {phone} was not delivered: {error}."
     }
   }
 }

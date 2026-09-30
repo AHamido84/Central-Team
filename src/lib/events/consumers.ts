@@ -1,10 +1,12 @@
 import 'server-only';
 
 import type { Consumer } from '@/lib/events/dispatcher';
+import { automationEngine } from '@/modules/automations/server/engine';
 import { campaignNotifications } from '@/modules/campaigns/server/consumers';
 import { crmNotifications } from '@/modules/crm/server/consumers';
 import { deliverableNotifications } from '@/modules/deliverables/server/consumers';
 import { fileNotifications } from '@/modules/files/server/consumers';
+import { integrationNotifications } from '@/modules/integrations/server/consumers';
 import { invitationNotifications } from '@/modules/invitations/server/consumers';
 import { messageNotifications } from '@/modules/messaging/server/consumers';
 import { roleNotifications } from '@/modules/rbac/server/consumers';
@@ -27,4 +29,7 @@ export const consumers: readonly Consumer[] = [
   campaignNotifications,
   slaNotifications,
   crmNotifications,
+  integrationNotifications,
+  // Automation rules (Phase 7, ADR-071) react to the same events as the notification consumers above.
+  automationEngine,
 ];

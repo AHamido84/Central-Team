@@ -137,6 +137,26 @@
     "deal_won": {
       "title": "صفقة مكسوبة: {title}",
       "body": "أُغلقت {reference} بقيمة {valueSar} ريال."
+    },
+    "integration_expired": {
+      "title": "انتهت صلاحية ربط {provider}",
+      "body": "أعد ربط “⁨{name}⁩” لتستمر المزامنة واستقبال العملاء المحتملين."
+    },
+    "integration_sync_failed": {
+      "title": "فشلت مزامنة {provider}",
+      "body": "لم تكتمل مزامنة “⁨{name}⁩” بعد عدة محاولات: {error}."
+    },
+    "automation_failed": {
+      "title": "فشلت قاعدة أتمتة",
+      "body": "لم تكتمل “⁨{name}⁩” بعد إعادة المحاولة."
+    },
+    "automation_message": {
+      "title": "{title}",
+      "body": "{body}"
+    },
+    "whatsapp_failed": {
+      "title": "تعذّر إرسال رسالة واتساب",
+      "body": "لم تصل الرسالة إلى ⁨{phone}⁩: {error}."
     }
   }
 }

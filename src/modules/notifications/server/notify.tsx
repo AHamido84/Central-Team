@@ -8,6 +8,7 @@ import { notificationPreferences, notifications, organizations, profiles } from 
 import { sendActionEmail } from '@/lib/email/send';
 import { isLocale, type Locale } from '@/lib/i18n/localized';
 import { loadMessages } from '@/i18n/messages';
+import { sendNotificationWhatsApp } from '@/modules/integrations/server/whatsapp';
 import { notificationTypes, type NotificationType } from '@/modules/notifications/types';
 
 export type NotifyInput = {
@@ -69,6 +70,21 @@ export async function notify(input: NotifyInput): Promise<void> {
       })),
     );
   }
+
+  // WhatsApp (Phase 7): opted-in recipients with the category's WhatsApp switch on; a failure never blocks email.
+  await sendNotificationWhatsApp({
+    organizationId: input.organizationId,
+    category,
+    type: input.type,
+    recipients,
+    content: async (locale) => {
+      const t = createTranslator({ locale, messages: await loadMessages(locale) });
+      return {
+        title: t(`notifications.types.${input.type}.title`, input.params as never),
+        body: `${t(`notifications.types.${input.type}.body`, input.params as never)}\n${process.env.NEXT_PUBLIC_APP_URL}${input.link}`,
+      };
+    },
+  }).catch((error) => console.error('[notify] whatsapp failed', error));
 
   const emailRecipients = recipients.filter((id) => prefFor(id).email);
   if (emailRecipients.length === 0) return;

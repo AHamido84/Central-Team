@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Phase 7 — Integrations & automation: permissions, flag, Vault token storage, guards, loop-guard columns, RLS.
--- Tables come from the drizzle-kit migration 20260930060653_integrations_automations.sql.
+-- Tables come from the drizzle-kit migration 20260930061507_integrations_automations.sql.
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -303,7 +303,7 @@ begin
     raise exception 'organization_mismatch' using errcode = '22023';
   end if;
   if tg_op = 'INSERT' and app.is_user_write() then
-    if new.trigger not in ('manual', 'backfill') then
+    if new.trigger not in ('manual', 'backfill', 'retry') then
       raise exception 'invalid_trigger' using errcode = '22023';
     end if;
     if not exists (select 1 from public.integration_connections c where c.id = new.connection_id and c.status = 'connected') then
@@ -459,6 +459,16 @@ end $$;
 -- Secrets: no policy, no grant. Only the security definer functions above reach them.
 revoke all on public.integration_secrets from authenticated;
 
+-- Whether the WhatsApp notification channel can be offered (any agency member, a yes/no only).
+create or replace function app.whatsapp_notifications_available(p_org uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select app.is_agency_member(p_org) and exists (
+    select 1 from public.whatsapp_templates t
+    join public.integration_connections c on c.id = t.connection_id
+    where t.organization_id = p_org and t.is_notification and t.status = 'approved' and c.status = 'connected'
+  );
+$$;
+
 create or replace function app.integrations_can(p_org uuid, p_perm text)
 returns boolean language sql stable security definer set search_path = '' as $$
   select app.is_agency_member(p_org) and app.has_permission(p_org, p_perm);
@@ -483,11 +493,17 @@ begin
   end loop;
 end $$;
 
--- Senders pick a template: approved templates are readable with whatsapp:send too.
-create policy whatsapp_templates_select_senders on public.whatsapp_templates for select to authenticated
-  using (status = 'approved' and (select app.integrations_can(organization_id, 'whatsapp:send')));
+-- Whether a connection is live (senders without integrations:read can't read connections themselves).
+create or replace function app.integration_connected(p_connection uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.integration_connections c where c.id = p_connection and c.status = 'connected');
+$$;
 
--- Sync runs: read; managers queue manual / backfill runs (the guard trigger owns the rest).
+-- Senders pick a template: approved templates of a live connection are readable with whatsapp:send too.
+create policy whatsapp_templates_select_senders on public.whatsapp_templates for select to authenticated
+  using (status = 'approved' and (select app.integrations_can(organization_id, 'whatsapp:send')) and app.integration_connected(connection_id));
+
+-- Sync runs: read; managers queue manual / backfill / retry runs (the guard trigger owns the rest).
 revoke update, delete on public.integration_sync_runs from authenticated;
 create policy integration_sync_runs_select on public.integration_sync_runs for select to authenticated
   using ((select app.integrations_can(organization_id, 'integrations:read')) or (select app.integrations_can(organization_id, 'integrations:manage')));
@@ -530,6 +546,23 @@ create policy automations_update on public.automations for update to authenticat
   with check ((select app.integrations_can(organization_id, 'automations:manage')));
 create policy automations_delete on public.automations for delete to authenticated
   using ((select app.integrations_can(organization_id, 'automations:manage')));
+
+-- Recent events of one type, for the builder's dry run (domain_events has no user SELECT policy). Rules act on
+-- the whole organization, so anyone who may manage them may see what would trigger them.
+create or replace function app.automation_recent_events(p_org uuid, p_type text, p_limit integer default 10)
+returns table (id uuid, occurred_at timestamptz, aggregate_type text, aggregate_id uuid, payload jsonb)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not app.integrations_can(p_org, 'automations:manage') then
+    raise exception 'forbidden' using errcode = '42501';
+  end if;
+  return query
+    select e.id, e.occurred_at, e.aggregate_type, e.aggregate_id, e.payload
+    from public.domain_events e
+    where e.organization_id = p_org and e.type = p_type
+    order by e.occurred_at desc
+    limit least(greatest(p_limit, 1), 25);
+end $$;
 
 revoke insert, update, delete on public.automation_runs from authenticated;
 create policy automation_runs_select on public.automation_runs for select to authenticated

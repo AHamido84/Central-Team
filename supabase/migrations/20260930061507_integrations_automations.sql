@@ -156,6 +156,7 @@ CREATE TABLE "whatsapp_templates" (
 	"connection_id" uuid NOT NULL,
 	"name" text NOT NULL,
 	"language" text NOT NULL,
+	"language_code" text DEFAULT '' NOT NULL,
 	"category" text DEFAULT 'utility' NOT NULL,
 	"status" text DEFAULT 'approved' NOT NULL,
 	"body" text DEFAULT '' NOT NULL,

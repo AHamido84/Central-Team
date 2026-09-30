@@ -64,7 +64,9 @@
   },
   "systemSubjects": {
     "resubmitted_form": "Sent the website form again",
-    "resubmitted_webhook": "Came in again from an integration"
+    "resubmitted_webhook": "Came in again from an integration",
+    "resubmitted_lead_ad": "Filled in a lead ad form again",
+    "whatsapp_sent": "WhatsApp message sent"
   },
   "leads": {
     "title": "Leads",
