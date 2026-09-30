@@ -54,6 +54,8 @@ export type ServerEnv = z.infer<typeof serverSchema>;
 let cached: ServerEnv | undefined;
 
 export function env(): ServerEnv {
-  cached ??= serverSchema.parse({ ...process.env, DATABASE_URL: databaseUrl() });
+  // A variable set to an empty string (a blank line in .env or on Vercel) counts as unset, not as an invalid value.
+  const set = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== ''));
+  cached ??= serverSchema.parse({ ...set, DATABASE_URL: databaseUrl() });
   return cached;
 }

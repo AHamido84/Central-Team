@@ -566,7 +566,7 @@ export function AutomationBuilder({
           <Switch checked={isActive} onCheckedChange={setIsActive} disabled={!canManage} data-testid="automation-active" />
           {t('active')}
         </label>
-        <Field label={t('description')} optional className="sm:col-span-2">
+        <Field label={t('descriptionLabel')} optional className="sm:col-span-2">
           {(p) => (
             <Textarea
               {...p}

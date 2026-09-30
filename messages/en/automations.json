@@ -269,5 +269,6 @@
   "dryRun": "Dry run",
   "noEvents": "There are no recent events of this type to test with.",
   "dryRunDone": "Dry run done. The result is below.",
-  "actionNumber": "{n}. {action}"
+  "actionNumber": "{n}. {action}",
+  "descriptionLabel": "Description"
 }

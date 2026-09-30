@@ -269,5 +269,6 @@
   "dryRun": "تجربة",
   "noEvents": "لا توجد أحداث حديثة من هذا النوع للتجربة عليها.",
   "dryRunDone": "تمت التجربة. النتيجة في الأسفل.",
-  "actionNumber": "{n}. {action}"
+  "actionNumber": "الإجراء {n}: {action}",
+  "descriptionLabel": "الوصف"
 }

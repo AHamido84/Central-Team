@@ -1,6 +1,6 @@
 # Handoff — state of the project
 
-Last updated: 2026-09-30 · Branch: `claude/stoic-cray-wud1ib` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
+Last updated: 2026-09-30 (Phase 7) · Branch: `claude/stoic-cray-wud1ib` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
 
 ## Where we are
 
@@ -13,10 +13,12 @@ Last updated: 2026-09-30 · Branch: `claude/stoic-cray-wud1ib` · Read with `CLA
 | 4 — Campaigns | **Built.** Campaigns per client with channels, budgets and KPI targets; daily metrics by hand (week grid) or CSV import with Meta/TikTok/Snapchat/Google detection; analytics (KPI pacing, budget pacing, health, trend + channel charts); report builder with published snapshots, print/PDF and weekly/monthly schedules; portal campaigns + reports; notifications (campaign live, at risk, stale numbers, report ready/published) |
 | 5 — Agency Operations | **Built.** Ops dashboard across accessible clients (scope by account manager, tiles, client portfolio by health, needs-attention list, workload by department, SLA compliance); Client 360 on the client overview (health score with reasons, SLA compliance, deadlines, one activity stream) and health on the clients list; team workload (`/team`, `/team/[id]`); SLA policies (`/admin/sla`: match by client/type/priority, reply in business hours, delivery in working days, pause on client, escalation, business hours, holidays), SLA targets on requests, daily breach sweep + alerts, SLA monitor (`/sla`) with acknowledgement |
 | 6 — CRM & Capacity | **Built.** Leads (manual, CSV import with mapping, public embeddable form `/f/[token]` with honeypot + signed ticket + rate limits, inbound webhook), Saudi phone normalisation, duplicates + merge, assignment rules with round-robin; configurable pipelines, Kanban with drag & drop (+ keyboard), deal page (stage bar, contacts, activities, files, quotes with AR/EN print), won → client in one step (client, package, portal invitation, onboarding tasks); follow-ups view, due / quiet-deal reminders and sales notifications; sales dashboard (pipeline by stage, conversion, win rate, cycle, sources, per person, forecast vs target); capacity planning (`/capacity`: 8-week department heatmap, over-allocated people, "can we take this client?" simulator, hours / time off / service effort); Sales Manager + Sales Rep roles |
+| 7 — Integrations & Automation | **Built, not deployed yet.** One `IntegrationProvider` interface with live adapters (Meta Ads + Pages + lead ads, WhatsApp Cloud API, TikTok, Snapchat, Google Ads / GA4) and a deterministic **sandbox** per platform; OAuth with signed state + nonce cookie, tokens only in Supabase Vault; `/admin/integrations` (connect / reconnect / disconnect / test, health with expiry, account → client and platform campaign → channel mapping, sync now, backfill ≤ 90 days, sync log with retries, webhook log, WhatsApp templates and messages); daily idempotent sync into `metrics_daily`; signed webhooks `/api/hooks/[provider]` → lead ads into `ingestLead()`; WhatsApp notifications (opt-in + per-category switch) and template messages from lead / deal pages with delivery status; automation engine (`/admin/automations`: trigger catalog, conditions, 6 action types, dry run, run log, retries, loop guard) |
 
-Verified green on a fresh seed: `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 157 unit tests, 131 DB tests
+Verified green on a fresh seed: `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 190 unit tests, 162 DB tests
 (RLS, dispatcher, approval state machine, reminders, campaign sweep, SLA calendar parity, SLA triggers/RLS, SLA sweep,
-CRM triggers/RLS, capacity readers, lead intake, CRM sweep), 23 Playwright e2e tests, `pnpm build`. The CI workflow (`.github/workflows/ci.yml`) is written but has not run on GitHub yet.
+CRM triggers/RLS, capacity readers, lead intake, CRM sweep, Vault isolation, integrations/automations RLS, sync
+idempotency, lead-ad webhooks, WhatsApp statuses, automation engine), 25 Playwright e2e tests, `pnpm build`. The CI workflow (`.github/workflows/ci.yml`) is written but has not run on GitHub yet.
 
 ## Run it
 
@@ -99,6 +101,20 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 32. The capacity demand readers (`app.capacity_*`) raise `42501` without `capacity:read`; call them only from
     `getCapacity()` (ADR-060).
 
+33. **Integration tokens never touch a table** (ADR-067): read them only through `openConnection()` (service path);
+    users can write a secret (`app.integration_put_secret`) but nobody but the service role reads one.
+34. **Guard triggers own integration columns**: a manager's UPDATE of a connection keeps only `name`; of an account only
+    `client_id` / `sync_enabled`; of a campaign link only `channel_id`. `app.is_user_write()` tells users (role
+    `authenticated`) from the service path — don't test `auth.uid() is null`, the service path sets a `sub` for the audit.
+35. **Events emitted in background work need a dispatch**: `executeRunsQuietly()` calls `runDispatcher()` itself; a new
+    background producer must too (or wait for the cron).
+36. **Webhook items round-trip through jsonb**: dates in `WebhookItem` are ISO strings, never `Date`.
+37. **next-intl key types are near TypeScript's limits**: importing an unrelated module into a page once made valid
+    namespaces fail to type-check (`providers/sandbox.ts` into the consent page); `sandbox-code.ts` exists for that reason.
+    If a correct `getTranslations('x')` suddenly errors in one file only, bisect that file's imports.
+38. **Automation rules are unique per (rule, event)**: tests that create rules must drain pending events first, or the
+    new rule also runs on events left over from earlier tests (`tests/db/integrations.test.ts`).
+
 ## Production (live demo)
 
 | | |
@@ -120,7 +136,7 @@ How it works:
 - **Auth**: the custom access token hook is **not** enabled in the Supabase dashboard; the app works anyway because
   the claims are mirrored into `app_metadata` (ADR-046). Site URL / redirect URLs in Supabase Auth should be set to the
   Vercel URL (owner's task) for magic links and password resets.
-- **Cron**: daily at 05:00 UTC (08:00 Riyadh) — reminder sweep, campaign sweep, SLA breach sweep, CRM sweep (follow-ups due, quiet deals), dispatcher safety net (ADR-044/055/066).
+- **Cron**: daily at 05:00 UTC (08:00 Riyadh) — reminder sweep, campaign sweep, SLA breach sweep, CRM sweep (follow-ups due, quiet deals), integrations sweep (token expiry, daily sync + retries, stuck webhooks, WhatsApp retry — after Phase 7 deploys), dispatcher safety net (ADR-044/055/066/069).
 - **Network (cloud sessions)**: `api.vercel.com` must be allowed; Supabase (Postgres and HTTPS) is blocked from the
   sandbox, so DB changes only happen through the Vercel build. The site answers `curl`, but headless Chromium can't
   load its scripts through the sandbox proxy (forms submit as plain HTML), so check the logged-in UI from a real browser.
@@ -132,6 +148,16 @@ How it works:
 - Before real clients: set `SEED_ON_DEPLOY=0`, delete the demo accounts or change their passwords, **rotate the Supabase
   DB password and the Vercel token** (both were pasted into a chat), enable the auth hook, set Auth URLs.
 - Email: Resend account + verified sending domain, then `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `EMAIL_FROM`.
+- **Phase 7 is not deployed yet** (waiting for the owner's go and a Vercel token). The next deploy applies migrations
+  `20260930061507` / `20260930061600` and, with `SEED_ON_DEPLOY=1`, loads the sandbox integrations demo once
+  (`scripts/seed-integrations-standalone.ts`). Set `INTEGRATIONS_SANDBOX=1` on Vercel to keep the sandbox in the demo.
+- **Live platforms need the owner's developer apps** (see the report / ADR-068): Meta app (App ID, secret, verify token,
+  app review for `ads_read`, `leads_retrieval`, `pages_*`, `business_management`), a WhatsApp Business system-user token
+  + phone number id + WABA id and approved templates, TikTok for Business app, Snapchat Marketing API app + webhook
+  secret, Google Cloud OAuth client + Google Ads developer token (+ MCC id) + lead form key; all callback / webhook URLs
+  are on the custom domain. Outbound hosts: `graph.facebook.com`, `www.facebook.com`, `business-api.tiktok.com`,
+  `accounts.snapchat.com`, `adsapi.snapchat.com`, `accounts.google.com`, `oauth2.googleapis.com`,
+  `openidconnect.googleapis.com`, `googleads.googleapis.com`, `analyticsadmin.googleapis.com`.
 - Optional: a dedicated `FORM_SIGNING_SECRET` on Vercel for the public lead form tickets (falls back to the Supabase secret key).
 - Custom domain (the owner's network blocks some `*.app` hosts — ADR-015) and a Pro plan for a 5-minute cron.
 - Answers to open questions in `docs/DECISIONS.md` (brand, logo, domain, sending email, data residency/PDPL).
@@ -145,18 +171,18 @@ How it works:
    `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`, and `pnpm dev` must be started in the background. If `dockerd` won't
    start after a container restart, remove the stale `/var/run/docker.pid` first. Repeated logins trip the login rate
    limit locally — `delete from public.rate_limits` via `docker exec supabase_db_central-team psql -U postgres`.
-2. Verify: `pnpm check`, `pnpm test:db`, `pnpm test:e2e` (expect 157 / 131 / 23 green), `pnpm build`. On a cold dev
+2. Verify: `pnpm check`, `pnpm test:db`, `pnpm test:e2e` (expect 190 / 162 / 25 green), `pnpm build`. On a cold dev
    server the first e2e run can time out on a first-compiled route; re-run that spec before treating it as a failure.
 3. Deploys need a Vercel token from the owner each session (never store it); trigger a production deployment of this
    branch through the Vercel API (`POST /v13/deployments` with `gitSource` for repo id `1393530120`) and read the
    build log for the `[deploy-db]` / seed lines. Revoke-and-rotate reminders are under "Open items".
 4. Work on branch `claude/stoic-cray-wud1ib` (or the one the owner names); Conventional Commits; plan in ROADMAP +
-   DATA_MODEL before building a phase; decisions in DECISIONS (next ADR: **067**).
+   DATA_MODEL before building a phase; decisions in DECISIONS (next ADR: **073**).
 
-## Suggested Phase 7 scope (from the roadmap)
+## Suggested Phase 8 scope (from the roadmap)
 
-Integrations & automation: platform connections (Meta Ads + Pages, WhatsApp Business, TikTok, Snapchat, Google Ads /
-Analytics) with tokens in Supabase Vault, metric sync into `metrics_daily` (today filled by hand / CSV), lead
-ads into `ingestLead()` (the webhook contract in ARCHITECTURE §21 is the shape), WhatsApp as a notification channel,
-and an automation engine whose triggers are `domain_events` types. Deferred items: `docs/ROADMAP.md` (Deferred lists
-in §3–§6).
+AI intelligence: campaign analysis and anomaly detection over `metrics_daily` (now filled by the Phase 7 sync),
+recommendations, AI-drafted reports in Arabic and English, and an assistant over the agency's data with citations and
+permission-aware retrieval (RLS-scoped reads; pgvector for embeddings; the provider behind an interface like Phase 7's).
+It can react to `domain_events` as a consumer and act through automation actions. Deferred items: `docs/ROADMAP.md`
+(Deferred lists in §3–§7).

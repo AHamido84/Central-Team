@@ -1,6 +1,6 @@
 # Architecture
 
-Status: **Phases 0–2 built** · Owner: platform team · Related: `DATA_MODEL.md`, `UI.md`, `DECISIONS.md`
+Status: **Phases 0–7 built** · Owner: platform team · Related: `DATA_MODEL.md`, `UI.md`, `DECISIONS.md`
 
 ## 1. System overview
 
@@ -412,7 +412,7 @@ Migrations are applied to staging/prod by CI (`supabase db push`) on merge, neve
 | React to something | Subscribe a handler to a `domain_events` type in the dispatcher |
 | Notify a user | `notify()` + a `notifications.types.*` translation + a preference category |
 | Client-scoped data | `client_id` column + `app.client_access(client_id)` in RLS |
-| Integrations (Phase 7) | `integration_connections` per org/client, secrets in Supabase Vault, webhooks under `/api/hooks/<provider>` |
+| Integrations (Phase 7) | **Built** — §22: `IntegrationProvider` per platform, tokens in Vault, webhooks under `/api/hooks/<provider>` |
 | AI (Phase 8) | Consumes `domain_events` + read models; pgvector for embeddings; provider behind an interface |
 
 ## 16. Phase 1 — client portal flows
@@ -676,3 +676,72 @@ Content-Type: application/json
 | `200 {"leadId", "duplicate": true}` | Same `external_ref` again, or an existing lead with that phone/email (the submission is added to it as an activity) |
 | `400 {"error": "validation", "fieldErrors"}` | Invalid body |
 | `401` / `429` | Missing, unknown or revoked token / more than 120 requests per minute per token |
+
+
+## 22. Phase 7 — integrations & automation
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Admin as Integrations admin
+  participant App as Next.js (server)
+  participant P as Platform (or sandbox)
+  participant V as Supabase Vault
+  participant DB as Postgres (RLS + triggers)
+  participant D as Dispatcher
+  Admin->>App: startOAuthAction → signed state + nonce cookie
+  App-->>Admin: redirect to the platform's consent (sandbox: /integrations/sandbox/authorize)
+  P-->>App: /api/integrations/callback/[provider]?code&state (state + nonce + user + permission checked)
+  App->>P: exchangeCode · identify · listAccounts · listCampaigns
+  App->>V: app.integration_put_secret (service path) — tokens never in a table
+  App->>DB: connection, accounts, platform campaigns (audited, actor in claims)
+  Admin->>DB: map ad account → client · platform campaign → campaign channel (RLS, guard triggers)
+  Admin->>DB: requestSyncAction (queued run) → after(): executeSyncRun
+  App->>P: fetchDailyMetrics(range) → aggregate per channel/day → upsert metrics_daily (source api)
+  App->>DB: metrics.synced · campaign health → D → automations.engine → actions
+  P->>App: POST /api/hooks/[provider] (signature verified) → integration_webhook_events (dedup) → ingestLead / message status
+```
+
+- Modules: `src/modules/integrations` — `constants.ts` (providers, health, errors, sync limits), `providers/` (`types.ts`
+  interface + `ProviderError`, `http.ts`, `meta.ts`, `whatsapp.ts`, `tiktok.ts`, `snapchat.ts`, `google.ts`, `sandbox.ts`,
+  `index.ts` registry / env checks), `signatures.ts` (webhook signatures, OAuth state — pure), `metrics.ts` (aggregation —
+  pure), `webhook-parsers.ts` (payload → items — pure), `server/` (`connections.ts` Vault + discovery + health,
+  `sync.ts`, `webhooks.ts`, `whatsapp.ts`, `sweep.ts`, `consumers.ts`, `queries.ts`, `actions.ts`), `components/`.
+  `src/modules/automations` — `constants.ts` (trigger catalog with fields, operators, action applicability, limits),
+  `schemas.ts`, `engine-core.ts` (conditions, templating, loop guard, URL guard — pure), `server/engine.ts` (context
+  loader, actions, runs, the `automations.engine` consumer), `server/queries.ts`, `server/actions.ts`, `components/`.
+- Routes: `/admin/integrations`, `/admin/integrations/[connectionId]` (accounts, campaigns, sync, templates, messages,
+  webhooks), `/admin/automations`, `/admin/automations/new`, `/admin/automations/[id]` (`?tab=rule|test|runs`),
+  `/integrations/sandbox/authorize`; API `GET|POST /api/hooks/[provider]` (public, signature-checked; GET answers the
+  Meta verify challenge), `GET /api/integrations/callback/[provider]`. WhatsApp panel on `/crm/leads/[id]` and
+  `/crm/deals/[id]`; WhatsApp opt-in and channel column on `/settings/notifications`.
+- Service paths (ADR-067): Vault reads, provider calls and their bookkeeping, webhook processing and WhatsApp sends run
+  with the service connection **after** an RLS-checked lookup or permission probe in the action; guard triggers keep
+  status / health / external ids server-owned even for managers (`app.is_user_write()` reads the `role` setting).
+- Events: `integration.*`, `metrics.synced`, `whatsapp.*`, `automation.*`; `domain_events.automation_depth` /
+  `automation_chain` are set by `emitEvent` from `automationCause` (AsyncLocalStorage) while a rule's actions run.
+- Consumers: `notifications.integrations` (expired connection, final sync failure, failed rule, failed lead message) and
+  `automations.engine` (every trigger in the catalog). `notify()` adds the WhatsApp channel (opt-in + per-category switch).
+- Cron: reminders → campaigns → SLA → CRM → **integrations** (token refresh / expiry, daily sync scheduling, due runs
+  and retries, stuck webhook events, one WhatsApp retry) → dispatcher. On the Hobby plan this is once a day; "Sync now"
+  and backfills run immediately after the request.
+- Environment: `INTEGRATIONS_SANDBOX`, `INTEGRATIONS_SIGNING_SECRET`, `META_APP_ID`, `META_APP_SECRET`,
+  `META_WEBHOOK_VERIFY_TOKEN`, `META_GRAPH_VERSION`, `TIKTOK_APP_ID`, `TIKTOK_APP_SECRET`, `SNAPCHAT_CLIENT_ID`,
+  `SNAPCHAT_CLIENT_SECRET`, `SNAPCHAT_WEBHOOK_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+  `GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_LOGIN_CUSTOMER_ID`, `GOOGLE_ADS_API_VERSION`, `GOOGLE_LEAD_WEBHOOK_KEY`
+  (see `.env.example`). OAuth redirect URI per platform: `<APP_URL>/api/integrations/callback/<provider>`.
+
+### Outbound automation webhook (contract)
+
+```http
+POST <your https URL>
+Content-Type: application/json
+X-Central-Event: lead.created
+X-Central-Delivery: <run id>            (stable across retries)
+X-Central-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256(key, "<t>.<raw body>")>
+
+{ "automation": { "id", "name" }, "event": { "id", "type", "occurredAt", "payload" },
+  "subject": { "type": "lead", "id" }, "data": { "lead.full_name": "…", "lead.source": "lead_ad", … } }
+```
+
+The key is shown to `automations:manage` in the builder; any 2xx is success, anything else is retried (ADR-071).

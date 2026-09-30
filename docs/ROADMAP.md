@@ -316,7 +316,7 @@ Data model: `docs/DATA_MODEL.md` §3e.
 - [x] Docs: ROADMAP, DATA_MODEL, ARCHITECTURE, DECISIONS, HANDOFF, CLAUDE.md
 
 ### 4.9 Deferred (not in this phase)
-- [ ] Live metrics from ad-platform APIs (Phase 7; `metrics_daily.source = 'api'` and `campaign_channels.external_ref` are ready)
+- [x] Live metrics from ad-platform APIs — Phase 7 sync (`metrics_daily.source = 'api'`, mapping through `integration_campaign_links`)
 - [ ] Server-generated PDF attachments on report emails (reports print to PDF from the browser; emails link to the portal)
 - [ ] Undo a CSV import (imports are logged and re-importing a period replaces it)
 - [x] Cross-client analytics dashboard for the agency — Phase 5 ops dashboard (campaign health per client, attention list)
@@ -435,7 +435,7 @@ reaches the portal. Data model: `docs/DATA_MODEL.md` §3g.
 - [ ] Skills-based and per-person capacity planning (today: per department, with over-allocated people from assigned task estimates)
 - [ ] Human QA pass (AR/EN × light/dark × mobile/desktop) on every sales and capacity screen (automated screenshot pass done)
 
-## Phase 7 — Integrations & Automation
+## Phase 7 — Integrations & Automation (done)
 
 Per-organization connections to the ad and messaging platforms (tokens in Supabase Vault), a daily metrics sync into
 `metrics_daily`, lead ads into `ingestLead()`, WhatsApp as a notification channel and a sales tool, and a rule engine
@@ -444,47 +444,58 @@ implementation, so the whole phase runs and is tested without live credentials. 
 portal except the numbers the sync writes into campaigns. Data model: `docs/DATA_MODEL.md` §3h.
 
 ### 7.1 Data & security
-- [ ] Tables: `integration_connections` (token only as a Vault secret id), `integration_accounts` (ad accounts, pages, WhatsApp numbers, analytics properties → client), `integration_campaign_links` (platform campaign → campaign channel), `integration_sync_runs` (sync log with retries), `integration_webhook_events` (inbound log, dedup key), `whatsapp_templates`, `whatsapp_messages`, `whatsapp_opt_ins`, `automations`, `automation_runs`
-- [ ] Columns: `notification_preferences.whatsapp`; `domain_events.automation_depth` + `automation_chain` (loop guard)
-- [ ] Vault: `app.integration_put_secret` / `app.integration_get_secret` / `app.integration_drop_secret` — service role only; no token column anywhere; `authenticated` / `anon` can't read `vault.*`
-- [ ] Permissions: `integrations:read`, `integrations:manage`, `automations:read`, `automations:manage`, `whatsapp:send`; seeded for Super Admin / Admin (all), Account Manager, Team Lead, Sales Manager, Sales Rep; flag `module.integrations`
-- [ ] Triggers: organization consistency (account → connection, link → account + channel of the mapped client), server-owned status / health columns, audit on every connection, account, link, template and automation change
-- [ ] RLS: agency-only; read with `integrations:read` / `automations:read`, write with `*:manage`; WhatsApp messages readable with `whatsapp:send` or lead/deal read; opt-ins own-row only
+- [x] Tables: `integration_connections` (token only as a Vault secret id), `integration_accounts` (ad accounts, pages, WhatsApp numbers, analytics properties → client), `integration_campaign_links` (platform campaign → campaign channel), `integration_sync_runs` (sync log with retries), `integration_webhook_events` (inbound log, dedup key), `whatsapp_templates`, `whatsapp_messages`, `whatsapp_opt_ins`, `automations`, `automation_runs`
+- [x] Columns: `notification_preferences.whatsapp`; `domain_events.automation_depth` + `automation_chain` (loop guard)
+- [x] Vault: `app.integration_put_secret` / `app.integration_get_secret` / `app.integration_drop_secret` — service role only; no token column anywhere; `authenticated` / `anon` can't read `vault.*`
+- [x] Permissions: `integrations:read`, `integrations:manage`, `automations:read`, `automations:manage`, `whatsapp:send`; seeded for Super Admin / Admin (all), Account Manager, Team Lead, Sales Manager, Sales Rep; flag `module.integrations`
+- [x] Triggers: organization consistency (account → connection, link → account + channel of the mapped client), server-owned status / health columns, audit on every connection, account, link, template and automation change
+- [x] RLS: agency-only; read with `integrations:read` / `automations:read`, write with `*:manage`; WhatsApp messages readable with `whatsapp:send` or lead/deal read; opt-ins own-row only
 
 ### 7.2 Providers & connections (A)
-- [ ] Provider interface (`authorizeUrl`, `exchangeCode`, `refresh`, `listAccounts`, `listCampaigns`, `fetchDailyMetrics`, `verifyWebhook`, `fetchLead`, WhatsApp `listTemplates` / `sendTemplate`) with live adapters for Meta (Ads + Pages + lead ads), WhatsApp Cloud API, TikTok, Snapchat, Google Ads / GA4 and a deterministic **sandbox** adapter per platform
-- [ ] OAuth where supported (Meta, TikTok, Snapchat, Google): signed `state` (HMAC + nonce cookie, 10 min), callback exchanges the code, tokens straight into Vault; WhatsApp by system-user token + phone number id; sandbox consent page for local and demo use
-- [ ] Admin `/admin/integrations`: provider cards (configured / not configured with the env vars it needs), connections with health; connect, reconnect (same connection, new token), disconnect (secret dropped, accounts kept unmapped for history), test connection
-- [ ] Health: `connected · expiring · expired · error · disconnected`; token expiry and auth errors mark the connection expired with a clear, translated message and a Reconnect call to action; `integration.connection_expired` → notification to integration managers
+- [x] Provider interface (`authorizeUrl`, `exchangeCode`, `refresh`, `listAccounts`, `listCampaigns`, `fetchDailyMetrics`, `verifyWebhook`, `fetchLead`, WhatsApp `listTemplates` / `sendTemplate`) with live adapters for Meta (Ads + Pages + lead ads), WhatsApp Cloud API, TikTok, Snapchat, Google Ads / GA4 and a deterministic **sandbox** adapter per platform
+- [x] OAuth where supported (Meta, TikTok, Snapchat, Google): signed `state` (HMAC + nonce cookie, 10 min), callback exchanges the code, tokens straight into Vault; WhatsApp by system-user token + phone number id; sandbox consent page for local and demo use
+- [x] Admin `/admin/integrations`: provider cards (configured / not configured with the env vars it needs), connections with health; connect, reconnect (same connection, new token), disconnect (secret dropped, accounts kept unmapped for history), test connection
+- [x] Health: `connected · expiring · expired · error · disconnected`; token expiry and auth errors mark the connection expired with a clear, translated message and a Reconnect call to action; `integration.connection_expired` → notification to integration managers
 
 ### 7.3 Data sync (B)
-- [ ] Discover accounts and platform campaigns; map ad accounts to clients and platform campaigns to campaign channels (same client enforced)
-- [ ] Daily metrics pull into `metrics_daily` (`source = 'api'`): aggregate linked platform campaigns per channel per day, upsert by (channel, day) — re-running a range gives the same rows; health refresh after each run
-- [ ] Sync now, backfill a date range (≤ 90 days), daily scheduled sync of the last 3 days (late attribution) from the cron
-- [ ] Sync log: trigger, range, status, rows, error; retries with backoff (3 attempts), manual retry
+- [x] Discover accounts and platform campaigns; map ad accounts to clients and platform campaigns to campaign channels (same client enforced)
+- [x] Daily metrics pull into `metrics_daily` (`source = 'api'`): aggregate linked platform campaigns per channel per day, upsert by (channel, day) — re-running a range gives the same rows; health refresh after each run
+- [x] Sync now, backfill a date range (≤ 90 days), daily scheduled sync of the last 3 days (late attribution) from the cron
+- [x] Sync log: trigger, range, status, rows, error; retries with backoff (3 attempts), manual retry
 
 ### 7.4 Lead ads (C)
-- [ ] `/api/hooks/[provider]`: Meta / WhatsApp verification challenge; signature verification for every provider (Meta `X-Hub-Signature-256`, TikTok signed header, Snapchat signed header, Google key, sandbox HMAC) — unsigned or badly signed requests are rejected and logged
-- [ ] Webhook log with dedup on the platform's event id; processing after the response, retries from the sweep
-- [ ] Meta / TikTok / Snapchat (and Google) lead forms → `ingestLead()` (source `lead_ad`, `external_ref` = `<provider>:<lead id>`, source detail = platform · form), assignment rules, duplicate → activity
+- [x] `/api/hooks/[provider]`: Meta / WhatsApp verification challenge; signature verification for every provider (Meta `X-Hub-Signature-256`, TikTok signed header, Snapchat signed header, Google key, sandbox HMAC) — unsigned or badly signed requests are rejected and logged
+- [x] Webhook log with dedup on the platform's event id; processing after the response, retries from the sweep
+- [x] Meta / TikTok / Snapchat (and Google) lead forms → `ingestLead()` (source `lead_ad`, `external_ref` = `<provider>:<lead id>`, source detail = platform · form), assignment rules, duplicate → activity
 
 ### 7.5 WhatsApp (D)
-- [ ] Templates synced from the WhatsApp Business account (approved only are usable); one template marked for notifications per language
-- [ ] Channel: per-user opt-in (phone + consent, opt-out anytime) and a per-category WhatsApp switch in notification settings; `notify()` sends through the approved template, logs every message
-- [ ] Send a template message to a lead from the lead page and the deal page (template picker, parameters, preview), message history with delivery status (sent → delivered → read / failed) from status webhooks; logged as a WhatsApp activity
+- [x] Templates synced from the WhatsApp Business account (approved only are usable); one template marked for notifications per language
+- [x] Channel: per-user opt-in (phone + consent, opt-out anytime) and a per-category WhatsApp switch in notification settings; `notify()` sends through the approved template, logs every message
+- [x] Send a template message to a lead from the lead page and the deal page (template picker, parameters, preview), message history with delivery status (sent → delivered → read / failed) from status webhooks; logged as a WhatsApp activity
 
 ### 7.6 Automation engine (E)
-- [ ] Rules: trigger (a curated catalog of `domain_events` types with their fields), conditions (all / any; equals, not equals, in, not in, greater / less, contains, empty / not empty), ordered actions
-- [ ] Actions: notify (people or roles on the record), assign (lead / deal / request), create task, change status (lead / request / task), send WhatsApp template, webhook (HTTPS, HMAC-signed, private addresses blocked)
-- [ ] Runs as the `automations.engine` consumer (ADR-027/028): one run per rule × event (idempotent), completed actions skipped on retry, dispatcher backoff; loop protection (depth ≤ 3, a rule never re-triggers itself down its own chain, 100 runs per rule per hour)
-- [ ] Builder UI (`/admin/automations`), run log with per-action results, dry run against a recent event (no side effects), enable / disable, duplicate
+- [x] Rules: trigger (a curated catalog of `domain_events` types with their fields), conditions (all / any; equals, not equals, in, not in, greater / less, contains, empty / not empty), ordered actions
+- [x] Actions: notify (people or roles on the record), assign (lead / deal / request), create task, change status (lead / request / task), send WhatsApp template, webhook (HTTPS, HMAC-signed, private addresses blocked)
+- [x] Runs as the `automations.engine` consumer (ADR-027/028): one run per rule × event (idempotent), completed actions skipped on retry, dispatcher backoff; loop protection (depth ≤ 3, a rule never re-triggers itself down its own chain, 100 runs per rule per hour)
+- [x] Builder UI (`/admin/automations`), run log with per-action results, dry run against a recent event (no side effects), enable / disable, duplicate
 
 ### 7.7 Quality
-- [ ] Seed: sandbox connections (Meta, TikTok, WhatsApp) mapped to demo clients and campaigns, a sync log, webhook events, templates, opt-ins, example automations and runs
-- [ ] Unit: condition evaluator, loop guard, signature verification per provider, OAuth state, sandbox determinism, metrics aggregation, template rendering, webhook URL guard
-- [ ] DB: tokens never readable by agency or client users (Vault functions and views denied), RLS allow / deny, sync idempotency, lead-ad dedup through the webhook path, automation conditions / loop guard / retries / dry run
-- [ ] Playwright: connect a sandbox provider → map account and campaign → sync → metrics on the campaign → an automation fires
-- [ ] Docs: ROADMAP, DATA_MODEL, ARCHITECTURE, DECISIONS, HANDOFF, CLAUDE.md
+- [x] Seed: sandbox connections (Meta, TikTok, WhatsApp) mapped to demo clients and campaigns, a sync log, webhook events, templates, opt-ins, example automations and runs
+- [x] Unit: condition evaluator, loop guard, signature verification per provider, OAuth state, sandbox determinism, metrics aggregation, template rendering, webhook URL guard
+- [x] DB: tokens never readable by agency or client users (Vault functions and views denied), RLS allow / deny, sync idempotency, lead-ad dedup through the webhook path, automation conditions / loop guard / retries / dry run
+- [x] Playwright: connect a sandbox provider → map account and campaign → sync → metrics on the campaign → an automation fires
+- [x] Docs: ROADMAP, DATA_MODEL, ARCHITECTURE, DECISIONS, HANDOFF, CLAUDE.md
+
+### 7.8 Deferred (not in this phase)
+- [ ] Verify the live adapters against real developer apps (Meta, WhatsApp Cloud API, TikTok, Snapchat, Google Ads / GA4) — needs the owner's app ids, secrets, app review and network access (ADR-068); TikTok and Snapchat lead webhook payloads and signature headers to be confirmed in their consoles (ADR-069)
+- [ ] Meta Embedded Signup for WhatsApp (connect today with a system-user token)
+- [ ] GA4 metrics (sessions, conversions) in reports — properties are discovered and listed, not synced
+- [ ] Currency conversion for ad accounts not billed in SAR (the account currency is shown; numbers are stored as reported)
+- [ ] Inbound WhatsApp messages as a conversation inbox (logged and ignored today); WhatsApp template creation from the app
+- [ ] Sub-daily scheduled syncs and token checks on the Vercel Hobby plan (daily cron; "Sync now" and backfills are immediate)
+- [ ] Automation triggers beyond the curated catalog, time-based triggers ("3 days after…"), branches / delays between actions
+- [ ] Per-client connections (connections are per organization; ad accounts are mapped to clients)
+- [ ] Human QA on real devices (screens checked in AR/EN × light/dark × 390px/1440px with screenshots)
 
 ## Phase 8 — AI Intelligence
 Campaign analysis & anomaly detection, recommendations, AI-drafted reports (AR/EN), assistant over the agency's data

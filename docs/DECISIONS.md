@@ -523,6 +523,90 @@ client users never see: lead assigned (new owner), follow-up due (owner), deal g
 managers), deal won (sales managers and owner). Scheduled activities don't count as contact; completed ones move a
 new lead to contacted.
 
+### ADR-067 — Integration tokens in Supabase Vault, OAuth state bound to a nonce
+2026-09-30 · Accepted
+Platform tokens (access, refresh, expiry) are one JSON secret per connection in **Supabase Vault**; no table has a token
+column. `integration_secrets` maps a connection to its Vault id and has RLS on, no policies and no grants.
+`app.integration_put_secret` (service path, or a member with `integrations:manage` — write-only),
+`app.integration_get_secret` and `app.integration_drop_secret` (service role only) are the only way in; deleting the
+mapping deletes the Vault entry. Service-path writes set the caller's id in the JWT claims (role unchanged) so the audit
+trail names who connected or disconnected. OAuth: the server signs a `state` (organization, user, provider, mode,
+optional connection to reconnect, nonce, 10-minute expiry, HMAC with `INTEGRATIONS_SIGNING_SECRET`, falling back to the
+Supabase secret) and sets the nonce in an httpOnly cookie scoped to `/api/integrations`; the callback accepts the code only
+when both match, the signed-in user is the one who started, and they still hold `integrations:manage`. Re-authorizing the
+same platform user reuses the connection and its mappings. Integration token storage, platform sync, webhook processing
+and WhatsApp sends are listed service paths (CLAUDE.md §6).
+*Rejected*: encrypted columns with an app-held key (key management moves into the app and the key sits next to the data).
+
+### ADR-068 — One provider interface with a deterministic sandbox
+2026-09-30 · Accepted
+Every platform implements `IntegrationProvider` (authorize / exchange / refresh / identify / accounts / campaigns / daily
+metrics / lead fetch / WhatsApp templates and sends / revoke). Live adapters call the documented HTTP APIs (Meta Graph,
+WhatsApp Cloud API, TikTok Business v1.3, Snapchat Marketing v1, Google Ads REST + Analytics Admin); a **sandbox** adapter
+per platform returns fixed accounts and templates and daily numbers that are a pure function of (campaign, day), plays
+the OAuth consent (`/integrations/sandbox/authorize`, with a 2-minute token option to see expiry) and the WhatsApp status
+webhooks. The sandbox is always on outside production and in production only with `INTEGRATIONS_SANDBOX=1`; sandbox
+connections are labelled everywhere. A platform without its environment variables shows "not configured" with the
+missing names. Health: `connected · expiring (≤ 7 days) · expired · error · disconnected`; an expired or revoked token
+(or a refresh that fails) marks the connection expired once and tells everyone with `integrations:manage`.
+The live adapters could not be exercised without developer apps and network access from the build sandbox; they are
+written against the platforms' documented contracts and are the first thing to verify when credentials arrive.
+
+### ADR-069 — Metric sync: per channel and day, idempotent, API wins; signed webhooks
+2026-09-30 · Accepted
+Mapping is two steps: ad account → client, then platform campaign → one of that client's campaign channels (trigger-
+enforced; several platform campaigns may feed one channel and are summed). A sync pulls a date range per sync-enabled
+account and upserts `metrics_daily` on (channel, day) with `source = 'api'`; every day of the range inside the flight is
+written (zeros when the platform has no row), so re-running a range — scheduled overlap, retries, backfills — gives the
+same rows and corrects days the platform restated. A linked channel's numbers belong to the platform: manual or CSV
+numbers for those days are replaced. No currency conversion: accounts are expected in SAR (the account currency is
+shown). Scheduled runs re-pull the last 3 days daily (late attribution); backfills ≤ 90 days; a failed run retries after
+15 min and 1 h (3 attempts), auth / permission errors are final, and a final failure notifies the managers.
+Inbound webhooks (`/api/hooks/[provider]`) are verified before parsing: Meta and WhatsApp `X-Hub-Signature-256`,
+TikTok `TikTok-Signature` (timestamped, 5-minute window), Snapchat `X-Snap-Signature`, Google's `google_key`, sandbox
+`X-Central-Signature`. Rejected deliveries are logged without their body. Accepted items are stored deduplicated on the
+platform's id (a replay inserts nothing), processed after the 200 and retried by the sweep. Lead ads go through
+`ingestLead()` as source `lead_ad` with `external_ref = <provider>:<lead id>` (the ADR-063 contract), so assignment
+rules and phone / email dedup apply. The TikTok and Snapchat payload and signature formats follow their documentation
+and must be confirmed in their developer consoles.
+
+### ADR-070 — WhatsApp: approved templates only, explicit opt-in per person and category
+2026-09-30 · Accepted
+Business-initiated WhatsApp messages must use approved templates, so the app sends only templates synced from the
+WhatsApp Business account. Notifications go through one template per language marked "for notifications" (two variables:
+title, then text + link). A person receives WhatsApp notifications only after opting in with their number and an explicit
+consent (stored with the time; opting out keeps the row) **and** switching the category on — both off by default; the
+channel is agency-only. `notify()` sends WhatsApp alongside in-app and email; a failure never blocks the other channels.
+Sales reps (`whatsapp:send`) can send any approved template to a lead or a deal's primary contact from its page; every
+message is logged with its delivery status, which only moves forward (`sent → delivered → read`, `failed` terminal once
+sent) because status webhooks arrive out of order, and is recorded as a WhatsApp activity. Inbound messages are logged
+but not shown (deferred).
+
+### ADR-071 — Automation engine: a dispatcher consumer with run records and a loop guard
+2026-09-30 · Accepted
+A rule = one trigger from a curated catalog of `domain_events` types (each with the fields its conditions may test) +
+conditions (all / any) + up to 10 ordered actions (notify, assign round-robin, create task, change status within the
+lifecycle rules, send a WhatsApp template, HTTPS webhook signed with a per-organization HMAC key). The engine is one more
+event consumer (`automations.engine`, ADR-027/028): it reloads the record the event is about, evaluates the saved rule
+(re-validated with Zod) and runs actions with the service connection. Runs are unique per (rule, event); a failing action
+stops the run and makes the dispatcher redeliver with backoff, completed actions are skipped on the retry, and after 3
+attempts the run is failed for good and `automation.failed` notifies the rule managers. Loop protection: events emitted by
+actions carry `automation_depth + 1` and the chain of rules that caused them (AsyncLocalStorage in `emitEvent`, users
+can't forge the columns); depth ≥ 3 or a rule already in the chain → skipped; more than 100 runs of a rule in an hour →
+skipped. A dry run evaluates the saved rule on a real recent event and records what each action would do, with no side
+effects. Webhook actions refuse non-HTTPS URLs, credentials in URLs and private / loopback / link-local / CGNAT addresses
+(checked again after DNS), don't follow redirects and time out after 10 s.
+*Rejected*: running actions as the rule's author (their permissions change over time, and system events have no author).
+
+### ADR-072 — Integration and automation permissions
+2026-09-30 · Accepted
+`integrations:read` (see connections, the sync log and webhooks), `integrations:manage` (connect, map, sync, disconnect,
+pick the notification template), `automations:read`, `automations:manage` (rules act across the whole organization, so
+the dry-run event picker is limited to them), `whatsapp:send`. Grants: Super Admin / Admin all; Account Manager
+`integrations:read`, `automations:read`, `whatsapp:send`; Team Lead the two reads; Sales Manager `integrations:read`,
+`automations:read`, `automations:manage`, `whatsapp:send`; Sales Rep `whatsapp:send`. Everything is agency-only; clients
+only ever see the synced numbers through their existing campaign pages. Flag `module.integrations` (on).
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)
