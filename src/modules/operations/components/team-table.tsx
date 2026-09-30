@@ -25,10 +25,14 @@ export function TeamTable({ data, department }: { data: TeamOverview; department
   const [query, setQuery] = useState('');
   const members = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return data.members
-      .filter((m) => !department || m.departments.some((d) => d.id === department))
-      .filter((m) => !q || m.name.toLowerCase().includes(q) || (m.jobTitle ?? '').toLowerCase().includes(q))
-      .sort((a, b) => b.openTasks - a.openTasks || a.name.localeCompare(b.name));
+    return (
+      data.members
+        .filter((m) => !department || m.departments.some((d) => d.id === department))
+        .filter((m) => !q || m.name.toLowerCase().includes(q) || (m.jobTitle ?? '').toLowerCase().includes(q))
+        // Code-point order, not localeCompare: Node's and the browser's ICU order mixed Arabic / Latin names differently,
+        // which reordered rows on hydration.
+        .sort((a, b) => b.openTasks - a.openTasks || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+    );
   }, [data.members, department, query]);
   const busiest = Math.max(0, ...data.members.map((m) => m.openTasks));
   const hours = (m: number | null) => (m === null ? '—' : t('hoursValue', { hours: f.number(m / 60, { maximumFractionDigits: 1 }) }));

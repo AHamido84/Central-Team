@@ -89,8 +89,9 @@ test('public form → assigned lead → deal → stages → won → client with 
     // 4. Everything the conversion promised exists.
     const [client] = await db<{ status: string; name: { ar?: string } }[]>`select status, name from public.clients where id = ${clientId}`;
     expect(client).toMatchObject({ status: 'onboarding' });
+    // The package starts on the agency's day (Asia/Riyadh), which runs ahead of UTC's `current_date` late in the evening.
     const pkgs =
-      await db`select id from public.client_packages where client_id = ${clientId} and current_date between period_start and period_end`;
+      await db`select id from public.client_packages where client_id = ${clientId} and (now() at time zone 'Asia/Riyadh')::date between period_start and period_end`;
     expect(pkgs).toHaveLength(1);
     const invites =
       await db`select id from public.invitations where lower(email) = ${email} and status = 'pending' and client_id = ${clientId}`;

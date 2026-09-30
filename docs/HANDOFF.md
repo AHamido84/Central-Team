@@ -17,7 +17,8 @@ Last updated: 2026-09-30 (Feedback Round 1) · Branch: `claude/sharp-euler-zr273
 | 8 — AI Intelligence | **Built, not deployed yet.** Campaign insights computed by code (robust z-score anomalies on complete days, KPI and budget pacing, delivery stopped) with rule-based recommendations and computed impact → one click to a task; `/insights` + campaign Insights tab + detail with an AI explanation; notifications (`ai_insight`) and an automation trigger; "Draft with AI" for report commentary / next steps in the report's language (and optional auto-drafts for scheduled reports); `/assistant` with private conversations, retrieval through pgvector **inside the user's RLS** (a chunk is visible only if its source row is) and validated citations; `/admin/ai` (switch, sensitivity, budget + usage, provider status, index rebuild). Everything behind `AiProvider` (Claude via the Anthropic SDK + Voyage embeddings) with a deterministic mock |
 | Feedback Round 1 | **Built, not deployed.** Soft delete + Trash + bulk delete + data reset (ADR-080/081); tasks performance (1,000 tasks interactive < 1 s) and a History-API drawer (ADR-082); reviewed conversion plan + ad-hoc tasks (ADR-083); per-field task permissions enforced by the DB (ADR-084); AI keys in Vault from `/admin/ai` (ADR-085); personal connected accounts incl. X / LinkedIn (ADR-086); email change fixed (ADR-087) |
 
-Verified green on a fresh seed: `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 220 unit tests, 187 DB tests
+**Feedback Round 1, verified on a fresh seed**: `pnpm check` (229 unit tests), 231 DB tests, 46 Playwright e2e tests,
+`pnpm build`. Earlier (Phase 8): `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 220 unit tests, 187 DB tests
 (RLS, dispatcher, approval state machine, reminders, campaign sweep, SLA calendar parity, SLA triggers/RLS, SLA sweep,
 CRM triggers/RLS, capacity readers, lead intake, CRM sweep, Vault isolation, integrations/automations RLS, sync
 idempotency, lead-ad webhooks, WhatsApp statuses, automation engine, AI RLS + permission-aware retrieval, detector
@@ -173,6 +174,10 @@ How it works:
     `otp_expired` for used, replaced and expired links alike, and refuses another email within `max_frequency` (1 s).
 51. **The factory reset deletes tables in `information_schema` order with retries**: triggers that re-validate a row on
     any UPDATE can fire through `on delete set null` — validate only when the checked columns change.
+52. **Never sort server-rendered lists with `localeCompare`**: Node's and Chromium's ICU order mixed Arabic / Latin
+    names differently and the rows reorder on hydration (team table). Compare code points, or sort on the server only.
+53. **"Today" is the agency's day (`Asia/Riyadh`)**, three hours ahead of UTC: tests comparing with Postgres
+    `current_date` fail between 21:00 and 24:00 UTC — use `(now() at time zone 'Asia/Riyadh')::date`.
 
 ## Email delivery (auth emails and app emails)
 
@@ -308,7 +313,7 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
    `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`, and `pnpm dev` must be started in the background. If `dockerd` won't
    start after a container restart, remove the stale `/var/run/docker.pid` first. Repeated logins trip the login rate
    limit locally — `delete from public.rate_limits` via `docker exec supabase_db_central-team psql -U postgres`.
-2. Verify: `pnpm check`, `pnpm test:db`, `pnpm test:e2e` (expect 220 / 187 / 28 green), `pnpm build`. On a cold dev
+2. Verify: `pnpm check`, `pnpm test:db`, `pnpm test:e2e` (expect 229 / 231 / 46 green), `pnpm build`. On a cold dev
    server the first e2e run can time out on a first-compiled route; re-run that spec before treating it as a failure.
 3. Deploys need a Vercel token from the owner each session (never store it); trigger a production deployment of this
    branch through the Vercel API (`POST /v13/deployments` with `gitSource` for repo id `1393530120`) and read the
