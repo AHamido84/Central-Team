@@ -80,6 +80,12 @@ async function main() {
           env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
         });
         if (integrations.status !== 0) throw new Error(`integrations seed failed with exit code ${integrations.status}`);
+        // And Phase 8: AI switched on, detector insights and the assistant index (mock embeddings), once.
+        const ai = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-ai-standalone.ts'], {
+          stdio: 'inherit',
+          env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
+        });
+        if (ai.status !== 0) throw new Error(`AI seed failed with exit code ${ai.status}`);
       } else {
         const [org] = await sql<{ count: number }[]>`select count(*)::int as count from public.organizations`;
         if ((org?.count ?? 0) === 0) {

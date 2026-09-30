@@ -17,6 +17,7 @@ import { databaseUrl } from '../src/lib/db/url';
 import * as schema from '../src/lib/db/schema';
 import { hashInvitationToken } from '../src/modules/invitations/server/tokens';
 import { artworkPng, simplePdf } from './seed-assets';
+import { seedAiData } from './seed-ai';
 import { seedCampaignsData } from './seed-campaigns';
 import { seedCrmData } from './seed-crm';
 import { seedIntegrationsData } from './seed-integrations';
@@ -878,6 +879,14 @@ async function main() {
     db,
     ids,
     clientIds,
+    orgId: ORG_ID,
+    today: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+      new Date(),
+    ),
+  });
+  await seedAiData({
+    db,
+    ids,
     orgId: ORG_ID,
     today: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(
       new Date(),
