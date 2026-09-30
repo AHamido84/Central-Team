@@ -61,6 +61,11 @@ export const actionErrorCodes = [
   'template_not_approved',
   'no_phone',
   'webhook_url_blocked',
+  'ai_disabled',
+  'ai_not_configured',
+  'ai_budget_exceeded',
+  'ai_refused',
+  'ai_unavailable',
   'unknown',
 ] as const;
 

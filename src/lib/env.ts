@@ -47,6 +47,13 @@ const serverSchema = z.object({
     .string()
     .regex(/^v\d+$/)
     .default('v21'),
+  // Phase 8 — AI. Without keys the AI features show "not configured" (the mock provider runs outside production).
+  /** `anthropic` = live (needs both keys); `mock` = deterministic provider (allowed in production for demos). */
+  AI_PROVIDER: z.enum(['anthropic', 'mock']).optional(),
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  AI_MODEL: z.string().min(1).default('claude-opus-5-5'),
+  VOYAGE_API_KEY: z.string().min(1).optional(),
+  AI_EMBEDDING_MODEL: z.string().min(1).default('voyage-3.5'),
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;

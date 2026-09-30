@@ -60,5 +60,10 @@
   "invalid_phone": "That phone number can't receive WhatsApp messages.",
   "template_not_approved": "This template isn't approved by WhatsApp.",
   "no_phone": "There is no mobile number to send the message to.",
-  "webhook_url_blocked": "This address is not allowed (it must be a public HTTPS URL)."
+  "webhook_url_blocked": "This address is not allowed (it must be a public HTTPS URL).",
+  "ai_disabled": "AI is switched off for your agency. An admin can turn it on in AI settings.",
+  "ai_not_configured": "AI isn't set up yet: the provider keys are missing.",
+  "ai_budget_exceeded": "Your agency has used this month's AI budget. An admin can raise it in AI settings.",
+  "ai_refused": "The AI model declined this request. Try rephrasing it.",
+  "ai_unavailable": "The AI service didn't respond. Try again in a moment."
 }

@@ -1,0 +1,282 @@
+{
+  "mock": {
+    "assistantIntro": "Here is what I found in {count, plural, one {# record} other {# records}} you can open:",
+    "assistantOutro": "Open a source for the full details.",
+    "commentaryIntro": "Summary of the period:",
+    "nextStepsIntro": "Suggested next steps:",
+    "insightIntro": "What the numbers say:"
+  },
+  "kind": {
+    "spike": "Unusual jump",
+    "drop": "Unusual drop",
+    "kpi_off_track": "KPI off track",
+    "kpi_at_risk": "KPI at risk",
+    "budget_overspent": "Over budget",
+    "budget_overpace": "Spending too fast",
+    "budget_underpace": "Spending too slowly",
+    "delivery_stopped": "Delivery stopped"
+  },
+  "severity": {
+    "info": "Info",
+    "warning": "Warning",
+    "critical": "Critical"
+  },
+  "status": {
+    "open": "Open",
+    "acknowledged": "Acknowledged",
+    "dismissed": "Dismissed",
+    "resolved": "Resolved"
+  },
+  "insight": {
+    "title": {
+      "spike": "{metric} jumped {change}{hasChannel, select, yes { on {channel}} other {}}",
+      "drop": "{metric} fell {change}{hasChannel, select, yes { on {channel}} other {}}",
+      "kpi_off_track": "{metric} is off track{hasChannel, select, yes { on {channel}} other {}}",
+      "kpi_at_risk": "{metric} is at risk{hasChannel, select, yes { on {channel}} other {}}",
+      "budget_overspent": "Spend is over the campaign budget",
+      "budget_overpace": "Spend is ahead of plan",
+      "budget_underpace": "Spend is behind plan",
+      "delivery_stopped": "{channel} stopped delivering"
+    },
+    "body": {
+      "anomaly": "On {date}, {metric} was {value} against a typical {baseline} over the previous {days} days.",
+      "kpi": "Target {target}, currently {actual}{hasProjected, select, yes {, heading for {projected} by the end of the flight} other {}}.",
+      "budget": "{spent} of {budget} spent; {expected} was expected by now at an even pace. {remaining, plural, =0 {The flight has ended.} one {# day left.} other {# days left.}}",
+      "delivery": "No spend on the two most recent days with data.{hasLast, select, yes { Last spend on {last}.} other {}}"
+    }
+  },
+  "rec": {
+    "title": {
+      "shift_budget": "Move budget to {to}",
+      "reduce_budget": "Lower the daily budget",
+      "increase_budget": "Raise the daily budget",
+      "refresh_creative": "Refresh the creatives",
+      "review_targeting": "Review targeting and bids",
+      "check_tracking": "Check conversion tracking",
+      "resume_delivery": "Find out why delivery stopped"
+    },
+    "body": {
+      "shift_budget": "Move about {amount} a day from {from} (cost per result {fromCost}) to {to} ({toCost}). Expected: about {delta} more results a day.",
+      "reduce_budget": "About {daily} a day lands the campaign on its total budget.",
+      "increase_budget": "About {daily} a day spends the remaining budget by the end date.",
+      "refresh_creative": "Click-through is slipping: rotate in new creatives or test new hooks.",
+      "review_targeting": "Costs are rising: check audiences, placements and bid caps.",
+      "check_tracking": "Results dropped sharply: make sure the pixel, conversion events and forms still fire.",
+      "resume_delivery": "Check the ad account's billing, ad approvals and the schedule on the platform."
+    },
+    "status": {
+      "proposed": "Suggested",
+      "accepted": "Accepted",
+      "dismissed": "Dismissed"
+    }
+  },
+  "insights": {
+    "title": "Insights",
+    "description": "What the numbers say about your campaigns: unusual changes, KPIs off track and budget pacing, with a suggested next step.",
+    "empty": "No insights here",
+    "emptyHint": "Insights appear when campaign numbers arrive and something stands out.",
+    "filterAll": "All",
+    "filterClient": "Client",
+    "filterSeverity": "Severity",
+    "filterKind": "Type",
+    "filterStatus": "Status",
+    "active": "Needs attention",
+    "campaign": "Campaign",
+    "client": "Client",
+    "detected": "Detected {date}",
+    "lastSeen": "Last seen {when}",
+    "acknowledge": "Acknowledge",
+    "acknowledged": "Marked as acknowledged",
+    "dismiss": "Dismiss",
+    "dismissTitle": "Dismiss this insight?",
+    "dismissBody": "It stays dismissed while the condition lasts. Tell the team why (optional).",
+    "dismissReason": "Reason",
+    "dismissed": "Insight dismissed",
+    "reopen": "Reopen",
+    "reopened": "Insight reopened",
+    "numbers": "The numbers",
+    "computedNote": "Computed by the platform from the campaign's daily numbers.",
+    "explain": "Explain with AI",
+    "explainAgain": "Explain again",
+    "explanation": "AI explanation",
+    "explained": "Explanation ready",
+    "aiDisclaimer": "Written by AI from the numbers above. Check before you act.",
+    "recommendations": "Suggested next steps",
+    "noRecommendations": "No suggested step for this one — use your judgement.",
+    "accept": "Create task",
+    "acceptTitle": "Create a task from this step?",
+    "acceptBody": "A task is added to this client's work with the details, linked back to the insight.",
+    "assignee": "Assign to",
+    "unassigned": "Unassigned",
+    "dueDate": "Due date",
+    "accepted": "Task created",
+    "openTask": "Open task",
+    "dismissRec": "Not now",
+    "recDismissed": "Suggestion dismissed",
+    "openCampaign": "Open campaign",
+    "tab": "Insights",
+    "campaignEmpty": "Nothing stands out on this campaign right now.",
+    "viewAll": "All insights",
+    "count": "{count, plural, =0 {No open insights} one {# open insight} other {# open insights}}"
+  },
+  "task": {
+    "description": "Suggested by the insight “{insight}” on campaign “{campaign}”.\n\n{body}\n\n{link}"
+  },
+  "draft": {
+    "button": "Draft with AI",
+    "drafting": "Drafting…",
+    "drafted": "Draft added — review and edit before publishing",
+    "replaceTitle": "Replace this text?",
+    "replaceBody": "The section already has text. The AI draft will replace it (you can still undo by not saving).",
+    "replace": "Replace",
+    "hint": "Written from this report's numbers and insights, in the report's language."
+  },
+  "assistant": {
+    "title": "Assistant",
+    "description": "Ask about your clients, campaigns, requests, tasks and sales. Answers use only records you can open, with sources.",
+    "newChat": "New conversation",
+    "conversations": "Conversations",
+    "noConversations": "No conversations yet",
+    "placeholder": "Ask a question…",
+    "send": "Send",
+    "thinking": "Looking through your records…",
+    "sources": "Sources",
+    "you": "You",
+    "name": "Assistant",
+    "emptyTitle": "What would you like to know?",
+    "emptyHint": "The assistant searches the records you have access to and cites them.",
+    "suggestions": {
+      "one": "Which campaigns are off track?",
+      "two": "Show high-priority requests that are still open",
+      "three": "Which leads came from lead ads?",
+      "four": "What did our latest reports say?"
+    },
+    "status": {
+      "no_sources": "I couldn't find anything you have access to about this. Try naming the client, campaign or record.",
+      "refused": "The AI model declined to answer this. Try rephrasing.",
+      "budget": "Your agency has used this month's AI budget.",
+      "disabled": "AI is switched off for your agency.",
+      "failed": "The AI service didn't respond. Try again."
+    },
+    "rename": "Rename",
+    "renamed": "Conversation renamed",
+    "titleLabel": "Title",
+    "delete": "Delete",
+    "deleteTitle": "Delete this conversation?",
+    "deleteBody": "Its messages are deleted for good.",
+    "deleted": "Conversation deleted",
+    "untitled": "New conversation",
+    "disclaimer": "AI can make mistakes. Check the sources.",
+    "notEnabled": "AI is off",
+    "notEnabledHint": "An admin can switch it on in AI settings.",
+    "sourceType": {
+      "client": "Client",
+      "campaign": "Campaign",
+      "request": "Request",
+      "task": "Task",
+      "report": "Report",
+      "lead": "Lead",
+      "deal": "Deal",
+      "insight": "Insight"
+    }
+  },
+  "admin": {
+    "title": "AI settings",
+    "description": "Switch AI on, choose how sensitive insights are, set a monthly budget and manage the assistant's index.",
+    "general": "General",
+    "enabled": "Use AI features",
+    "enabledHint": "Explanations, report drafts and the assistant call the AI provider. Insights and suggestions are computed by the platform and work either way.",
+    "sensitivity": "Insight sensitivity",
+    "sensitivityHint": "How unusual a day has to be before it's flagged.",
+    "sensitivityOption": {
+      "low": "Low — only big moves",
+      "normal": "Normal",
+      "high": "High — catch smaller moves"
+    },
+    "autoDraft": "Draft commentary for scheduled reports",
+    "autoDraftHint": "Scheduled report drafts get AI-written commentary and next steps. They stay drafts until someone publishes them.",
+    "budget": "Monthly token budget",
+    "budgetHint": "AI calls stop for the rest of the month when the agency reaches it.",
+    "save": "Save settings",
+    "saved": "AI settings saved",
+    "provider": "Provider",
+    "mode": {
+      "live": "Live",
+      "mock": "Demo (mock)",
+      "off": "Not configured"
+    },
+    "modeHint": {
+      "live": "Text by {model}; embeddings by {embedding}.",
+      "mock": "A built-in demo provider writes from the platform's own numbers and records. No data leaves the platform.",
+      "off": "Add the missing keys to the environment to use AI."
+    },
+    "missing": "Missing: ",
+    "usage": "Usage this month",
+    "usageOf": "{used} of {budget} tokens",
+    "purpose": {
+      "assistant": "Assistant",
+      "report_draft": "Report drafts",
+      "insight_explain": "Explanations",
+      "embedding": "Indexing & search"
+    },
+    "noUsage": "No AI calls this month.",
+    "index": "Assistant index",
+    "indexHint": "Records the assistant can search. Each person only ever sees results from records they can open.",
+    "indexed": "{count, plural, one {# record} other {# records}}",
+    "stale": "{count, plural, =0 {Up to date} one {# record to re-index} other {# records to re-index}}",
+    "rebuild": "Rebuild index",
+    "rebuilt": "{count, plural, =0 {Index is up to date} one {# record indexed} other {# records indexed}}",
+    "dataTitle": "What leaves the platform",
+    "dataBody": "Only the snippets relevant to a question and the computed numbers are sent to the provider. Phone numbers and e-mail addresses are removed before indexing. Conversations are private to their author."
+  },
+  "index": {
+    "header": "{type}: {title}",
+    "client": "Client",
+    "status": "Status",
+    "industry": "Industry",
+    "city": "City",
+    "accountManager": "Account manager",
+    "objective": "Objective",
+    "flight": "Flight",
+    "budget": "Budget",
+    "health": "Health",
+    "totals": "Totals",
+    "kpis": "KPIs",
+    "channels": "Channels",
+    "openInsights": "Open insights",
+    "reference": "Reference",
+    "priority": "Priority",
+    "type": "Type",
+    "due": "Due",
+    "brief": "Brief",
+    "assignees": "Assignees",
+    "description": "Description",
+    "period": "Period",
+    "commentary": "Commentary",
+    "company": "Company",
+    "source": "Source",
+    "services": "Services",
+    "owner": "Owner",
+    "notes": "Notes",
+    "value": "Value",
+    "stage": "Stage",
+    "expectedClose": "Expected close",
+    "campaign": "Campaign",
+    "severity": "Severity",
+    "recommendations": "Suggested steps"
+  },
+  "assistantPrompt": {
+    "sourcesHeader": "Sources"
+  },
+  "facts": {
+    "total": "{metric}: {value}{hasChange, select, yes { ({change} vs the previous period)} other {}}",
+    "kpi": "{metric} KPI: {actual} against a target of {target} — {status, select, on_track {on track} at_risk {at risk} off_track {off track} other {not enough data}}",
+    "budget": "{campaign}: {spent} of {budget} spent ({pace} of an even pace)",
+    "channel": "{channel}: {spend} spent, {leads} leads, {clicks} clicks",
+    "insight": "Flagged: {title}",
+    "step": "{title}: {body}",
+    "improveKpi": "Improve {metric}: {actual} now against a target of {target}",
+    "keepGoing": "Keep the current plan and review the numbers again next period",
+    "noData": "No campaign numbers were recorded in this period"
+  }
+}
