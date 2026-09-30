@@ -748,6 +748,69 @@ erDiagram
 `src/modules/operations/server/queries.ts` over requests, tasks, deliverables, campaigns, threads and time entries, so
 every viewer sees only the clients they can access. Client health is a pure function (`operations/health.ts`).
 
+## 3g. Phase 6 — CRM & capacity
+
+```mermaid
+erDiagram
+  organizations ||--o{ leads : ""
+  lead_forms ||--o{ leads : "public form"
+  leads ||--o{ deals : "converted"
+  leads ||--o{ crm_activities : ""
+  pipelines ||--o{ pipeline_stages : ordered
+  pipeline_stages ||--o{ deals : ""
+  deals ||--o{ deal_stage_history : ""
+  deals ||--o{ deal_contacts : ""
+  deals ||--o{ crm_activities : ""
+  deals ||--o{ crm_files : ""
+  deals ||--o{ quotes : ""
+  quotes ||--o{ quote_items : ""
+  packages ||--o{ quote_items : "optional"
+  packages ||--o{ deals : "target package"
+  deals |o--o| clients : "won → client"
+  profiles ||--o{ member_capacity : ""
+  profiles ||--o{ time_off : ""
+  departments ||--o{ service_efforts : "hours per package item"
+```
+
+| Table | Key columns | Notes |
+|---|---|---|
+| `leads` | `number` (per org, `L-12`), `full_name`, `company`, `phone` (E.164), `email` (lower-case), `source` (`website_form · whatsapp · instagram · referral · event · lead_ad · manual · other`), `source_detail`, `external_ref`, `services text[]`, `budget_range` (`under_5k · 5k_15k · 15k_50k · 50k_plus · unknown`, SAR per month), `city`, `owner_id`, `status` (`new · contacted · qualified · unqualified · converted · merged`), `score` 0–100, `tags text[]`, `notes`, `form_id`, `merged_into_id`, `last_activity_at` | Unique (org, source, external_ref). Indexed on phone and lower(email) for duplicate lookups. Score computed in TS on every write (`leadScore`). |
+| `pipelines` / `pipeline_stages` | pipeline `name`, `is_default`; stage `name`, `kind` (`open · won · lost`), `probability` 0–100, `sort_order` | Exactly one default pipeline; each pipeline has one won and one lost stage (trigger). |
+| `deals` | `number` (`D-12`), `title`, `lead_id?`, `company`, `pipeline_id`, `stage_id`, `status` (`open · won · lost`, from the stage kind), `value_minor` + `currency`, `probability` (stage default, overridable), `expected_close_date`, `owner_id`, `package_id?` (what they'd buy), `lost_reason` (`price · timing · competitor · no_response · not_fit · other`), `lost_note`, `won_at`, `lost_at`, `client_id?`, `converted_at`, `last_activity_at`, `stale_notified_at` | Trigger: status/stamps follow the stage; moving into a stage resets probability to the stage's; lost needs a reason. |
+| `deal_stage_history` | `deal_id`, `from_stage_id`, `to_stage_id`, `actor_id`, `created_at` | Written by trigger; feeds conversion rates and cycle length. |
+| `deal_contacts` | `deal_id`, `full_name`, `job_title`, `phone`, `email`, `is_primary` | At most one primary per deal; the primary gets the portal invitation on conversion. |
+| `crm_activities` | `lead_id?` / `deal_id?` (one required), `type` (`call · meeting · email · whatsapp · note · task`), `subject`, `body`, `due_at`, `completed_at`, `owner_id`, `reminded_at` | Insert bumps the parent's `last_activity_at` (trigger). |
+| `crm_files` | `deal_id`, `storage_path`, `name`, `mime_type`, `size_bytes`, `uploaded_by` | Private `crm-files` bucket, path `org/<org>/deals/<deal>/<uuid>-<name>`; signed URLs after an RLS-checked lookup. |
+| `quotes` / `quote_items` | quote `number` (`Q-12`), `deal_id`, `title`, `locale`, `status` (`draft · sent · accepted · declined`), `valid_until`, `discount_minor`, `subtotal_minor`, `total_minor`, `notes`, `sent_at`; item `package_id?`, `description`, `quantity`, `unit_price_minor`, `sort_order` | Totals recomputed by trigger from items; print/PDF from the browser (as reports, ADR-049). |
+| `lead_forms` | `name`, `token` (public, random), `is_active`, `services text[]` (offered choices), `thank_you` (AR/EN), `submissions` | Embedded with an iframe snippet; submissions go through the service connection after spam checks (ADR). |
+| `lead_assignment_rules` | `name`, `match_services`, `match_cities`, `match_sources` (empty = any), `member_ids uuid[]`, `cursor`, `is_active`, `sort_order` | First matching active rule wins; round-robin over its active members. |
+| `crm_webhook_tokens` | `name`, `token_hash` (SHA-256), `last_used_at`, `revoked_at` | Bearer tokens for `POST /api/webhooks/leads` (Phase 7 integrations). |
+| `sales_targets` | `owner_id?` (null = team), `month` (1st of month), `amount_minor` | Unique (org, owner, month). |
+| `crm_settings` | `organization_id` (pk), `stale_days` (default 7), `onboarding_request_type_id`, `onboarding_template_id` | Used by the sweep and the conversion. |
+| `member_capacity` | `user_id` (pk with org), `hours_per_week` (default 40) | |
+| `time_off` | `user_id`, `start_date`, `end_date`, `kind` (`annual · sick · other`), `note` | Working days inside the range reduce capacity. |
+| `service_efforts` | `item_type` (package item), `department_id`, `hours` per unit | Turns package quantities into department hours. |
+
+**Capacity math** (pure, `src/modules/capacity/calc.ts`)
+- Weeks run Sunday–Saturday. Member capacity = `hours_per_week × working days that week ÷ 5`, working days excluding
+  Friday/Saturday, org holidays and the member's time off. Department capacity = the sum over its members (a member in
+  several departments is split evenly).
+- Demand per department and week: (1) open tasks with an estimate and a department, spread evenly over the working days
+  from start (or due − 5 working days) to due; (2) remaining package work — for each active client package, the items
+  not used yet × effort per unit, spread over the period's remaining weeks (used items are already tasks); later
+  periods at the full monthly quantity for clients whose package continues; (3) open deals with a target package —
+  the package's monthly effort × probability from the week of the expected close date.
+- Utilisation = demand ÷ capacity; ≥ 85 % tight, > 100 % over. The simulator adds a package's monthly effort from a
+  start week and returns the same grid.
+
+**RLS**
+
+| Table | Agency | Client users |
+|---|---|---|
+| `leads`, `deals`, children | read `leads:read` / `deals:read`; write `*:manage` when owner is you or empty, or `crm:manage_all` | — |
+| `pipelines`, stages, `lead_forms`, rules, tokens, `sales_targets`, `crm_settings` | read `leads:read` or `deals:read` (tokens: `crm:admin` only); write `crm:admin` | — |
+| `member_capacity`, `time_off`, `service_efforts` | read `capacity:read` (own time off always); write `capacity:manage` | — |
+
 ## 4. Forward-looking sketch (all phases — not built in Phase 0)
 
 ```mermaid
@@ -804,6 +867,6 @@ erDiagram
 | 3 Tasks | `workflow_templates`, `workflow_template_steps`, `tasks`, `task_assignees`, `task_dependencies`, `deliverables`, `deliverable_versions`, `approvals`, `comments`, `time_entries` | Status machines per template; approvals by client users |
 | 4 Campaigns | **Built** — see §3e | Metrics not partitioned (ADR-048); published reports are snapshots |
 | 5 Ops | **Built** — see §3f | SLA tables + read models over earlier phases |
-| 6 CRM | `leads`, `pipelines`, `pipeline_stages`, `deals`, `deal_activities`, `capacity_plans`, `availability` | Won deal → creates client |
+| 6 CRM | **Built** — see §3g | Won deal → creates client |
 | 7 Integrations | `integration_connections` (tokens in Supabase Vault), `ad_accounts`, `social_accounts`, `webhook_events`, `sync_jobs`, `automations`, `automation_runs`, `whatsapp_templates` | Automation triggers = `domain_events` types |
 | 8 AI | `ai_insights`, `ai_recommendations`, `ai_conversations`, `ai_messages`, `embeddings` (pgvector) | Every AI output linked to source records for traceability |

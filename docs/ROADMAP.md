@@ -377,7 +377,55 @@ Data model: `docs/DATA_MODEL.md` §3f.
 - [ ] Human QA pass on real devices (screens checked in AR/EN × light/dark × 390px/1440px with screenshots)
 
 ## Phase 6 — CRM & Capacity
-Leads, pipelines, deals, activities, won-deal → client, team capacity planning & utilization.
+
+The agency's own sales: leads (manual, CSV, a public embeddable form, an inbound webhook) → deals on configurable
+pipelines → won → a client with package, portal invitation and onboarding tasks in one click; activities and
+follow-ups; a sales dashboard; and capacity planning that answers "can we take this client?". Agency-only: nothing
+reaches the portal. Data model: `docs/DATA_MODEL.md` §3g.
+
+### 6.1 Data & security
+- [ ] Tables: `leads`, `pipelines`, `pipeline_stages`, `deals`, `deal_stage_history`, `deal_contacts`, `crm_activities`, `crm_files`, `quotes`, `quote_items`, `lead_forms`, `lead_assignment_rules`, `crm_webhook_tokens`, `sales_targets`, `crm_settings`
+- [ ] Tables: `member_capacity`, `time_off`, `service_efforts`
+- [ ] Permissions: `leads:read`, `leads:manage`, `deals:read`, `deals:manage`, `crm:manage_all`, `crm:admin`, `capacity:read`, `capacity:manage`; flag `module.crm`
+- [ ] Roles: Sales Manager, Sales Rep (seeded, and in `bootstrap_organization`); Sales department
+- [ ] Triggers: lead / deal / quote numbering, deal status + probability from the stage, stage history, won/lost stamps, activity → `last_activity_at`, quote totals
+- [ ] RLS: agency-only; read with `leads:read` / `deals:read`; write your own records (or unassigned) with `*:manage`, anyone's with `crm:manage_all`; settings with `crm:admin`; capacity with `capacity:*`; private `crm-files` bucket
+
+### 6.2 Leads
+- [ ] Fields: name, company, phone (Saudi format → E.164), email, source (website form, WhatsApp, Instagram, referral, event, lead ad, manual, other) + `external_ref`, service interest, budget range, city, owner, status, score, tags, notes
+- [ ] Capture: manual form, CSV import (mapping, preview, validation), public embeddable form (`/f/[token]`, iframe snippet, honeypot + signed time token + per-IP rate limit), inbound webhook (`POST /api/webhooks/leads`, Bearer token per integration, idempotent on `external_ref`)
+- [ ] Duplicate detection by phone / email (warning on create; a repeat form or webhook submission becomes an activity on the existing lead) and merge (fields, tags, activities, deals)
+- [ ] Assignment rules: ordered, match by service / city / source, round-robin among members
+- [ ] Leads list (filters, search, mobile cards) and lead page (details, activities, duplicates, convert to deal)
+
+### 6.3 Pipeline & deals
+- [ ] Pipelines and stages admin (default New → Contacted → Meeting → Proposal → Negotiation → Won / Lost), probability per stage
+- [ ] Kanban with drag & drop (+ keyboard), value (SAR), probability, expected close, weighted totals per stage
+- [ ] Deal page: stage bar, contacts, activities timeline, notes, files, quotes (line items from packages or free text, discount, validity, print / PDF in AR or EN), won / lost with reason
+- [ ] Won → convert to client: client (+ account manager, team), package for the current period, portal invitation to the primary contact, onboarding request converted to tasks through the configured workflow template
+
+### 6.4 Activities & follow-ups
+- [ ] Calls, meetings, emails, WhatsApp notes, notes and tasks with due dates; complete / reopen
+- [ ] My follow-ups (overdue, today, upcoming); reminders when an activity is due; "no activity in N days" alerts for open deals
+- [ ] Notifications: lead assigned, follow-up due, deal gone quiet, deal won
+
+### 6.5 Sales dashboard
+- [ ] Pipeline value (total and weighted) by stage, stage-to-stage conversion, win rate, average sales cycle, leads by source, per-salesperson table, forecast vs target by month
+- [ ] Sales targets per month (team and per person)
+
+### 6.6 Capacity planning
+- [ ] Member capacity (hours / week) adjusted for time off and holidays; department capacity
+- [ ] Demand: estimated hours of scheduled tasks + remaining package work (effort per package item per department) + weighted pipeline deals (their target package from the expected close date)
+- [ ] Heatmap department × week (8 weeks), member over-allocation warnings
+- [ ] "Can we take this client?" simulator: package + start week → impact per department for 4–8 weeks
+- [ ] Settings: member hours, time off, service efforts
+
+### 6.7 Quality
+- [ ] Seed: sales team, pipeline, leads from every source (duplicates included), deals in every stage, activities, quotes, targets, a public form, rules, capacity, time off, efforts
+- [ ] Unit: phone / email normalisation, dedup + merge, scoring, assignment rules, forecast / conversion / win rate / cycle, quote totals, capacity math, simulator
+- [ ] DB: numbering + stage triggers, RLS (own vs all, agency only, portal denied), public form + webhook paths, conversion
+- [ ] Playwright: public form → lead (assigned) → deal → stages → won → client with package, portal invitation and onboarding tasks
+- [ ] Docs: ROADMAP, DATA_MODEL, ARCHITECTURE, DECISIONS, HANDOFF, CLAUDE.md
 
 ## Phase 7 — Integrations & Automation
 Meta (Ads + Pages), WhatsApp Business, TikTok, Snapchat, Google Ads/Analytics connections; data sync; automation
