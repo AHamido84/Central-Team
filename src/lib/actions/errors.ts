@@ -44,6 +44,11 @@ export const actionErrorCodes = [
   'import_empty',
   'campaign_not_deletable',
   'channel_has_metrics',
+  'invalid_stage',
+  'invalid_merge',
+  'deal_not_won',
+  'already_converted_deal',
+  'onboarding_not_configured',
   'unknown',
 ] as const;
 
@@ -101,6 +106,8 @@ const raisedCodes = new Set<ActionErrorCode>([
   'invalid_parent',
   'invalid_file',
   'report_published',
+  'invalid_stage',
+  'invalid_merge',
 ]);
 
 /** Maps thrown errors (ActionFailure, Postgres errors raised by RLS/triggers) to a safe error code. */

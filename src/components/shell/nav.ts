@@ -26,6 +26,11 @@ import {
   Timer,
   UsersRound,
   Gauge,
+  Contact,
+  Columns3,
+  CalendarCheck,
+  ChartSpline,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 import { can, type PermissionSet } from '@/lib/permissions/can';
@@ -44,7 +49,7 @@ export type NavItem = {
   flag?: string;
 };
 
-export type NavSection = { key: 'sectionHome' | 'sectionClients' | 'sectionAdmin'; items: NavItem[] };
+export type NavSection = { key: 'sectionHome' | 'sectionClients' | 'sectionSales' | 'sectionAdmin'; items: NavItem[] };
 
 export const agencyNav: NavSection[] = [
   {
@@ -76,6 +81,16 @@ export const agencyNav: NavSection[] = [
     ],
   },
   {
+    key: 'sectionSales',
+    items: [
+      { key: 'leads', href: '/crm/leads', icon: Contact, anyOf: ['leads:read'], flag: 'module.crm' },
+      { key: 'pipeline', href: '/crm/pipeline', icon: Columns3, anyOf: ['deals:read'], flag: 'module.crm' },
+      { key: 'followUps', href: '/crm/follow-ups', icon: CalendarCheck, anyOf: ['leads:manage', 'deals:manage'], flag: 'module.crm' },
+      { key: 'salesDashboard', href: '/crm/dashboard', icon: ChartSpline, anyOf: ['deals:read'], flag: 'module.crm' },
+      { key: 'capacity', href: '/capacity', icon: Gauge, anyOf: ['capacity:read'], flag: 'module.crm' },
+    ],
+  },
+  {
     key: 'sectionAdmin',
     items: [
       { key: 'users', href: '/admin/users', icon: Users, anyOf: ['users:read', 'invitations:read'] },
@@ -84,6 +99,7 @@ export const agencyNav: NavSection[] = [
       { key: 'requestTypes', href: '/admin/request-types', icon: FileSliders, anyOf: ['request_types:manage'], flag: 'module.requests' },
       { key: 'slaPolicies', href: '/admin/sla', icon: Timer, anyOf: ['sla:manage'], flag: 'module.requests' },
       { key: 'workflows', href: '/admin/workflows', icon: Workflow, anyOf: ['workflows:manage'], flag: 'module.tasks' },
+      { key: 'crmSettings', href: '/admin/crm', icon: SlidersHorizontal, anyOf: ['crm:admin'], flag: 'module.crm' },
       { key: 'packages', href: '/admin/packages', icon: Package, anyOf: ['packages:manage'], flag: 'module.clients' },
       { key: 'features', href: '/admin/features', icon: Blocks, anyOf: ['feature_flags:manage'] },
       { key: 'audit', href: '/admin/audit', icon: ScrollText, anyOf: ['audit_log:read'] },

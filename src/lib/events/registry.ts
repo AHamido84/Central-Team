@@ -119,6 +119,28 @@ export type DomainEventPayloads = {
   'sla.at_risk': { breachId: string; requestId: string; clientId: string; kind: 'response' | 'resolution'; dueAt: string };
   'sla.breached': { breachId: string; requestId: string; clientId: string; kind: 'response' | 'resolution'; dueAt: string };
   'sla_breach.acknowledged': { breachId: string; requestId: string; clientId: string };
+  // CRM & capacity (Phase 6)
+  'lead.created': { leadId: string; source: string; ownerId: string | null; via: 'manual' | 'import' | 'form' | 'webhook' };
+  'lead.updated': { leadId: string; fields: string[] };
+  'lead.assigned': { leadId: string; ownerId: string | null; previousOwnerId: string | null; ruleId: string | null };
+  'lead.resubmitted': { leadId: string; via: 'form' | 'webhook' };
+  'lead.merged': { leadId: string; mergedId: string };
+  'lead.converted': { leadId: string; dealId: string };
+  'leads.imported': { count: number; skipped: number; source: string };
+  'deal.created': { dealId: string; leadId: string | null; ownerId: string | null };
+  'deal.updated': { dealId: string; fields: string[] };
+  'deal.stage_changed': { dealId: string; fromStageId: string; toStageId: string; status: string };
+  'deal.won': { dealId: string; valueMinor: number; ownerId: string | null };
+  'deal.lost': { dealId: string; reason: string };
+  'deal.converted': { dealId: string; clientId: string; requestId: string | null; invitationId: string | null };
+  'deal.stale': { dealId: string; ownerId: string | null; days: number };
+  'crm_activity.created': { activityId: string; leadId: string | null; dealId: string | null; type: string };
+  'crm_activity.completed': { activityId: string; leadId: string | null; dealId: string | null };
+  'crm_activity.due': { activityId: string; ownerId: string; dueAt: string };
+  'quote.saved': { quoteId: string; dealId: string; totalMinor: number };
+  'quote.status_changed': { quoteId: string; dealId: string; status: string };
+  'crm_settings.updated': { area: string; id: string | null };
+  'capacity.updated': { area: 'member' | 'time_off' | 'effort'; id: string };
 };
 
 export type DomainEventType = keyof DomainEventPayloads;

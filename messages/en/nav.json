@@ -38,5 +38,16 @@
   "sla": "SLA",
   "slaMonitor": "SLA monitor",
   "slaPolicies": "SLA policies",
-  "team": "Team"
+  "team": "Team",
+  "sectionSales": "Sales",
+  "leads": "Leads",
+  "pipeline": "Pipeline",
+  "followUps": "Follow-ups",
+  "salesDashboard": "Sales dashboard",
+  "crmSettings": "Sales settings",
+  "capacity": "Capacity",
+  "crm": "Sales",
+  "deals": "Deals",
+  "quotes": "Quotes",
+  "follow-ups": "Follow-ups"
 }

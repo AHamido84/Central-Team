@@ -4,16 +4,28 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { readAppClaims } from '@/lib/auth/claims';
 
 /** Routes reachable without a session. */
-const PUBLIC_PREFIXES = ['/login', '/forgot-password', '/auth/', '/invite/', '/api/health', '/api/cron/'];
+const PUBLIC_PREFIXES = [
+  '/login',
+  '/forgot-password',
+  '/auth/',
+  '/invite/',
+  '/api/health',
+  '/api/cron/',
+  '/f/',
+  '/api/public/',
+  '/api/webhooks/',
+];
 /** Routes a signed-in user should not see (they bounce to their home). */
 const GUEST_ONLY = ['/login', '/forgot-password'];
 /** Routes available to any signed-in user regardless of side / onboarding state. */
-const SHARED_SIGNED_IN = ['/onboarding', '/reset-password', '/auth/', '/invite/', '/api/'];
+const SHARED_SIGNED_IN = ['/onboarding', '/reset-password', '/auth/', '/invite/', '/api/', '/f/'];
+/** The public lead form is meant to be embedded on the agency's website (iframe). */
+const EMBEDDABLE = ['/f/'];
 
 const startsWithAny = (path: string, prefixes: string[]) =>
   prefixes.some((p) => (p.endsWith('/') ? path.startsWith(p) : path === p || path.startsWith(`${p}/`)));
 
-function contentSecurityPolicy(nonce: string) {
+function contentSecurityPolicy(nonce: string, embeddable = false) {
   const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
   const supabaseWs = supabase.replace(/^http/, 'ws');
   const dev = process.env.NODE_ENV !== 'production';
@@ -26,16 +38,16 @@ function contentSecurityPolicy(nonce: string) {
     `font-src 'self' data:`,
     `connect-src 'self' ${supabase} ${supabaseWs}${dev ? ' ws:' : ''}`,
     `frame-src 'self' ${supabase}`,
-    `frame-ancestors 'none'`,
+    embeddable ? `frame-ancestors *` : `frame-ancestors 'none'`,
     `form-action 'self'`,
     `base-uri 'self'`,
     `object-src 'none'`,
   ].join('; ');
 }
 
-function withSecurityHeaders(response: NextResponse, csp: string) {
+function withSecurityHeaders(response: NextResponse, csp: string, embeddable = false) {
   response.headers.set('Content-Security-Policy', csp);
-  response.headers.set('X-Frame-Options', 'DENY');
+  if (!embeddable) response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
@@ -51,7 +63,8 @@ function withSecurityHeaders(response: NextResponse, csp: string) {
  */
 export async function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
-  const csp = contentSecurityPolicy(nonce);
+  const embeddable = startsWithAny(request.nextUrl.pathname, EMBEDDABLE);
+  const csp = contentSecurityPolicy(nonce, embeddable);
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
   requestHeaders.set('Content-Security-Policy', csp);
@@ -79,19 +92,19 @@ export async function proxy(request: NextRequest) {
     if (keepNext && path !== '/') url.searchParams.set('next', path + request.nextUrl.search);
     const redirect = NextResponse.redirect(url);
     for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
-    return withSecurityHeaders(redirect, csp);
+    return withSecurityHeaders(redirect, csp, embeddable);
   };
 
   if (!claims) {
     if (path === '/' || !startsWithAny(path, PUBLIC_PREFIXES)) return redirectTo('/login', true);
-    return withSecurityHeaders(response, csp);
+    return withSecurityHeaders(response, csp, embeddable);
   }
 
   const app = readAppClaims(claims);
   const home = app.user_type === 'client' ? '/portal' : '/dashboard';
 
   if (!app.user_type) {
-    if (path.startsWith('/auth/') || path.startsWith('/invite/')) return withSecurityHeaders(response, csp);
+    if (path.startsWith('/auth/') || path.startsWith('/invite/')) return withSecurityHeaders(response, csp, embeddable);
     return redirectTo('/auth/signout');
   }
   if (startsWithAny(path, GUEST_ONLY)) return redirectTo(home);
@@ -104,7 +117,7 @@ export async function proxy(request: NextRequest) {
     if (app.user_type === 'client' && !onPortal) return redirectTo('/portal');
     if (app.user_type === 'agency' && onPortal) return redirectTo('/dashboard');
   }
-  return withSecurityHeaders(response, csp);
+  return withSecurityHeaders(response, csp, embeddable);
 }
 
 export const config = {

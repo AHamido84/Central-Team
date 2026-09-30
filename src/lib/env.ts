@@ -17,6 +17,7 @@ const serverSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   /** Bearer secret for /api/cron/* (the event dispatcher safety net). */
   CRON_SECRET: z.string().min(16).optional(),
+  FORM_SIGNING_SECRET: z.string().min(16).optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;

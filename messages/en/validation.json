@@ -45,5 +45,7 @@
   "duplicate_date": "The file has the same date more than once.",
   "import_empty": "No days to import.",
   "invalid_time": "Enter a time as HH:MM.",
-  "time_order": "The end must be after the start."
+  "time_order": "The end must be after the start.",
+  "contact_required": "Add a phone number or an email.",
+  "stages_won_lost": "A pipeline needs open stages, one Won and one Lost stage."
 }

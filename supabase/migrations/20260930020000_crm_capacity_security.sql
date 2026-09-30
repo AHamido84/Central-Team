@@ -193,6 +193,61 @@ returns boolean language sql stable security definer set search_path = '' as $$
   select app.is_agency_member(p_org) and (app.has_permission(p_org, 'leads:read') or app.has_permission(p_org, 'deals:read'));
 $$;
 
+-- Same rule as app.has_permission, for another member (assignment eligibility, notification recipients).
+create or replace function app.member_has_permission(p_org uuid, p_user uuid, p_perm text)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (
+      select 1 from public.organization_members m
+      where m.organization_id = p_org and m.user_id = p_user and m.status = 'active' and m.user_type = 'agency'
+    ) and (
+      exists (
+        select 1 from public.user_roles ur join public.roles r on r.id = ur.role_id
+        where ur.organization_id = p_org and ur.user_id = p_user and r.is_locked
+      )
+      or (
+        not exists (
+          select 1 from public.user_permission_overrides o
+          where o.organization_id = p_org and o.user_id = p_user and o.permission_key = p_perm and o.effect = 'deny'
+        )
+        and (
+          exists (
+            select 1 from public.user_roles ur join public.role_permissions rp on rp.role_id = ur.role_id
+            where ur.organization_id = p_org and ur.user_id = p_user and rp.permission_key = p_perm
+          )
+          or exists (
+            select 1 from public.user_permission_overrides o
+            where o.organization_id = p_org and o.user_id = p_user and o.permission_key = p_perm and o.effect = 'grant'
+          )
+        )
+      )
+    );
+$$;
+
+-- Active agency members who can own leads (round-robin candidates). Callers must be CRM users (or the service role).
+create or replace function app.crm_eligible_owners(p_org uuid)
+returns setof uuid language sql stable security definer set search_path = '' as $$
+  select m.user_id from public.organization_members m
+  where m.organization_id = p_org and m.status = 'active' and m.user_type = 'agency'
+    and (auth.uid() is null or app.has_permission(p_org, 'leads:manage'))
+    and app.member_has_permission(p_org, m.user_id, 'leads:manage');
+$$;
+
+-- Round-robin bookkeeping: anyone who may create leads advances the rule's cursor (rules themselves stay crm:admin).
+create or replace function app.crm_advance_rule(p_rule uuid, p_cursor integer)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  v_org uuid;
+begin
+  select organization_id into v_org from public.lead_assignment_rules where id = p_rule;
+  if v_org is null then
+    return;
+  end if;
+  if auth.uid() is not null and not app.has_permission(v_org, 'leads:manage') then
+    raise exception 'forbidden' using errcode = '42501';
+  end if;
+  update public.lead_assignment_rules set cursor = greatest(0, p_cursor) where id = p_rule;
+end $$;
+
 -- ---------------------------------------------------------------------------
 -- Leads
 -- ---------------------------------------------------------------------------

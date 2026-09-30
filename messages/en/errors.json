@@ -43,5 +43,10 @@
   "report_published": "This report is published. Move it back to draft to edit it.",
   "import_empty": "The file has no days with numbers we can import.",
   "campaign_not_deletable": "Only draft or archived campaigns can be deleted.",
-  "channel_has_metrics": "A channel with recorded numbers can't be removed. Keep it, or clear its numbers first."
+  "channel_has_metrics": "A channel with recorded numbers can't be removed. Keep it, or clear its numbers first.",
+  "invalid_stage": "That stage doesn't belong to this pipeline.",
+  "invalid_merge": "These leads can't be merged.",
+  "deal_not_won": "Mark the deal as won first.",
+  "already_converted_deal": "This deal was already turned into a client.",
+  "onboarding_not_configured": "Set the onboarding request type and workflow in Sales settings first."
 }
