@@ -34,7 +34,7 @@ import {
   type SavedViewConfig,
   type TaskLayout,
 } from '@/modules/tasks/constants';
-import { activeFilterCount } from '@/modules/tasks/filter';
+import { activeFilterCount, showsDone } from '@/modules/tasks/filter';
 import type { SavedViewItem } from '@/modules/tasks/server/queries';
 
 const layoutIcon = { board: Columns3, list: List, table: Table2, calendar: CalendarDays } as const;
@@ -224,7 +224,7 @@ export function TaskToolbar({
             </Field>
             <label className="flex items-center justify-between gap-3 self-end rounded-lg border border-border p-2.5 text-sm">
               {t('tasks.filters.showDone')}
-              <Switch checked={Boolean(config.showDone)} onCheckedChange={(v) => set({ showDone: v })} />
+              <Switch checked={showsDone(config)} onCheckedChange={(v) => set({ showDone: v })} />
             </label>
             <div className="flex justify-end sm:col-span-2">
               <Button

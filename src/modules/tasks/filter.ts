@@ -20,13 +20,16 @@ export type FilterableTask = {
   updatedAt: string;
 };
 
+/** Done tasks (last 30 days) show by default; a view hides them with `showDone: false`. */
+export const showsDone = (config: SavedViewConfig) => config.showDone !== false;
+
 /** Applies a view's filters. Subtasks show up only through their parent unless a search targets them. */
 export function applyFilters<T extends FilterableTask>(tasks: T[], config: SavedViewConfig, me: string, today: string): T[] {
   const q = (config.q ?? '').trim().toLowerCase();
   const week = endOfWeek(today);
   return tasks.filter((t) => {
     if (t.parentId && !q) return false;
-    if (!config.showDone && t.statusCategory === 'done') return false;
+    if (!showsDone(config) && t.statusCategory === 'done') return false;
     if (q && !`${t.title} t-${t.number} ${t.requestReference ?? ''} ${t.tags.join(' ')}`.toLowerCase().includes(q)) return false;
     if (config.statusIds?.length && !config.statusIds.includes(t.statusId)) return false;
     if (config.clientIds?.length && !config.clientIds.includes(t.clientId)) return false;
@@ -132,6 +135,6 @@ export function activeFilterCount(config: SavedViewConfig): number {
     config.tags?.length,
     config.due && config.due !== 'any' ? 1 : 0,
     config.mine ? 1 : 0,
-    config.showDone ? 1 : 0,
+    showsDone(config) ? 0 : 1,
   ].filter(Boolean).length;
 }

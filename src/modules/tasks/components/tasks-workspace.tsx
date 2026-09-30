@@ -23,7 +23,7 @@ import { TaskTable } from '@/modules/tasks/components/task-table';
 import { TaskToolbar } from '@/modules/tasks/components/task-toolbar';
 import { useTaskMutations, useTasks } from '@/modules/tasks/components/use-tasks';
 import { taskLayouts, type SavedViewConfig, type TaskLayout } from '@/modules/tasks/constants';
-import { activeFilterCount, applyFilters, sortTasks } from '@/modules/tasks/filter';
+import { activeFilterCount, applyFilters, showsDone, sortTasks } from '@/modules/tasks/filter';
 import { deleteViewAction, saveViewAction } from '@/modules/tasks/server/actions';
 import type { TaskPatch } from '@/modules/tasks/schemas';
 import type { RunningTimer, SavedViewItem, TaskListItem } from '@/modules/tasks/server/queries';
@@ -237,7 +237,7 @@ export function TasksWorkspace(props: WorkspaceProps) {
             statuses={
               config.statusIds?.length
                 ? statuses.filter((s) => config.statusIds!.includes(s.id))
-                : statuses.filter((s) => config.showDone || s.category !== 'done')
+                : statuses.filter((s) => showsDone(config) || s.category !== 'done')
             }
             swimlane={config.swimlane ?? 'none'}
             clients={clients}

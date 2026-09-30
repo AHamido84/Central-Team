@@ -205,37 +205,51 @@ describe('filters, sorting and grouping', () => {
     task({ title: 'Nobody', dueDate: null, priority: 'low' }),
   ];
 
-  it('hides done tasks and subtasks by default; search finds subtasks and task numbers', () => {
-    expect(applyFilters(tasks, {}, me, today).map((t) => t.title)).toEqual(['Design hero', 'Write captions', 'Review me', 'Nobody']);
+  it('shows recent done tasks by default and hides subtasks; search finds subtasks and task numbers', () => {
+    expect(applyFilters(tasks, {}, me, today).map((t) => t.title)).toEqual([
+      'Design hero',
+      'Write captions',
+      'Done thing',
+      'Review me',
+      'Nobody',
+    ]);
+    expect(applyFilters(tasks, { showDone: false }, me, today).map((t) => t.title)).toEqual([
+      'Design hero',
+      'Write captions',
+      'Review me',
+      'Nobody',
+    ]);
     expect(applyFilters(tasks, { q: 'subtask' }, me, today).map((t) => t.title)).toEqual(['Subtask']);
     expect(applyFilters(tasks, { q: `t-${tasks[1]!.number}` }, me, today).map((t) => t.title)).toEqual(['Write captions']);
-    expect(applyFilters(tasks, { showDone: true }, me, today)).toHaveLength(5);
+    // Hiding done counts as an active filter; the default doesn't.
+    expect(activeFilterCount({})).toBe(0);
+    expect(activeFilterCount({ showDone: false })).toBe(1);
   });
 
   it('"mine" includes what I review; assignee filter supports unassigned', () => {
-    expect(applyFilters(tasks, { mine: true }, me, today).map((t) => t.title)).toEqual(['Design hero', 'Review me']);
-    expect(applyFilters(tasks, { assigneeIds: ['none'] }, me, today).map((t) => t.title)).toEqual(['Review me', 'Nobody']);
+    expect(applyFilters(tasks, { showDone: false, mine: true }, me, today).map((t) => t.title)).toEqual(['Design hero', 'Review me']);
+    expect(applyFilters(tasks, { showDone: false, assigneeIds: ['none'] }, me, today).map((t) => t.title)).toEqual(['Review me', 'Nobody']);
   });
 
   it('due, client, priority and tag filters', () => {
-    expect(applyFilters(tasks, { due: 'overdue' }, me, today).map((t) => t.title)).toEqual(['Design hero']);
-    expect(applyFilters(tasks, { due: 'today' }, me, today).map((t) => t.title)).toEqual(['Write captions']);
-    expect(applyFilters(tasks, { due: 'none' }, me, today).map((t) => t.title)).toEqual(['Nobody']);
-    expect(applyFilters(tasks, { clientIds: ['c2'] }, me, today)).toHaveLength(1);
-    expect(applyFilters(tasks, { priorities: ['urgent', 'high'] }, me, today)).toHaveLength(2);
-    expect(applyFilters(tasks, { tags: ['instagram'] }, me, today)).toHaveLength(1);
+    expect(applyFilters(tasks, { showDone: false, due: 'overdue' }, me, today).map((t) => t.title)).toEqual(['Design hero']);
+    expect(applyFilters(tasks, { showDone: false, due: 'today' }, me, today).map((t) => t.title)).toEqual(['Write captions']);
+    expect(applyFilters(tasks, { showDone: false, due: 'none' }, me, today).map((t) => t.title)).toEqual(['Nobody']);
+    expect(applyFilters(tasks, { showDone: false, clientIds: ['c2'] }, me, today)).toHaveLength(1);
+    expect(applyFilters(tasks, { showDone: false, priorities: ['urgent', 'high'] }, me, today)).toHaveLength(2);
+    expect(applyFilters(tasks, { showDone: false, tags: ['instagram'] }, me, today)).toHaveLength(1);
     expect(activeFilterCount({ due: 'any', mine: true, priorities: ['high'] })).toBe(2);
   });
 
   it('sorts by due date with undated last, and by priority', () => {
-    const open = applyFilters(tasks, {}, me, today);
+    const open = applyFilters(tasks, { showDone: false }, me, today);
     expect(sortTasks(open, 'due', 'asc').map((t) => t.title)).toEqual(['Design hero', 'Write captions', 'Review me', 'Nobody']);
     expect(sortTasks(open, 'due', 'desc').at(-1)!.title).toBe('Nobody');
     expect(sortTasks(open, 'priority', 'asc').map((t) => t.priority)).toEqual(['urgent', 'high', 'normal', 'low']);
   });
 
   it('groups by assignee (unassigned bucket) and by due bucket', () => {
-    const open = applyFilters(tasks, {}, me, today);
+    const open = applyFilters(tasks, { showDone: false }, me, today);
     const byAssignee = groupTasks(open, 'assignee', today);
     expect(byAssignee.get(me)).toHaveLength(1);
     expect(byAssignee.get('none')).toHaveLength(2);
