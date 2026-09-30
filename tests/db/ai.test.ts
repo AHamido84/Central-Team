@@ -13,7 +13,7 @@ process.env.SUPABASE_SECRET_KEY ??= 'test-secret-key-for-signing-0000';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { mockEmbed } from '@/modules/ai/providers/mock-embedder';
-import { indexTargets } from '@/modules/ai/server/indexer';
+import { catchUpIndex, indexTargets } from '@/modules/ai/server/indexer';
 import { runCampaignAnalysis } from '@/modules/ai/server/insights';
 import { assertAiReady } from '@/modules/ai/server/runtime';
 
@@ -379,5 +379,16 @@ describe('guardrails (ADR-073/076)', () => {
     } finally {
       await sql`update public.ai_settings set enabled = ${before!.enabled}, monthly_token_budget = ${before!.monthly_token_budget} where organization_id = ${org}`;
     }
+  });
+});
+
+describe('index catch-up', () => {
+  it('drops chunks whose source row is gone', async () => {
+    const ghost = crypto.randomUUID();
+    await sql`
+      insert into public.ai_chunks (organization_id, source_type, source_id, title, url, content, content_hash, embedding, embedding_model)
+      values (${org}, 'client', ${ghost}, 'Ghost', '/clients/x', 'Ghost', 'x', ${vec('ghost')}::extensions.vector, 'mock-hash-1024')`;
+    await catchUpIndex(org, 1);
+    expect((await sql`select 1 from public.ai_chunks where source_id = ${ghost}`).length).toBe(0);
   });
 });

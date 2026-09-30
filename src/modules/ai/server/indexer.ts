@@ -7,7 +7,7 @@ import { dbAdmin } from '@/lib/db/client';
 import { organizations } from '@/lib/db/schema';
 import type { StoredEvent } from '@/lib/events/dispatcher';
 import type { Locale } from '@/lib/i18n/localized';
-import { indexSources, indexStatus, staleSources } from '@/modules/ai/indexer-core';
+import { indexSources, indexStatus, pruneOrphans, staleSources } from '@/modules/ai/indexer-core';
 import { textKit } from '@/modules/ai/kit';
 import { assertAiReady, currentEmbedder, embedTexts } from '@/modules/ai/server/runtime';
 import type { SourceType } from '@/modules/ai/types';
@@ -103,6 +103,8 @@ export async function catchUpIndex(organizationId: string, maxSources = 300): Pr
     if (error instanceof ActionFailure) return 0;
     throw error;
   }
+  // Chunks of records deleted without an event (cascades) are dropped first.
+  await dbAdmin.transaction((tx) => pruneOrphans(tx, organizationId));
   let done = 0;
   while (done < maxSources) {
     const batch = await dbAdmin.transaction((tx) => staleSources(tx, organizationId, embedder.model, Math.min(100, maxSources - done)));

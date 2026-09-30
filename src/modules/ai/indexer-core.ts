@@ -395,6 +395,20 @@ export async function staleSources(
   return rows.map((r) => ({ type: r.type, id: r.id }));
 }
 
+/** Removes chunks whose source row is gone (deleted without an event the indexer follows, e.g. a cascade). */
+export async function pruneOrphans(tx: Tx, organizationId: string): Promise<number> {
+  let removed = 0;
+  for (const type of sourceTypes) {
+    const rows = await tx.execute<{ id: string }>(sql`
+      delete from public.ai_chunks c
+      where c.organization_id = ${organizationId} and c.source_type = ${type}
+        and not exists (select 1 from public.${sql.raw(sourceTable[type])} s where s.id = c.source_id)
+      returning c.id`);
+    removed += rows.length;
+  }
+  return removed;
+}
+
 /** Counts for the admin page: indexed chunks per type, and how many sources are waiting. */
 export async function indexStatus(
   tx: Tx,
