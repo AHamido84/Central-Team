@@ -58,6 +58,26 @@
     "sales": {
       "title": "Sales",
       "body": "New leads assigned to you, follow-ups due, quiet deals and won deals."
+    },
+    "integrations": {
+      "title": "Integrations",
+      "body": "A platform connection that expired, failed syncs and automation errors."
+    },
+    "automations": {
+      "title": "Automations",
+      "body": "Messages that automation rules send to you."
     }
-  }
+  },
+  "whatsappChannel": "WhatsApp",
+  "whatsappSection": "WhatsApp notifications",
+  "whatsappSectionHint": "Get the notifications you choose on WhatsApp, from the agency's official number. You can stop anytime.",
+  "whatsappPhone": "WhatsApp number",
+  "whatsappConsent": "I agree to receive work notifications on this number.",
+  "whatsappOptIn": "Turn on WhatsApp",
+  "whatsappOptOut": "Stop WhatsApp messages",
+  "whatsappOn": "On for {phone} since {date}",
+  "whatsappOff": "Off",
+  "whatsappUnavailable": "The agency hasn't connected WhatsApp Business yet, so this channel can't be turned on right now.",
+  "whatsappNeedsOptIn": "Turn on WhatsApp above to choose what reaches you there.",
+  "whatsappConsentRequired": "Please confirm your consent."
 }

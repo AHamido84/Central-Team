@@ -24,6 +24,8 @@ import type sla from '@messages/ar/sla.json';
 import type operations from '@messages/ar/operations.json';
 import type crm from '@messages/ar/crm.json';
 import type capacity from '@messages/ar/capacity.json';
+import type integrations from '@messages/ar/integrations.json';
+import type automations from '@messages/ar/automations.json';
 
 /** Arabic (the default locale) is the source of truth for message keys; scripts/check-i18n.ts enforces parity. */
 export type AppMessages = {
@@ -53,6 +55,8 @@ export type AppMessages = {
   operations: typeof operations;
   crm: typeof crm;
   capacity: typeof capacity;
+  integrations: typeof integrations;
+  automations: typeof automations;
 };
 
 declare module 'next-intl' {

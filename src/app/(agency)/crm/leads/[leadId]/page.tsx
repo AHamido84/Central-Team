@@ -6,6 +6,8 @@ import { PageHeader } from '@/components/patterns';
 import { BreadcrumbLabel } from '@/components/shell/breadcrumbs';
 import { requireAgency } from '@/lib/auth/context';
 import { can } from '@/lib/permissions/can';
+import { WhatsAppPanel } from '@/modules/integrations/components/whatsapp-panel';
+import { getWhatsAppPanel } from '@/modules/integrations/server/queries';
 import { LeadDetailView } from '@/modules/crm/components/lead-detail';
 import { leadReference } from '@/modules/crm/constants';
 import { getCrmOptions, getLead } from '@/modules/crm/server/queries';
@@ -25,6 +27,9 @@ export default async function LeadPage({ params }: { params: Promise<{ leadId: s
   if (!ctx.flags['module.crm']) notFound();
   const [lead, options] = await Promise.all([getLead(ctx, leadId), getCrmOptions(ctx)]);
   if (!lead) notFound();
+  // WhatsApp (Phase 7): senders see the panel; the history follows the lead / deal read rules.
+  const whatsapp =
+    ctx.flags['module.integrations'] && can(ctx.permissions, 'whatsapp:send') ? await getWhatsAppPanel({ leadId: leadId }) : null;
   const t = await getTranslations('crm');
   return (
     <div className="space-y-6">
@@ -46,6 +51,7 @@ export default async function LeadPage({ params }: { params: Promise<{ leadId: s
         canManageAll={can(ctx.permissions, 'crm:manage_all')}
         canCreateDeal={can(ctx.permissions, 'deals:manage') && lead.canWrite}
       />
+      {whatsapp ? <WhatsAppPanel subject={{ leadId: leadId }} data={whatsapp} canSend /> : null}
     </div>
   );
 }

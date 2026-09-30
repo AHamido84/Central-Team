@@ -14,8 +14,10 @@ import {
   Megaphone,
   MessageSquare,
   Handshake,
+  PlugZap,
   Timer,
   UserRound,
+  Workflow,
 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -242,53 +244,80 @@ const categoryIcon: Record<NotificationCategory, typeof Bell> = {
   campaigns: Megaphone,
   sla: Timer,
   sales: Handshake,
+  integrations: PlugZap,
+  automations: Workflow,
 };
 
-export function NotificationSettings({ defaults }: { defaults: { category: NotificationCategory; inApp: boolean; email: boolean }[] }) {
+type Pref = { category: NotificationCategory; inApp: boolean; email: boolean; whatsapp: boolean };
+type Channel = 'inApp' | 'email' | 'whatsapp';
+
+export function NotificationSettings({
+  defaults,
+  whatsapp,
+}: {
+  defaults: Pref[];
+  /** Null on the portal (WhatsApp is an agency channel). */
+  whatsapp: { available: boolean; optedIn: boolean } | null;
+}) {
   const t = useTranslations();
   const [prefs, setPrefs] = useState(defaults);
   const save = useAction(updateNotificationPreferencesAction, { successMessage: t('common.saved'), refresh: false });
-  const update = (category: NotificationCategory, key: 'inApp' | 'email', value: boolean) => {
+  const update = (category: NotificationCategory, key: Channel, value: boolean) => {
     const next = prefs.map((p) => (p.category === category ? { ...p, [key]: value } : p));
     setPrefs(next);
     void save.run({ preferences: next });
   };
+  const channels: { key: Channel; label: string; disabled: boolean }[] = [
+    { key: 'inApp', label: t('settings.inApp'), disabled: false },
+    { key: 'email', label: t('settings.emailChannel'), disabled: false },
+    ...(whatsapp
+      ? [{ key: 'whatsapp' as const, label: t('settings.whatsappChannel'), disabled: !whatsapp.available || !whatsapp.optedIn }]
+      : []),
+  ];
+  const cols = whatsapp ? 'sm:grid-cols-[1fr_6rem_6rem_6rem]' : 'sm:grid-cols-[1fr_6rem_6rem]';
   return (
     <Card className="divide-y divide-border">
-      <div className="hidden grid-cols-[1fr_6rem_6rem] items-center gap-4 px-5 py-3 text-xs font-medium text-muted-foreground sm:grid">
+      {whatsapp && (!whatsapp.available || !whatsapp.optedIn) ? (
+        <p className="px-5 py-3 text-xs text-subtle-foreground">
+          {whatsapp.available ? t('settings.whatsappNeedsOptIn') : t('settings.whatsappUnavailable')}
+        </p>
+      ) : null}
+      <div className={`hidden items-center gap-4 px-5 py-3 text-xs font-medium text-muted-foreground sm:grid ${cols}`}>
         <span>{t('settings.category')}</span>
-        <span className="text-center">{t('settings.inApp')}</span>
-        <span className="text-center">{t('settings.emailChannel')}</span>
+        {channels.map((c) => (
+          <span key={c.key} className="text-center">
+            {c.label}
+          </span>
+        ))}
       </div>
       {prefs.map((p) => {
         const Icon = categoryIcon[p.category];
         return (
-          <div key={p.category} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-5 py-4 sm:grid-cols-[1fr_6rem_6rem]">
-            <div className="flex items-start gap-3">
+          <div
+            key={p.category}
+            className={`grid items-center gap-4 px-5 py-4 ${whatsapp ? 'grid-cols-[1fr_auto_auto_auto]' : 'grid-cols-[1fr_auto_auto]'} ${cols}`}
+          >
+            <div className="flex min-w-0 items-start gap-3">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-muted text-muted-foreground">
                 <Icon className="size-4" aria-hidden />
               </span>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-medium">{t(`settings.categories.${p.category}.title`)}</p>
                 <p className="text-xs text-subtle-foreground">{t(`settings.categories.${p.category}.body`)}</p>
               </div>
             </div>
-            <div className="flex flex-col items-center gap-1">
-              <Switch
-                checked={p.inApp}
-                onCheckedChange={(v) => update(p.category, 'inApp', v)}
-                aria-label={`${t(`settings.categories.${p.category}.title`)} · ${t('settings.inApp')}`}
-              />
-              <span className="text-[0.6875rem] text-subtle-foreground sm:hidden">{t('settings.inApp')}</span>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <Switch
-                checked={p.email}
-                onCheckedChange={(v) => update(p.category, 'email', v)}
-                aria-label={`${t(`settings.categories.${p.category}.title`)} · ${t('settings.emailChannel')}`}
-              />
-              <span className="text-[0.6875rem] text-subtle-foreground sm:hidden">{t('settings.emailChannel')}</span>
-            </div>
+            {channels.map((c) => (
+              <div key={c.key} className="flex flex-col items-center gap-1">
+                <Switch
+                  checked={p[c.key] && !c.disabled}
+                  disabled={c.disabled}
+                  onCheckedChange={(v) => update(p.category, c.key, v)}
+                  aria-label={`${t(`settings.categories.${p.category}.title`)} · ${c.label}`}
+                  data-testid={`pref-${p.category}-${c.key}`}
+                />
+                <span className="text-[0.6875rem] text-subtle-foreground sm:hidden">{c.label}</span>
+              </div>
+            ))}
           </div>
         );
       })}

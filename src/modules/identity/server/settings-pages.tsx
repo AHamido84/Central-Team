@@ -10,6 +10,8 @@ import { withRls } from '@/lib/db/rls';
 import { notificationPreferences } from '@/lib/db/schema';
 import { SettingsNav } from '@/modules/identity/components/settings-nav';
 import { NotificationSettings, PreferencesSettings, ProfileSettings } from '@/modules/identity/components/settings-forms';
+import { WhatsAppOptIn } from '@/modules/integrations/components/whatsapp-opt-in';
+import { getWhatsAppChannel } from '@/modules/integrations/server/queries';
 import { notificationCategories } from '@/modules/notifications/types';
 
 const TIMEZONES = [
@@ -82,16 +84,21 @@ export async function NotificationSettingsPage({ base }: { base: Base }) {
       .from(notificationPreferences)
       .where(and(eq(notificationPreferences.userId, ctx.session.userId), eq(notificationPreferences.organizationId, ctx.organization.id))),
   );
+  const agencyOnly = ['account', 'tasks', 'sla', 'sales', 'integrations', 'automations'];
   const categories =
     ctx.side === 'client'
-      ? notificationCategories.filter((c) => c !== 'account' && c !== 'tasks' && c !== 'sla' && c !== 'sales')
+      ? notificationCategories.filter((c) => !agencyOnly.includes(c))
       : notificationCategories.filter((c) => c !== 'approvals');
+  // WhatsApp is an agency channel (Phase 7): shown when the agency has a notification template to send through.
+  const whatsapp = ctx.side === 'agency' ? await getWhatsAppChannel(ctx.session.userId, ctx.organization.id) : null;
   return (
     <Shell base={base}>
+      {whatsapp ? <WhatsAppOptIn channel={whatsapp} /> : null}
       <NotificationSettings
+        whatsapp={whatsapp ? { available: whatsapp.available, optedIn: whatsapp.optedIn } : null}
         defaults={categories.map((category) => {
           const row = rows.find((r) => r.category === category);
-          return { category, inApp: row?.inApp ?? true, email: row?.email ?? true };
+          return { category, inApp: row?.inApp ?? true, email: row?.email ?? true, whatsapp: row?.whatsapp ?? false };
         })}
       />
     </Shell>

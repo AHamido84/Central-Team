@@ -1,0 +1,252 @@
+{
+  "title": "Integrations",
+  "description": "Connect ad accounts, pages and WhatsApp Business, sync numbers daily and receive leads from ads.",
+  "sandbox": "Sandbox",
+  "sandboxNotice": "The sandbox is on: try every platform with fixed demo data and no real keys. Nothing is sent to the platforms.",
+  "connect": "Connect",
+  "connectSandbox": "Connect sandbox",
+  "notConfigured": "Not configured on the server yet. Missing variables:",
+  "noConnections": "No connection yet.",
+  "accountsMapped": "{mapped} of {total} accounts mapped to clients",
+  "lastSynced": "synced {when}",
+  "neverSynced": "never synced",
+  "emptyTitle": "No platforms connected",
+  "emptyBody": "Connect a platform to get daily numbers and new leads automatically.",
+  "health": {
+    "connected": "Connected",
+    "expiring": "Expiring soon",
+    "expired": "Expired",
+    "error": "Error",
+    "disconnected": "Disconnected"
+  },
+  "syncStatus": {
+    "queued": "Queued",
+    "running": "Running",
+    "succeeded": "Succeeded",
+    "failed": "Failed"
+  },
+  "messageStatus": {
+    "queued": "Queued",
+    "sent": "Sent",
+    "delivered": "Delivered",
+    "read": "Read",
+    "failed": "Failed"
+  },
+  "providers": {
+    "meta": {
+      "name": "Meta (Facebook & Instagram)",
+      "description": "Ad accounts, pages and lead ad forms."
+    },
+    "whatsapp": {
+      "name": "WhatsApp Business",
+      "description": "Team notifications and approved template messages to leads."
+    },
+    "tiktok": {
+      "name": "TikTok for Business",
+      "description": "Daily campaign numbers and lead forms."
+    },
+    "snapchat": {
+      "name": "Snapchat Ads",
+      "description": "Daily campaign numbers and lead forms."
+    },
+    "google": {
+      "name": "Google Ads & Analytics",
+      "description": "Google Ads campaign numbers, GA4 properties and lead forms."
+    }
+  },
+  "capabilities": {
+    "ads": "Ads",
+    "pages": "Pages",
+    "lead_ads": "Lead ads",
+    "whatsapp": "Messaging",
+    "analytics": "Analytics"
+  },
+  "errors": {
+    "auth_expired": "The connection expired. Reconnect to keep syncing.",
+    "auth_revoked": "Access was revoked on the platform. Reconnect.",
+    "permission_denied": "The connected account lacks the required permissions.",
+    "rate_limited": "The platform is limiting requests; it will retry automatically.",
+    "not_configured": "The platform isn't configured on the server.",
+    "network": "Couldn't reach the platform.",
+    "invalid_response": "Unexpected response from the platform.",
+    "platform_error": "The platform returned an error.",
+    "invalid_phone": "The number can't receive WhatsApp messages.",
+    "template_not_approved": "The template isn't approved.",
+    "no_connection": "No active connection.",
+    "not_opted_in": "The recipient hasn't agreed to WhatsApp messages."
+  },
+  "callbackErrors": {
+    "oauth_state": "The connection request expired or couldn't be verified. Start again.",
+    "oauth_denied": "Access was declined on the platform.",
+    "oauth_failed": "The connection didn't complete. Try again.",
+    "forbidden": "You don't have permission to manage integrations.",
+    "validation": "Unknown platform."
+  },
+  "whatsappConnect": {
+    "title": "Connect WhatsApp Business",
+    "description": "Create a system user in Meta Business settings with the whatsapp_business_messaging permission, then paste its details here. The token is stored encrypted and never shown again.",
+    "phoneNumberId": "Phone number ID",
+    "phoneNumberIdHint": "From WhatsApp Manager → Phone numbers.",
+    "wabaId": "WhatsApp Business Account (WABA) ID",
+    "accessToken": "System user access token",
+    "accessTokenHint": "A permanent system-user token, not a temporary one.",
+    "submit": "Verify and connect",
+    "connected": "WhatsApp connected."
+  },
+  "detail": {
+    "rename": "Rename",
+    "name": "Name",
+    "authorizedAs": "Authorized as",
+    "connectedAt": "Connected {when}",
+    "tokenExpires": "Token expires {when}",
+    "reconnect": "Reconnect",
+    "test": "Test connection",
+    "testOk": "The connection works.",
+    "refresh": "Refresh accounts",
+    "refreshed": "Accounts and campaigns refreshed.",
+    "disconnect": "Disconnect",
+    "disconnected": "Disconnected.",
+    "disconnectTitle": "Disconnect this connection?",
+    "disconnectBody": "The access token is deleted for good and syncing and lead intake stop. Numbers already synced and the history stay.",
+    "reconnectHint": "Nothing syncs and no leads arrive until you reconnect.",
+    "client": "Client",
+    "noClient": "Not mapped to a client",
+    "dailySync": "Daily sync",
+    "noAccounts": "No accounts",
+    "noAccountsBody": "The platform returned no accounts for this connection. Check the permissions, then refresh.",
+    "mapFirst": "Map an ad account to a client first",
+    "mapFirstBody": "On the Accounts tab pick the client for each ad account, then link the platform's campaigns to that client's campaign channels here.",
+    "noChannels": "This client has no campaign channel for this platform. Add a channel to a campaign first.",
+    "channel": "Campaign channel",
+    "notLinked": "Not linked",
+    "noPlatformCampaigns": "No campaigns on the platform for this account.",
+    "useForNotifications": "For notifications",
+    "noTemplates": "No templates",
+    "noTemplatesBody": "Create and approve templates in WhatsApp Manager, then refresh.",
+    "notificationTemplateHint": "The notification template needs two variables: '{{1}}' for the title and '{{2}}' for the text and link. One template per language.",
+    "noMessages": "No messages sent yet",
+    "accountForClient": "<account></account> → <client></client>"
+  },
+  "tabs": {
+    "accounts": "Accounts",
+    "campaigns": "Campaigns",
+    "sync": "Sync",
+    "templates": "Templates",
+    "messages": "Messages",
+    "webhooks": "Webhooks"
+  },
+  "accountKinds": {
+    "ad_account": "Ad account",
+    "page": "Page",
+    "whatsapp_number": "WhatsApp number",
+    "analytics_property": "Analytics property"
+  },
+  "accountHints": {
+    "ad_account": "Syncs its linked campaigns' numbers daily.",
+    "page": "Receives leads from this page's lead ad forms.",
+    "whatsapp_number": "Notifications and messages are sent from it.",
+    "analytics_property": "Available for upcoming reports; its numbers are not synced in this phase."
+  },
+  "sync": {
+    "queued": "Sync added to the log and starting now.",
+    "backfillTitle": "Backfill a period",
+    "backfillBody": "Pull daily numbers for a past period (up to {days} days). Days already synced are replaced, never duplicated.",
+    "from": "From",
+    "to": "To",
+    "backfill": "Backfill",
+    "now": "Sync now",
+    "explain": "Syncs run daily for the last {days} days so numbers the platforms restate later are corrected. Linked channels take their numbers from the platform.",
+    "triggers": {
+      "manual": "Manual",
+      "scheduled": "Scheduled",
+      "backfill": "Backfill",
+      "retry": "Retry"
+    },
+    "result": "{rows, plural, one {# row} other {# rows}} · {campaigns, plural, one {# campaign} other {# campaigns}}",
+    "attempts": "attempt {count}",
+    "retryAt": "retrying {when}",
+    "retry": "Retry",
+    "emptyTitle": "No syncs yet",
+    "emptyBody": "Map accounts and campaigns, then press “Sync now”."
+  },
+  "templateStatus": {
+    "approved": "Approved",
+    "pending": "In review",
+    "rejected": "Rejected",
+    "paused": "Paused"
+  },
+  "templateCategory": {
+    "utility": "Utility",
+    "marketing": "Marketing",
+    "authentication": "Authentication"
+  },
+  "purpose": {
+    "notification": "Notification",
+    "lead": "Lead",
+    "automation": "Automation"
+  },
+  "webhooks": {
+    "urlTitle": "Webhook URL",
+    "urlHint": {
+      "meta": "Register it in your Meta app → Webhooks → Page (field leadgen) with the META_WEBHOOK_VERIFY_TOKEN verify token.",
+      "whatsapp": "Register it in your Meta app → WhatsApp → Configuration (field messages) with the same verify token.",
+      "tiktok": "Register it in your TikTok for Business app for lead form notifications.",
+      "snapchat": "Register it in Snap Business Manager for lead form notifications, with SNAPCHAT_WEBHOOK_SECRET.",
+      "google": "Paste it into the Google Ads lead form with the GOOGLE_LEAD_WEBHOOK_KEY key."
+    },
+    "status": {
+      "received": "Received",
+      "processed": "Processed",
+      "ignored": "Ignored",
+      "failed": "Failed",
+      "rejected": "Rejected"
+    },
+    "topics": {
+      "lead": "Lead",
+      "message_status": "Message status",
+      "message": "Inbound message",
+      "verification": "Verification",
+      "other": "Other"
+    },
+    "reasons": {
+      "unknown_account": "No connected account has this id.",
+      "inbound_messages_not_supported": "Inbound messages aren't shown in this phase.",
+      "no_items": "Nothing to process.",
+      "invalid_signature": "Invalid signature.",
+      "invalid_json": "Invalid body.",
+      "lead_without_contact": "The lead has no phone or email."
+    },
+    "openLead": "Open lead",
+    "emptyTitle": "Nothing received yet",
+    "emptyBody": "Platform notifications (leads and message statuses) appear here once their signature is verified."
+  },
+  "panel": {
+    "title": "WhatsApp",
+    "send": "Send message",
+    "sent": "Message sent.",
+    "noPhone": "This record has no mobile number.",
+    "noTemplates": "No approved templates. Ask an integrations admin to connect WhatsApp Business.",
+    "readAt": "read {when}",
+    "deliveredAt": "delivered {when}",
+    "empty": "No WhatsApp messages yet",
+    "dialogTitle": "Send a WhatsApp message",
+    "dialogBody": "It goes to <phone></phone> from the agency's number, using an approved template.",
+    "template": "Template",
+    "param": "Variable {n}",
+    "preview": "Preview"
+  },
+  "sandboxConsent": {
+    "title": "Authorize (sandbox)",
+    "heading": "Sandbox {provider}",
+    "body": "Central asks for access to your sandbox account. No real data lives here.",
+    "scopes": {
+      "ads": "Read ad accounts and numbers",
+      "leads": "Receive leads from forms",
+      "pages": "Read pages"
+    },
+    "allow": "Allow",
+    "allowShort": "Allow with a short-lived token",
+    "deny": "Deny",
+    "shortHint": "The short-lived token expires in two minutes with no refresh, to try expiry and reconnecting."
+  }
+}

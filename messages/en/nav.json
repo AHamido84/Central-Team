@@ -49,5 +49,9 @@
   "crm": "Sales",
   "deals": "Deals",
   "quotes": "Quotes",
-  "follow-ups": "Follow-ups"
+  "follow-ups": "Follow-ups",
+  "integrations": "Integrations",
+  "automations": "Automations",
+  "sandbox": "Sandbox",
+  "authorize": "Authorize"
 }

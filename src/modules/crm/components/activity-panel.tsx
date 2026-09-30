@@ -109,7 +109,7 @@ export function ActivityList({ items, canWrite, now }: { items: ActivityItem[]; 
         const Icon = activityIcon[a.type];
         const overdue = !a.completedAt && a.dueAt !== null && Date.parse(a.dueAt) < nowMs;
         const subject =
-          a.subject.startsWith('resubmitted_') && t.has(`systemSubjects.${a.subject}` as never)
+          (a.subject.startsWith('resubmitted_') || a.subject === 'whatsapp_sent') && t.has(`systemSubjects.${a.subject}` as never)
             ? t(`systemSubjects.${a.subject}` as never)
             : a.subject;
         return (

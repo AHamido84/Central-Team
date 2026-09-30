@@ -31,6 +31,8 @@ import {
   CalendarCheck,
   ChartSpline,
   SlidersHorizontal,
+  PlugZap,
+  Zap,
 } from 'lucide-react';
 
 import { can, type PermissionSet } from '@/lib/permissions/can';
@@ -100,6 +102,20 @@ export const agencyNav: NavSection[] = [
       { key: 'slaPolicies', href: '/admin/sla', icon: Timer, anyOf: ['sla:manage'], flag: 'module.requests' },
       { key: 'workflows', href: '/admin/workflows', icon: Workflow, anyOf: ['workflows:manage'], flag: 'module.tasks' },
       { key: 'crmSettings', href: '/admin/crm', icon: SlidersHorizontal, anyOf: ['crm:admin'], flag: 'module.crm' },
+      {
+        key: 'integrations',
+        href: '/admin/integrations',
+        icon: PlugZap,
+        anyOf: ['integrations:read', 'integrations:manage'],
+        flag: 'module.integrations',
+      },
+      {
+        key: 'automations',
+        href: '/admin/automations',
+        icon: Zap,
+        anyOf: ['automations:read', 'automations:manage'],
+        flag: 'module.integrations',
+      },
       { key: 'packages', href: '/admin/packages', icon: Package, anyOf: ['packages:manage'], flag: 'module.clients' },
       { key: 'features', href: '/admin/features', icon: Blocks, anyOf: ['feature_flags:manage'] },
       { key: 'audit', href: '/admin/audit', icon: ScrollText, anyOf: ['audit_log:read'] },

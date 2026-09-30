@@ -29,6 +29,11 @@ import {
   Hourglass,
   Trophy,
   UserPlus,
+  PlugZap,
+  RefreshCwOff,
+  Workflow,
+  MessageCircleX,
+  Zap,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -71,6 +76,11 @@ const typeIcon: Record<NotificationType, typeof Bell> = {
   crm_followup_due: CalendarClock,
   deal_stale: Hourglass,
   deal_won: Trophy,
+  integration_expired: PlugZap,
+  integration_sync_failed: RefreshCwOff,
+  automation_failed: Workflow,
+  whatsapp_failed: MessageCircleX,
+  automation_message: Zap,
 };
 
 export function NotificationRow({

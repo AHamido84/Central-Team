@@ -49,5 +49,9 @@
   "crm": "المبيعات",
   "deals": "الصفقات",
   "quotes": "عروض الأسعار",
-  "follow-ups": "المتابعات"
+  "follow-ups": "المتابعات",
+  "integrations": "التكاملات",
+  "automations": "الأتمتة",
+  "sandbox": "البيئة التجريبية",
+  "authorize": "منح الصلاحية"
 }
