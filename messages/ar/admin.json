@@ -75,7 +75,13 @@
     "reactivateTitle": "إعادة تفعيل {name}؟",
     "deactivateBody": "لن يتمكن من تسجيل الدخول حتى تعيد تفعيله.",
     "reactivateBody": "سيتمكن من تسجيل الدخول مجددًا.",
-    "expiresIn": "تنتهي {when}"
+    "expiresIn": "تنتهي {when}",
+    "changeEmail": "بريد تسجيل الدخول",
+    "changeEmailButton": "تغيير البريد",
+    "changeEmailHint": "يتغيّر فورًا دون رسائل تأكيد، ويُبلَّغ العضو على العنوانين.",
+    "changeEmailTitle": "تغيير بريد هذا العضو؟",
+    "changeEmailBody": "سيسجّل {name} الدخول بـ {to} بدلًا من {from}. لا تُرسل رسائل تأكيد، ويصل إشعار إلى العنوانين.",
+    "emailChanged": "تم تغيير البريد."
   },
   "roles": {
     "title": "الأدوار والصلاحيات",

@@ -1,13 +1,16 @@
 'use server';
 
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { defineAction } from '@/lib/actions/define-action';
 import { ActionFailure } from '@/lib/actions/errors';
 import { organizationMembers, rolePermissions, roles, userPermissionOverrides, userRoles } from '@/lib/db/schema';
+import { withRls } from '@/lib/db/rls';
 import { emitEvent } from '@/lib/events/emit';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { localizedText, optionalText } from '@/lib/validation';
+import { emailChangeFailure } from '@/modules/identity/server/email-change';
 
 /* -------------------------------------------------------------------------- */
 /* Members                                                                    */
@@ -59,6 +62,50 @@ export const updateMemberAction = defineAction({
       .returning({ id: organizationMembers.id });
     if (!row) throw new ActionFailure('not_found');
     return null;
+  },
+  revalidate: ['/admin/users'],
+});
+
+/**
+ * An admin sets a team member's email directly (FR1.7 / ADR-087): no confirmation emails, the user is notified at both
+ * addresses by the `user.email_changed` consumer. The database decides (`users:update`, and only a Super Admin changes
+ * a Super Admin); GoTrue's admin API runs after commit.
+ */
+export const changeMemberEmailAction = defineAction({
+  input: z.object({ userId: z.uuid(), email: z.email({ message: 'invalid_email' }).trim().toLowerCase().max(254) }),
+  side: 'agency',
+  permission: 'users:update',
+  rateLimit: { key: 'admin_email_change', max: 20, windowSeconds: 600 },
+  async handler({ input, tx, ctx }) {
+    const [row] = await tx.execute<{ email: string; allowed: boolean; protected: boolean; in_use: boolean }>(sql`
+      select p.email,
+        app.has_permission(m.organization_id, 'users:update') as allowed,
+        exists (select 1 from public.user_roles ur join public.roles r on r.id = ur.role_id
+          where ur.user_id = m.user_id and ur.organization_id = m.organization_id and r.is_locked) as protected,
+        exists (select 1 from public.profiles o where lower(o.email) = ${input.email} and o.id <> m.user_id) as in_use
+      from public.organization_members m join public.profiles p on p.id = m.user_id
+      where m.organization_id = ${ctx.organization.id}::uuid and m.user_id = ${input.userId}::uuid and m.user_type = 'agency'`);
+    if (!row) throw new ActionFailure('not_found');
+    if (!row.allowed || (row.protected && !ctx.isSuperAdmin)) throw new ActionFailure('forbidden');
+    if (row.email.toLowerCase() === input.email) throw new ActionFailure('email_same');
+    if (row.in_use) throw new ActionFailure('email_in_use');
+    return { from: row.email };
+  },
+  async complete({ input, prepared, ctx }) {
+    // Service role (CLAUDE.md §6): only GoTrue's admin API changes another user's login email; the target and the
+    // caller's permission were checked under RLS above.
+    const { error } = await supabaseAdmin().auth.admin.updateUserById(input.userId, { email: input.email, email_confirm: true });
+    if (error) throw emailChangeFailure(error);
+    await withRls((tx) =>
+      emitEvent(tx, {
+        type: 'user.email_set_by_admin',
+        organizationId: ctx.organization.id,
+        actorId: ctx.session.userId,
+        aggregate: { type: 'user', id: input.userId },
+        payload: { userId: input.userId, from: prepared.from, to: input.email },
+      }),
+    );
+    return { email: input.email };
   },
   revalidate: ['/admin/users'],
 });

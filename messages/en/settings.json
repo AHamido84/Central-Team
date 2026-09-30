@@ -1,12 +1,12 @@
 {
   "title": "Settings",
   "description": "Your profile, preferences and notifications.",
-  "emailChangeSent": "We sent a confirmation link to the new address.",
+  "emailChangeSent": "Confirmation links sent to both addresses.",
   "emailChanged": "Your new email is confirmed.",
   "profileSection": "Profile",
   "profileSectionHint": "Visible to teammates and the clients you work with.",
   "emailSection": "Email",
-  "emailSectionHint": "Your current email is {email}. Changing it requires confirmation from the new address.",
+  "emailSectionHint": "Your current email is {email}. Changing it needs confirmation from both the current and the new address.",
   "newEmail": "New email",
   "sendConfirmation": "Send confirmation link",
   "passwordSection": "Password",
@@ -83,5 +83,13 @@
   "whatsappOff": "Off",
   "whatsappUnavailable": "The agency hasn't connected WhatsApp Business yet, so this channel can't be turned on right now.",
   "whatsappNeedsOptIn": "Turn on WhatsApp above to choose what reaches you there.",
-  "whatsappConsentRequired": "Please confirm your consent."
+  "whatsappConsentRequired": "Please confirm your consent.",
+  "emailChangeResent": "We sent the links again.",
+  "emailChangeCancelled": "Email change cancelled.",
+  "emailChangeCancel": "Cancel change",
+  "emailChangeResend": "Resend links",
+  "emailPendingTitle": "Email change pending",
+  "emailPendingBoth": "Open the link we sent to <current></current> and the one sent to <next></next>. Your email changes once both are confirmed.",
+  "emailPendingOne": "One address is confirmed. Open the link in the other inbox to change your email to <next></next>.",
+  "emailDevHint": "Local development: emails go to <link>Mailpit</link>, not to real inboxes."
 }

@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { forbidden } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
@@ -12,6 +12,7 @@ import { notificationPreferences } from '@/lib/db/schema';
 import { localized, type Locale } from '@/lib/i18n/localized';
 import { can } from '@/lib/permissions/can';
 import { SettingsNav } from '@/modules/identity/components/settings-nav';
+import type { EmailChangeState } from '@/modules/identity/server/actions';
 import { NotificationSettings, PreferencesSettings, ProfileSettings } from '@/modules/identity/components/settings-forms';
 import { WhatsAppOptIn } from '@/modules/integrations/components/whatsapp-opt-in';
 import { MyConnections } from '@/modules/integrations/components/my-connections';
@@ -49,12 +50,34 @@ async function Shell({ base, children }: { base: Base; children: ReactNode }) {
   );
 }
 
+/** The caller's pending email change (GoTrue keeps it in auth.users; `app.my_email_change` exposes only their own). */
+async function pendingEmailChange(): Promise<EmailChangeState> {
+  const [row] = await withRls((tx) =>
+    tx.execute<{ new_email: string; sent_at: string | null; confirmed_one: boolean }>(
+      sql`select new_email, sent_at, confirmed_one from app.my_email_change()`,
+    ),
+  );
+  return row
+    ? { newEmail: row.new_email, sentAt: row.sent_at ? new Date(row.sent_at).toISOString() : null, confirmedOne: row.confirmed_one }
+    : null;
+}
+
+/** Local development only: auth emails land in Mailpit, not in real inboxes. */
+function devMailbox(): string | null {
+  if (process.env.NODE_ENV === 'production') return null;
+  const api = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+  return /\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(api) ? 'http://localhost:54324' : null;
+}
+
 export async function ProfileSettingsPage({ base }: { base: Base }) {
   const ctx = await requireSignedIn();
+  const pending = await pendingEmailChange();
   return (
     <Shell base={base}>
       <ProfileSettings
         email={ctx.profile.email}
+        pendingEmail={pending}
+        devMailbox={devMailbox()}
         defaults={{
           fullName: ctx.profile.fullName,
           phone: ctx.profile.phone ?? '',

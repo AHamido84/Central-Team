@@ -8,6 +8,8 @@ const PUBLIC_PREFIXES = [
   '/login',
   '/forgot-password',
   '/auth/',
+  // Email-change landing: opened from either inbox, signed in or not (ADR-087).
+  '/email-change',
   '/invite/',
   '/api/health',
   '/api/cron/',
@@ -20,7 +22,7 @@ const PUBLIC_PREFIXES = [
 /** Routes a signed-in user should not see (they bounce to their home). */
 const GUEST_ONLY = ['/login', '/forgot-password'];
 /** Routes available to any signed-in user regardless of side / onboarding state. */
-const SHARED_SIGNED_IN = ['/onboarding', '/reset-password', '/auth/', '/invite/', '/api/', '/f/'];
+const SHARED_SIGNED_IN = ['/onboarding', '/reset-password', '/email-change', '/auth/', '/invite/', '/api/', '/f/'];
 /** The public lead form is meant to be embedded on the agency's website (iframe). */
 const EMBEDDABLE = ['/f/'];
 

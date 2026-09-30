@@ -800,6 +800,31 @@ personal accounts join the daily sync only when a manager switches sync on. Plat
 *Rejected*: a separate `personal_connections` table (would duplicate sync, discovery and Vault handling); a `scope`
 column (`owner_id` null/non-null already says it).
 
+### ADR-087 — Email change: real double confirmation, specific errors, admin override
+2026-09-30 · Accepted
+**Root causes of "email change sends nothing"** (FR1.7): (1) Supabase Cloud without custom SMTP only emails the
+project's team members, a few per hour; GoTrue answers `email_address_not_authorized` / a 500 and the action reported
+every failure as "conflict". (2) Locally `enable_confirmations = false` put GoTrue in auto-confirm mode, which ignores
+`double_confirm_changes`: both emails went out but whichever link was opened first completed the change — even the one
+sent to the *old* address, so the new address was never proven — and the second link then failed. (3) The first
+of two links already showed "Your new email is confirmed", and the link hard-coded the agency `/settings` path.
+**Decision**: keep **double confirmation** (the current owner approves and the new address proves itself; a typo can't
+lock anyone out, a stolen session can't silently take the account) and make it work: `enable_confirmations = true`
+(Supabase Cloud's default; every account is created confirmed, so sign-in is unaffected). `/auth/confirm` sends email
+changes to `/email-change` (public, both sides): `pending` after the first link, `done` after the second, `invalid` for
+a used / replaced / cancelled / expired link (GoTrue reports them all as `otp_expired`); it also accepts PKCE `code` links
+from Supabase's default templates. The profile shows the pending change from `auth.users` (`app.my_email_change`) with
+Resend (re-requests the change: fresh links to both addresses) and Cancel (`app.cancel_my_email_change`), plus a
+Mailpit hint in local development. Errors are specific: `email_same`, `email_in_use`, `email_invalid`, `rate_limited`,
+`email_send_failed`. A completed change — self-service or admin — emits `user.email_changed` from the `auth.users`
+trigger (which already synced `profiles.email`); the consumer notifies the user in the app / at the new address and
+always sends a security notice to the old address. Admins with `users:update` set a member's email directly
+(`changeMemberEmailAction`, GoTrue admin API after an RLS-checked lookup; only a Super Admin changes a Super Admin;
+`user.email_set_by_admin` records who). Production SMTP is configured in Supabase (Dashboard → Auth → SMTP, or
+`[auth.email.smtp]` with `env()` values and `supabase config push`); DNS steps in `docs/HANDOFF.md`.
+*Rejected*: single confirmation of the new address only (weaker against a hijacked session); sending our own
+confirmation emails instead of GoTrue's (a second token system to secure).
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

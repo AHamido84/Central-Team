@@ -11,14 +11,17 @@ import {
   KeyRound,
   ListTodo,
   Mail,
+  MailWarning,
   Megaphone,
   MessageSquare,
   Handshake,
   PlugZap,
+  RefreshCw,
   Sparkles,
   Timer,
   UserRound,
   Workflow,
+  X,
 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -37,9 +40,12 @@ import { password } from '@/lib/validation';
 import { AvatarUploader } from '@/modules/identity/components/avatar-uploader';
 import {
   changePasswordAction,
+  cancelEmailChangeAction,
   requestEmailChangeAction,
+  resendEmailChangeAction,
   updatePreferencesAction,
   updateProfileAction,
+  type EmailChangeState,
 } from '@/modules/identity/server/actions';
 import { updateNotificationPreferencesAction } from '@/modules/notifications/server/actions';
 import type { NotificationCategory } from '@/modules/notifications/types';
@@ -58,19 +64,34 @@ const profileSchema = z.object({
   avatarPath: z.string().nullable(),
 });
 
-export function ProfileSettings({ defaults, email }: { defaults: z.infer<typeof profileSchema>; email: string }) {
+export function ProfileSettings({
+  defaults,
+  email,
+  pendingEmail,
+  devMailbox,
+}: {
+  defaults: z.infer<typeof profileSchema>;
+  email: string;
+  pendingEmail: EmailChangeState;
+  devMailbox: string | null;
+}) {
   const t = useTranslations();
   const params = useSearchParams();
   const form = useForm<z.infer<typeof profileSchema>>({ resolver: zodResolver(profileSchema), defaultValues: defaults });
   const save = useAction(updateProfileAction, { successMessage: t('common.saved') });
   const [newEmail, setNewEmail] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [pending, setPending] = useState<EmailChangeState>(pendingEmail);
   const emailChange = useAction(requestEmailChangeAction, { successMessage: t('settings.emailChangeSent'), refresh: false });
+  const resend = useAction(resendEmailChangeAction, { successMessage: t('settings.emailChangeResent'), refresh: false });
+  const cancel = useAction(cancelEmailChangeAction, { successMessage: t('settings.emailChangeCancelled') });
   const pwForm = useForm<{ password: string }>({ resolver: zodResolver(z.object({ password })), defaultValues: { password: '' } });
   const pw = useAction(changePasswordAction, { successMessage: t('auth.passwordUpdated'), refresh: false });
 
   useEffect(() => {
     if (params.get('email_changed')) toast.success(t('settings.emailChanged'));
   }, [params, t]);
+  useEffect(() => setPending(pendingEmail), [pendingEmail]);
 
   const submit = form.handleSubmit(async (v) => {
     const res = await save.run({
@@ -115,8 +136,82 @@ export function ProfileSettings({ defaults, email }: { defaults: z.infer<typeof 
 
       <Card className="px-5">
         <FormSection title={t('settings.emailSection')} description={t('settings.emailSectionHint', { email })}>
-          <Field label={t('settings.newEmail')}>
-            {(p) => <Input {...p} type="email" dir="ltr" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />}
+          {pending ? (
+            <div
+              className="grid gap-3 rounded-lg border border-warning/40 bg-warning/5 p-4"
+              role="status"
+              data-testid="email-change-pending"
+            >
+              <p className="flex items-center gap-2 text-sm font-medium">
+                <MailWarning className="size-4 text-warning" aria-hidden />
+                {t('settings.emailPendingTitle')}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {t.rich(pending.confirmedOne ? 'settings.emailPendingOne' : 'settings.emailPendingBoth', {
+                  current: () => <bdi dir="ltr">{email}</bdi>,
+                  next: () => (
+                    <bdi dir="ltr" className="font-medium text-foreground" data-testid="email-change-pending-address">
+                      {pending.newEmail}
+                    </bdi>
+                  ),
+                })}
+              </p>
+              {devMailbox ? (
+                <p className="text-xs text-muted-foreground" data-testid="email-change-dev-hint">
+                  {t.rich('settings.emailDevHint', {
+                    link: (chunks) => (
+                      <a href={devMailbox} target="_blank" rel="noreferrer" className="font-medium text-primary underline">
+                        {chunks}
+                      </a>
+                    ),
+                  })}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  loading={cancel.pending}
+                  onClick={async () => {
+                    const res = await cancel.run({});
+                    if (res.ok) setPending(null);
+                  }}
+                  data-testid="email-change-cancel"
+                >
+                  <X />
+                  {t('settings.emailChangeCancel')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  loading={resend.pending}
+                  onClick={async () => {
+                    const res = await resend.run({});
+                    if (res.ok) setPending(res.data);
+                  }}
+                  data-testid="email-change-resend"
+                >
+                  <RefreshCw />
+                  {t('settings.emailChangeResend')}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+          <Field label={t('settings.newEmail')} error={emailError ?? undefined}>
+            {(p) => (
+              <Input
+                {...p}
+                type="email"
+                dir="ltr"
+                autoComplete="email"
+                value={newEmail}
+                onChange={(e) => {
+                  setNewEmail(e.target.value);
+                  setEmailError(null);
+                }}
+                data-testid="email-change-input"
+              />
+            )}
           </Field>
           <div className="flex justify-end">
             <Button
@@ -126,8 +221,17 @@ export function ProfileSettings({ defaults, email }: { defaults: z.infer<typeof 
               disabled={!newEmail}
               onClick={async () => {
                 const res = await emailChange.run({ email: newEmail });
-                if (res.ok) setNewEmail('');
+                if (res.ok) {
+                  setNewEmail('');
+                  setPending(res.data);
+                } else
+                  setEmailError(
+                    res.error.fieldErrors?.email?.[0]
+                      ? t(`validation.${res.error.fieldErrors.email[0] as 'invalid_email'}`)
+                      : t(`errors.${res.error.code}`),
+                  );
               }}
+              data-testid="email-change-submit"
             >
               <Mail />
               {t('settings.sendConfirmation')}

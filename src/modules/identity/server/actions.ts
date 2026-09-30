@@ -1,6 +1,6 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 
@@ -15,6 +15,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { PUBLIC_ASSETS_BUCKET, storagePaths } from '@/lib/storage';
 import { localeSchema, optionalPhone, requiredText } from '@/lib/validation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { emailChangeFailure } from '@/modules/identity/server/email-change';
 
 const cookieOptions = { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' as const };
 
@@ -185,20 +186,79 @@ export const updatePreferencesAction = defineAction({
   revalidate: ['/'],
 });
 
-const emailChangeSchema = z.object({ email: z.email({ message: 'invalid_email' }).trim().toLowerCase() });
+const emailChangeSchema = z.object({ email: z.email({ message: 'invalid_email' }).trim().toLowerCase().max(254) });
 
-/** Starts Supabase's secure email change; the new address must be confirmed from the emailed link. */
-export async function requestEmailChangeAction(input: z.input<typeof emailChangeSchema>): Promise<ActionResult<null>> {
-  const parsed = emailChangeSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: { code: 'validation', fieldErrors: { email: ['invalid_email'] } } };
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.updateUser(
-    { email: parsed.data.email },
-    { emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/confirm` },
-  );
-  if (error) return { ok: false, error: { code: error.status === 429 ? 'rate_limited' : 'conflict' } };
-  return { ok: true, data: null };
-}
+const emailRedirect = () => `${process.env.NEXT_PUBLIC_APP_URL}/auth/confirm`;
+
+export type EmailChangeState = { newEmail: string; sentAt: string | null; confirmedOne: boolean } | null;
+
+/**
+ * Starts Supabase's secure email change: with double confirmation (ADR-087) GoTrue emails a link to the current and to
+ * the new address; the change completes when both are opened. The call runs after the (empty) transaction so a slow
+ * mail server never holds it open.
+ */
+export const requestEmailChangeAction = defineAction({
+  input: emailChangeSchema,
+  side: 'any',
+  rateLimit: { key: 'email_change', max: 5, windowSeconds: 600 },
+  async handler({ input, ctx }) {
+    if (input.email === ctx.profile.email.toLowerCase()) throw new ActionFailure('email_same');
+    return input.email;
+  },
+  async complete({ prepared, ctx }) {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.auth.updateUser({ email: prepared }, { emailRedirectTo: emailRedirect() });
+    if (error) throw emailChangeFailure(error);
+    await withRls((tx) =>
+      emitEvent(tx, {
+        type: 'user.email_change_requested',
+        organizationId: ctx.organization.id,
+        actorId: ctx.session.userId,
+        aggregate: { type: 'user', id: ctx.session.userId },
+        payload: { userId: ctx.session.userId, to: prepared },
+      }),
+    );
+    return { newEmail: prepared, sentAt: new Date().toISOString(), confirmedOne: false } satisfies EmailChangeState;
+  },
+});
+
+/** Sends both confirmation emails again for the pending change. */
+export const resendEmailChangeAction = defineAction({
+  input: z.object({}),
+  side: 'any',
+  rateLimit: { key: 'email_change', max: 5, windowSeconds: 600 },
+  async handler({ tx }) {
+    const [row] = await tx.execute<{ new_email: string | null }>(sql`select new_email from app.my_email_change()`);
+    if (!row?.new_email) throw new ActionFailure('email_change_not_pending');
+    return row.new_email;
+  },
+  async complete({ prepared }) {
+    const supabase = await createSupabaseServerClient();
+    // Re-requesting the same change issues fresh links to both addresses (resend() only covers the new one).
+    const { error } = await supabase.auth.updateUser({ email: prepared }, { emailRedirectTo: emailRedirect() });
+    if (error) throw emailChangeFailure(error);
+    return { newEmail: prepared, sentAt: new Date().toISOString(), confirmedOne: false } satisfies EmailChangeState;
+  },
+});
+
+/** Cancels the pending change: both emailed links stop working. */
+export const cancelEmailChangeAction = defineAction({
+  input: z.object({}),
+  side: 'any',
+  async handler({ tx, ctx }) {
+    const [row] = await tx.execute<{ ok: boolean }>(sql`select app.cancel_my_email_change() as ok`);
+    if (!row?.ok) throw new ActionFailure('email_change_not_pending');
+    await emitEvent(tx, {
+      type: 'user.email_change_cancelled',
+      organizationId: ctx.organization.id,
+      actorId: ctx.session.userId,
+      aggregate: { type: 'user', id: ctx.session.userId },
+      payload: { userId: ctx.session.userId },
+    });
+    return null;
+  },
+  revalidate: ['/settings/profile', '/portal/settings/profile'],
+});
 
 const passwordSchema = z.object({
   password: z

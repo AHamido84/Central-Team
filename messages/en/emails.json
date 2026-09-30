@@ -7,5 +7,10 @@
   "invitePortalHeading": "Your {client} portal is ready",
   "invitePortalBody": "{inviter} from {org} invited you to the client portal to follow files, messages and updates.",
   "inviteCta": "Accept invitation",
-  "inviteNote": "This invitation expires in {days} days. If you weren't expecting it, you can ignore it."
+  "inviteNote": "This invitation expires in {days} days. If you weren't expecting it, you can ignore it.",
+  "emailChangedSubject": "Your sign-in email was changed",
+  "emailChangedHeading": "Your sign-in email was changed",
+  "emailChangedBody": "The email for your account changed from {from} to {to}. Emails will go to the new address from now on.",
+  "emailChangedNote": "If you didn't make or expect this change, contact your administrator right away.",
+  "emailChangedCta": "Open Central"
 }

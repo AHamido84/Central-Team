@@ -10,6 +10,11 @@ export type DomainEventPayloads = {
   'invitation.accepted': { email: string; userId: string; userType: 'agency' | 'client' };
   'user.onboarded': { userId: string };
   'user.profile_updated': { userId: string; fields: string[] };
+  'user.email_change_requested': { userId: string; to: string };
+  'user.email_change_cancelled': { userId: string };
+  /** Emitted by the auth.users trigger when an email change completes (self-service or admin). */
+  'user.email_changed': { userId: string; from: string; to: string };
+  'user.email_set_by_admin': { userId: string; from: string; to: string };
   'user.deactivated': { userId: string };
   'user.reactivated': { userId: string };
   // RBAC

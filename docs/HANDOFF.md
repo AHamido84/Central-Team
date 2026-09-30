@@ -159,6 +159,32 @@ How it works:
   sandbox, so DB changes only happen through the Vercel build. The site answers `curl`, but headless Chromium can't
   load its scripts through the sandbox proxy (forms submit as plain HTML), so check the logged-in UI from a real browser.
 
+## Email delivery (auth emails and app emails)
+
+Two senders: **Supabase Auth** sends magic links, password resets and email-change confirmations; the **app** sends its
+own notifications through `EMAIL_PROVIDER` (Resend in production). Locally both land in Mailpit
+(http://localhost:54324).
+
+For production (Supabase Cloud + Vercel):
+1. **Supabase → Authentication → SMTP Settings**: enable custom SMTP (e.g. Resend: host `smtp.resend.com`, port 465 or
+   587, user `resend`, password = a Resend API key, sender `no-reply@<domain>`). Without it Supabase only emails the
+   project's team members, a few per hour — every other user gets nothing (the FR1.7 bug). Raise the email rate limit
+   under Authentication → Rate Limits afterwards.
+2. **Authentication → URL Configuration**: Site URL = the app URL (custom domain), redirect URLs = `<app>/**`.
+3. **Authentication → Email Templates**: paste `supabase/templates/*.html` (they link to `/auth/confirm?token_hash=…`;
+   the default templates also work through the PKCE `code` path). **Sign In / Providers → Email**: keep "Confirm email"
+   and "Secure email change" on (ADR-087).
+4. **DNS for the sending domain** (at the domain's DNS host; Resend shows the exact values under Domains):
+   - SPF: TXT on the sending (sub)domain, e.g. `send.<domain>` → `v=spf1 include:amazonses.com ~all` (Resend's value);
+     keep **one** SPF record per name — merge includes if one exists.
+   - DKIM: the TXT record `resend._domainkey.<domain>` with the public key Resend gives.
+   - Return-path / bounce: the MX record Resend lists for `send.<domain>`.
+   - DMARC: TXT `_dmarc.<domain>` → `v=DMARC1; p=none; rua=mailto:dmarc@<domain>` to start; move to `p=quarantine` once
+     reports are clean.
+   Wait for "Verified" in Resend, then set `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `EMAIL_FROM` on Vercel for the
+   app's own emails (same domain).
+5. Test: change an account's email to a real inbox from Settings → Profile; both addresses receive a link.
+
 ## Open items (need the owner)
 
 - Vercel's **production branch** setting still says `claude/modest-faraday-3u6pzy`; point it at this branch or `main`

@@ -691,3 +691,14 @@ Focused improvements on Phases 0–8 — no new phase. Each item extends the exi
   cancel, dev-only Mailpit link, a completable double confirmation, an admin "change email" in the user drawer
   (audited), proper success / error landing, `profiles.email` sync + notification, SMTP config via env and the DNS
   steps in HANDOFF. Playwright: both confirmations via Mailpit → log in with the new address, plus error cases.
+
+**Status**
+- [x] Root causes found (ADR-087): Cloud mailer without SMTP, auto-confirm ignoring double confirmation, a premature
+  "confirmed" toast, agency-only link path, every error shown as "conflict"
+- [x] `enable_confirmations = true`; `/auth/confirm` → `/email-change` landing (pending / done / invalid), PKCE links too
+- [x] Specific errors; pending state with Resend / Cancel; dev-only Mailpit hint
+- [x] Admin "Change email" in the member sheet (`users:update`, Super Admin protected), audited
+- [x] `user.email_changed` from the `auth.users` trigger; in-app + new-address notification and an old-address notice
+- [x] SMTP via env (`config.toml`), Supabase Cloud settings and SPF / DKIM / DMARC steps in HANDOFF
+- [x] Tests: `tests/unit/email-change.test.ts`, `tests/db/email-change.test.ts`, `e2e/email-change.spec.ts`
+- [ ] Deferred: admin email change for client (portal) users — they are changed through their own profile for now

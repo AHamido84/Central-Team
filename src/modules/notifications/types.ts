@@ -18,6 +18,7 @@ export type NotificationCategory = (typeof notificationCategories)[number];
 export const notificationTypes = {
   invitation_accepted: 'account',
   roles_changed: 'account',
+  email_changed: 'account',
   message_new: 'messages',
   mention: 'messages',
   file_shared: 'files',

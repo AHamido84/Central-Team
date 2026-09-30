@@ -73,5 +73,10 @@
   "invalid_password": "That password isn't right.",
   "confirmation_mismatch": "The confirmation text doesn't match.",
   "field_forbidden": "You can't change this field on this task. Account managers, team leads and admins can; you can update the status and checklist of tasks assigned to you.",
-  "ai_key_invalid": "The provider rejected this API key. Check it and try again."
+  "ai_key_invalid": "The provider rejected this API key. Check it and try again.",
+  "email_in_use": "Another account already uses this email.",
+  "email_invalid": "This email address can't receive mail. Check it and try again.",
+  "email_same": "That's already your email.",
+  "email_send_failed": "The confirmation email couldn't be sent (mail server error). Try again later or contact your administrator.",
+  "email_change_not_pending": "There's no pending email change."
 }

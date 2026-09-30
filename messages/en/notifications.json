@@ -173,6 +173,10 @@
     "integration_expiring": {
       "title": "A connected account expires soon",
       "body": "Your {provider} connection “⁨{name}⁩” expires on {date}. Paste a new token in My connected accounts."
+    },
+    "email_changed": {
+      "title": "Your email changed",
+      "body": "Your sign-in email changed from {from} to {to}."
     }
   }
 }

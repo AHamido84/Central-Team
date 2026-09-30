@@ -956,7 +956,7 @@ members, open tasks, workflow steps and pending invitations to another departmen
 `app.audit_skip` suppresses per-row audit writes during the wipe; one `activity_log` entry (`data_reset`) is written after
 it, so it survives. Storage objects are listed first (`app.data_reset_paths`) and removed after the transaction commits.
 
-## 3k. Feedback Round 1 — AI keys, task permissions, personal connections
+## 3k. Feedback Round 1 — AI keys, task permissions, personal connections, email change
 
 | Table | Purpose |
 |---|---|
@@ -969,6 +969,10 @@ triggers on `tasks`, `task_members`, `task_dependencies`, `task_attachments`, `t
 Personal connections (ADR-086) reuse `integration_connections` with `owner_id` set (and `expiry_notified_for` for the
 7-day warning). New permission `integrations:connect` (Super Admin, Admin, Account Manager, Team Lead, Specialist);
 `app.owns_connection(connection)` backs the owner policies on connections, accounts and campaign links.
+
+Email change (ADR-087) adds no table: `app.my_email_change()` / `app.cancel_my_email_change()` read and clear the
+caller's own pending change in `auth.users`; the `auth.users` email trigger also records `user.email_changed` (one row
+per organization of the user) next to the existing `profiles.email` sync.
 
 ## 4. Forward-looking sketch (all phases — not built in Phase 0)
 

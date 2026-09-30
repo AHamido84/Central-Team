@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Mail,
   FileUp,
   MessageSquare,
   AtSign,
@@ -49,6 +50,7 @@ import type { NotificationItem, NotificationType } from '@/modules/notifications
 const typeIcon: Record<NotificationType, typeof Bell> = {
   invitation_accepted: UserCheck,
   roles_changed: ShieldCheck,
+  email_changed: Mail,
   message_new: MessageSquare,
   mention: AtSign,
   file_shared: FileUp,
