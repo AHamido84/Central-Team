@@ -200,14 +200,16 @@ async function processStatus(event: typeof integrationWebhookEvents.$inferSelect
   await serviceTx(null, async (tx) => {
     const [msg] = await tx.select().from(whatsappMessages).where(eq(whatsappMessages.externalId, item.messageId)).for('update');
     if (!msg || msg.organizationId !== event.organizationId) return;
+    // Items come back from the jsonb payload, so the timestamp is an ISO string here.
+    const at = new Date(item.at);
     const stamp =
       item.status === 'delivered'
-        ? { deliveredAt: item.at }
+        ? { deliveredAt: at }
         : item.status === 'read'
-          ? { readAt: item.at, deliveredAt: msg.deliveredAt ?? item.at }
+          ? { readAt: at, deliveredAt: msg.deliveredAt ?? at }
           : item.status === 'failed'
-            ? { failedAt: item.at }
-            : { sentAt: msg.sentAt ?? item.at };
+            ? { failedAt: at }
+            : { sentAt: msg.sentAt ?? at };
     await tx
       .update(whatsappMessages)
       .set({

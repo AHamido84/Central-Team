@@ -20,7 +20,8 @@ export type WebhookItem =
       route: { kind: 'whatsapp_number'; externalId: string };
       messageId: string;
       status: Exclude<MessageStatus, 'queued'>;
-      at: Date;
+      /** ISO time (items are stored as jsonb and processed later). */
+      at: string;
       errorCode: string | null;
       errorTitle: string | null;
     }
@@ -78,7 +79,7 @@ function parseMetaEnvelope(body: Obj): WebhookItem[] {
             route: { kind: 'whatsapp_number', externalId: numberId },
             messageId: id,
             status: status as Exclude<MessageStatus, 'queued'>,
-            at: Number.isFinite(ts) && ts > 0 ? new Date(ts * 1000) : new Date(),
+            at: (Number.isFinite(ts) && ts > 0 ? new Date(ts * 1000) : new Date()).toISOString(),
             errorCode: str(error.code),
             errorTitle: str(error.title) ?? str(error.message),
           });
