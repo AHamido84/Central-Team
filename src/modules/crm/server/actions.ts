@@ -532,7 +532,11 @@ export const saveActivityAction = defineAction({
     if (input.activityId) {
       const [row] = await tx
         .update(crmActivities)
-        .set(values)
+        .set({
+          ...values,
+          // A rescheduled follow-up gets its reminder again.
+          remindedAt: sql`case when ${crmActivities.dueAt} is not distinct from ${input.dueAt}::timestamptz then ${crmActivities.remindedAt} end`,
+        })
         .where(and(eq(crmActivities.id, input.activityId), eq(crmActivities.organizationId, ctx.organization.id)))
         .returning({ id: crmActivities.id, leadId: crmActivities.leadId, dealId: crmActivities.dealId });
       if (!row) throw new ActionFailure('forbidden');

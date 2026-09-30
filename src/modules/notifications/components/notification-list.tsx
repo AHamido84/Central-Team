@@ -26,6 +26,9 @@ import {
   ChartNoAxesColumn,
   FileChartColumn,
   FilePen,
+  Hourglass,
+  Trophy,
+  UserPlus,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -64,6 +67,10 @@ const typeIcon: Record<NotificationType, typeof Bell> = {
   report_ready: FilePen,
   sla_at_risk: Timer,
   sla_breached: Siren,
+  lead_assigned: UserPlus,
+  crm_followup_due: CalendarClock,
+  deal_stale: Hourglass,
+  deal_won: Trophy,
 };
 
 export function NotificationRow({

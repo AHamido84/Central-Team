@@ -2,6 +2,7 @@ import 'server-only';
 
 import type { Consumer } from '@/lib/events/dispatcher';
 import { campaignNotifications } from '@/modules/campaigns/server/consumers';
+import { crmNotifications } from '@/modules/crm/server/consumers';
 import { deliverableNotifications } from '@/modules/deliverables/server/consumers';
 import { fileNotifications } from '@/modules/files/server/consumers';
 import { invitationNotifications } from '@/modules/invitations/server/consumers';
@@ -25,4 +26,5 @@ export const consumers: readonly Consumer[] = [
   deliverableNotifications,
   campaignNotifications,
   slaNotifications,
+  crmNotifications,
 ];

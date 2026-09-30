@@ -121,6 +121,22 @@
     "sla_breached": {
       "title": "تجاوز مستوى الخدمة في {reference}",
       "body": "{kind, select, response {الرد الأول} other {التسليم}} على «⁨{title}⁩» ({client}) تجاوز الموعد المستهدف."
+    },
+    "lead_assigned": {
+      "title": "عميل محتمل جديد: {name}",
+      "body": "تم إسناد {reference} إليك."
+    },
+    "crm_followup_due": {
+      "title": "متابعة مستحقة: {subject}",
+      "body": "مجدولة على “⁨{parent}⁩”."
+    },
+    "deal_stale": {
+      "title": "لا نشاط على {reference}",
+      "body": "لا يوجد نشاط على “⁨{title}⁩” منذ {days, plural, one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}."
+    },
+    "deal_won": {
+      "title": "صفقة مكسوبة: {title}",
+      "body": "أُغلقت {reference} بقيمة {valueSar} ريال."
     }
   }
 }

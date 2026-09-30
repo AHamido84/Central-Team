@@ -54,6 +54,10 @@
     "sla": {
       "title": "SLA alerts",
       "body": "Requests close to or past their response and delivery targets."
+    },
+    "sales": {
+      "title": "Sales",
+      "body": "New leads assigned to you, follow-ups due, quiet deals and won deals."
     }
   }
 }

@@ -121,6 +121,22 @@
     "sla_breached": {
       "title": "SLA breached on {reference}",
       "body": "{kind, select, response {The first reply} other {Delivery}} for “⁨{title}⁩” ({client}) is past its target."
+    },
+    "lead_assigned": {
+      "title": "New lead: {name}",
+      "body": "{reference} was assigned to you."
+    },
+    "crm_followup_due": {
+      "title": "Follow-up due: {subject}",
+      "body": "Scheduled on “⁨{parent}⁩”."
+    },
+    "deal_stale": {
+      "title": "{reference} has gone quiet",
+      "body": "No activity on “⁨{title}⁩” for {days, plural, one {# day} other {# days}}."
+    },
+    "deal_won": {
+      "title": "Deal won: {title}",
+      "body": "{reference} closed for {valueSar} SAR."
     }
   }
 }

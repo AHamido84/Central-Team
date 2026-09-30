@@ -281,7 +281,11 @@
     "to": "Prepared for",
     "preparedBy": "Prepared by",
     "valid": "Valid until {date}",
-    "vatNote": "Prices exclude VAT unless stated otherwise."
+    "vatNote": "Prices exclude VAT unless stated otherwise.",
+    "insert": "Add",
+    "deleteConfirm": "Delete the draft “⁨{title}⁩”?",
+    "unitPriceShort": "Unit price",
+    "discountShort": "Discount"
   },
   "activities": {
     "title": "Activities",

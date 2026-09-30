@@ -84,7 +84,7 @@ export async function NotificationSettingsPage({ base }: { base: Base }) {
   );
   const categories =
     ctx.side === 'client'
-      ? notificationCategories.filter((c) => c !== 'account' && c !== 'tasks' && c !== 'sla')
+      ? notificationCategories.filter((c) => c !== 'account' && c !== 'tasks' && c !== 'sla' && c !== 'sales')
       : notificationCategories.filter((c) => c !== 'approvals');
   return (
     <Shell base={base}>

@@ -13,6 +13,7 @@ import {
   Mail,
   Megaphone,
   MessageSquare,
+  Handshake,
   Timer,
   UserRound,
 } from 'lucide-react';
@@ -240,6 +241,7 @@ const categoryIcon: Record<NotificationCategory, typeof Bell> = {
   approvals: CheckCheck,
   campaigns: Megaphone,
   sla: Timer,
+  sales: Handshake,
 };
 
 export function NotificationSettings({ defaults }: { defaults: { category: NotificationCategory; inApp: boolean; email: boolean }[] }) {

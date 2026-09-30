@@ -65,6 +65,8 @@ export type CrmOptions = {
   agencyPeople: { id: string; name: string }[];
   packages: { id: string; name: LocalizedText; priceMinor: number | null; items: { itemType: string; quantity: number }[] }[];
   pipelines: PipelineWithStages[];
+  staleDays: number;
+  onboardingReady: boolean;
 };
 
 export type PipelineWithStages = {
@@ -106,6 +108,7 @@ export async function getCrmOptions(ctx: AgencyContext): Promise<CrmOptions> {
       .where(and(eq(packages.organizationId, orgId), eq(packages.isActive, true)))
       .orderBy(asc(packages.priceMinor));
     const items = await tx.select().from(packageItems).where(eq(packageItems.organizationId, orgId)).orderBy(asc(packageItems.sortOrder));
+    const [settings] = await tx.select().from(crmSettings).where(eq(crmSettings.organizationId, orgId));
     return {
       owners: [...owners],
       agencyPeople: [...people],
@@ -114,6 +117,8 @@ export async function getCrmOptions(ctx: AgencyContext): Promise<CrmOptions> {
         items: items.filter((i) => i.packageId === p.id).map((i) => ({ itemType: i.itemType, quantity: i.quantity })),
       })),
       pipelines: await listPipelinesTx(tx, orgId),
+      staleDays: settings?.staleDays ?? 7,
+      onboardingReady: Boolean(settings?.onboardingRequestTypeId && settings.onboardingTemplateId),
     };
   });
 }
@@ -568,7 +573,7 @@ export async function getQuote(ctx: AgencyContext, quoteId: string): Promise<Quo
 export type FollowUp = ActivityItem & { parentTitle: string; parentRef: string; href: string };
 
 /** Open activities with a due date: mine, or everyone's with `crm:manage_all` and `all`. */
-export async function listFollowUps(ctx: AgencyContext, scope: 'mine' | 'all'): Promise<{ items: FollowUp[]; today: string }> {
+export async function listFollowUps(ctx: AgencyContext, scope: 'mine' | 'all'): Promise<{ items: FollowUp[]; today: string; now: string }> {
   const everyone = scope === 'all' && can(ctx.permissions, 'crm:manage_all');
   return withRls(async (tx) => {
     const rows = await tx
@@ -595,6 +600,7 @@ export async function listFollowUps(ctx: AgencyContext, scope: 'mine' | 'all'): 
     const people = await peopleById(tx, [...rows.map((r) => r.a.ownerId), ...rows.map((r) => r.a.createdBy)]);
     return {
       today: dayInZone(new Date(), ctx.profile.timezone),
+      now: new Date().toISOString(),
       items: rows.map(({ a, leadNumber, leadName, dealNumber, dealTitle }) => ({
         id: a.id,
         leadId: a.leadId,
