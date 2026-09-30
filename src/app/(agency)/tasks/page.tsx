@@ -9,7 +9,7 @@ import { listAgencyPeople, listClients } from '@/modules/clients/server/queries'
 import { listDepartments } from '@/modules/rbac/server/queries';
 import { TasksWorkspace } from '@/modules/tasks/components/tasks-workspace';
 import { dayInZone, taskLayouts, type TaskLayout } from '@/modules/tasks/constants';
-import { getRunningTimer, listSavedViews, listTasks } from '@/modules/tasks/server/queries';
+import { getRunningTimer, getTaskEditContext, listSavedViews, listTasks } from '@/modules/tasks/server/queries';
 import { listTaskStatuses } from '@/modules/workflows/server/queries';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -32,6 +32,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     listSavedViews(me),
     getRunningTimer(me),
   ]);
+  const edit = await getTaskEditContext(ctx.organization.id, me);
   return (
     <>
       <PageHeader title={t('title')} description={t('description')} />
@@ -50,6 +51,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
           canUpdate: can(ctx.permissions, 'tasks:update'),
           canDelete: can(ctx.permissions, 'tasks:delete'),
           canManageDeliverables: can(ctx.permissions, 'deliverables:manage'),
+          edit,
         }}
         initialLayout={taskLayouts.includes(layout as TaskLayout) ? (layout as TaskLayout) : 'board'}
         initialViewId={view ?? null}

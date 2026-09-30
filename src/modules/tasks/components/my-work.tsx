@@ -12,6 +12,7 @@ import { useAction } from '@/lib/actions/use-action';
 import type { LocalizedText } from '@/lib/i18n/localized';
 import { DeliverableCard } from '@/modules/deliverables/components/deliverables-list';
 import type { DeliverableSummary } from '@/modules/deliverables/server/queries';
+import type { TaskEditContext } from '@/modules/tasks/access';
 import { TaskRef, type StatusOption } from '@/modules/tasks/components/badges';
 import type { PersonOption } from '@/modules/tasks/components/people-picker';
 import { TaskCard } from '@/modules/tasks/components/task-card';
@@ -50,7 +51,7 @@ export function MyWork({
   me: string;
   today: string;
   timer: RunningTimer;
-  perms: { canCreate: boolean; canUpdate: boolean; canDelete: boolean; canManageDeliverables: boolean };
+  perms: { canCreate: boolean; canUpdate: boolean; canDelete: boolean; canManageDeliverables: boolean; edit: TaskEditContext };
 }) {
   const t = useTranslations('tasks.myWork');
   const f = useFormat();

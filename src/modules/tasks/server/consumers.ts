@@ -32,12 +32,12 @@ async function load(taskId: string, actorId: string | null) {
 }
 
 /**
- * Task events → notifications (ADR-028): assigned, ready for review (manual move to a review status), unblocked
+ * Task events → notifications (ADR-028): assigned, made reviewer or watcher (FR1.4), ready for review (manual move to a review status), unblocked
  * (every blocker of a dependent task is done → its assignees), due soon and overdue (from the reminder sweep).
  */
 export const taskNotifications = defineConsumer({
   name: 'notifications.tasks',
-  types: ['task.assigned', 'task.status_changed', 'task.due_soon', 'task.overdue'],
+  types: ['task.assigned', 'task.reviewer_assigned', 'task.watchers_added', 'task.status_changed', 'task.due_soon', 'task.overdue'],
   async handle(event) {
     const ctx = await load(event.payload.taskId, event.actorId);
     if (!ctx) return;
@@ -45,6 +45,12 @@ export const taskNotifications = defineConsumer({
     switch (event.type) {
       case 'task.assigned':
         await notify({ ...base, userIds: event.payload.userIds, type: 'task_assigned', params: ctx.params, link: ctx.link });
+        return;
+      case 'task.reviewer_assigned':
+        await notify({ ...base, userIds: [event.payload.userId], type: 'task_reviewer_assigned', params: ctx.params, link: ctx.link });
+        return;
+      case 'task.watchers_added':
+        await notify({ ...base, userIds: event.payload.userIds, type: 'task_watching', params: ctx.params, link: ctx.link });
         return;
       case 'task.due_soon':
         await notify({ ...base, userIds: ctx.assignees, type: 'task_due_soon', params: ctx.params, link: ctx.link });

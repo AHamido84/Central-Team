@@ -11,6 +11,7 @@ import {
   GitBranch,
   Keyboard,
   Link2,
+  History,
   Lock,
   MessageSquare,
   Paperclip,
@@ -30,7 +31,18 @@ import { useFormat } from '@/components/providers';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { ConfirmDialog, Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/overlays';
-import { Avatar, Badge, Checkbox, Kbd, NativeSelect, Popover, PopoverContent, PopoverTrigger, Skeleton } from '@/components/ui/primitives';
+import {
+  Avatar,
+  Badge,
+  Checkbox,
+  Kbd,
+  NativeSelect,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Skeleton,
+  Tooltip,
+} from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
 import { localized, type Locale } from '@/lib/i18n/localized';
 import { acceptAttribute, publicAssetUrl } from '@/lib/storage';
@@ -43,6 +55,8 @@ import { useUpload } from '@/modules/files/components/use-upload';
 import type { FileItem } from '@/modules/files/server/queries';
 import { Conversation } from '@/modules/messaging/components/conversation';
 import { FormattedText } from '@/modules/requests/components/brief-fields';
+import { taskAccess, type TaskAccess, type TaskEditContext } from '@/modules/tasks/access';
+import { TaskHistory } from '@/modules/tasks/components/task-history';
 import { categoryIcon, DueDate, TaskRef, TaskStatusBadge, useDuration, type StatusOption } from '@/modules/tasks/components/badges';
 import { PeoplePicker, type PersonOption } from '@/modules/tasks/components/people-picker';
 import { useTaskDetail } from '@/modules/tasks/components/use-tasks';
@@ -75,6 +89,8 @@ export type DrawerContext = {
   canDelete: boolean;
   canCreate: boolean;
   canManageDeliverables: boolean;
+  /** Per-field edit rule (ADR-084); `canUpdate` above is narrowed per task from it. */
+  edit: TaskEditContext;
   timer: RunningTimer;
   onTimerChange: (timer: RunningTimer) => void;
   onPatch: (taskId: string, patch: TaskPatch) => Promise<boolean>;
@@ -106,10 +122,23 @@ function Section({
   );
 }
 
-function Prop({ label, children }: { label: string; children: ReactNode }) {
+function Prop({ label, children, locked }: { label: string; children: ReactNode; locked?: string | null }) {
   return (
-    <div className="grid grid-cols-[7rem_minmax(0,1fr)] items-center gap-2 text-sm">
-      <span className="text-muted-foreground">{label}</span>
+    <div className="grid grid-cols-[7rem_minmax(0,1fr)] items-center gap-2 text-sm" data-locked={locked ? true : undefined}>
+      <span className="flex items-center gap-1 text-muted-foreground">
+        {label}
+        {locked ? (
+          <Tooltip content={locked}>
+            <span
+              tabIndex={0}
+              className="rounded focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              data-testid="field-locked"
+            >
+              <Lock className="size-3 text-subtle-foreground" aria-label={locked} />
+            </span>
+          </Tooltip>
+        ) : null}
+      </span>
       <div className="min-w-0">{children}</div>
     </div>
   );
@@ -976,6 +1005,12 @@ export function TaskDrawer({
   const t = useTranslations();
   const locale = useLocale() as Locale;
   const { data: task, isLoading, isError } = useTaskDetail(taskId);
+  // Full access edits every field; limited (your own task) only the status and the checklist (ADR-084).
+  const access: TaskAccess = task ? taskAccess(task, ctx.edit) : 'none';
+  const baseCtx = ctx;
+  const full = useMemo(() => ({ ...baseCtx, canUpdate: access === 'full' }), [baseCtx, access]);
+  const own = useMemo(() => ({ ...baseCtx, canUpdate: access !== 'none' }), [baseCtx, access]);
+  const locked = access === 'full' ? null : access === 'limited' ? t('tasks.access.limited') : t('tasks.access.none');
   const setMembers = useAction(setTaskMembersAction, { refresh: false });
   const [deleting, setDeleting] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -1020,11 +1055,11 @@ export function TaskDrawer({
 
   const toggleDone = useMemo(
     () => () => {
-      if (!task || !ctx.canUpdate) return;
+      if (!task || access === 'none') return;
       const target = task.statusCategory === 'done' ? reopenStatus : doneStatus;
       if (target) void ctx.onPatch(task.id, { statusId: target.id });
     },
-    [task, ctx, doneStatus, reopenStatus],
+    [task, ctx, access, doneStatus, reopenStatus],
   );
 
   useEffect(() => {
@@ -1108,14 +1143,14 @@ export function TaskDrawer({
                 </div>
                 <SheetTitle asChild>
                   <div>
-                    <TitleEditor key={task.id} task={task} ctx={ctx} editing={editingTitle} setEditing={setEditingTitle} />
+                    <TitleEditor key={task.id} task={task} ctx={full} editing={editingTitle} setEditing={setEditingTitle} />
                   </div>
                 </SheetTitle>
                 <SheetDescription className="sr-only">{localized(task.clientName, locale)}</SheetDescription>
                 <div className="flex flex-wrap items-center gap-2">
                   <NativeSelect
                     value={task.statusId}
-                    disabled={!ctx.canUpdate}
+                    disabled={!own.canUpdate}
                     onChange={(e) => void ctx.onPatch(task.id, { statusId: e.target.value })}
                     aria-label={t('tasks.fields.status')}
                     className="h-8 w-auto text-sm"
@@ -1129,7 +1164,7 @@ export function TaskDrawer({
                   </NativeSelect>
                   <NativeSelect
                     value={task.priority}
-                    disabled={!ctx.canUpdate}
+                    disabled={!full.canUpdate}
                     onChange={(e) => void ctx.onPatch(task.id, { priority: e.target.value as TaskPriority })}
                     aria-label={t('tasks.fields.priority')}
                     className="h-8 w-auto text-sm"
@@ -1184,39 +1219,39 @@ export function TaskDrawer({
                 <Prop label={t('tasks.fields.client')}>
                   <span className="truncate">{localized(task.clientName, locale)}</span>
                 </Prop>
-                <Prop label={t('tasks.fields.assignees')}>
+                <Prop label={t('tasks.fields.assignees')} locked={locked}>
                   <PeoplePicker
                     people={ctx.people}
                     value={task.assignees.map((a) => a.id)}
                     onChange={members('assignee')}
                     label={t('tasks.fields.assignees')}
-                    disabled={!ctx.canUpdate}
+                    disabled={!full.canUpdate}
                     testId="drawer-assignees"
                   />
                 </Prop>
-                <Prop label={t('tasks.fields.reviewer')}>
+                <Prop label={t('tasks.fields.reviewer')} locked={locked}>
                   <PeoplePicker
                     people={ctx.people}
                     value={task.reviewer ? [task.reviewer.id] : []}
                     single
                     onChange={(ids) => void ctx.onPatch(task.id, { reviewerId: ids[0] ?? null }).then(() => ctx.onRefresh(task.id))}
                     label={t('tasks.fields.reviewer')}
-                    disabled={!ctx.canUpdate}
+                    disabled={!full.canUpdate}
                   />
                 </Prop>
-                <Prop label={t('tasks.fields.watchers')}>
+                <Prop label={t('tasks.fields.watchers')} locked={locked}>
                   <PeoplePicker
                     people={ctx.people}
                     value={task.watchers.map((a) => a.id)}
                     onChange={members('watcher')}
                     label={t('tasks.fields.watchers')}
-                    disabled={!ctx.canUpdate}
+                    disabled={!full.canUpdate}
                   />
                 </Prop>
-                <Prop label={t('tasks.fields.department')}>
+                <Prop label={t('tasks.fields.department')} locked={locked}>
                   <NativeSelect
                     value={task.departmentId ?? ''}
-                    disabled={!ctx.canUpdate}
+                    disabled={!full.canUpdate}
                     onChange={(e) => void ctx.onPatch(task.id, { departmentId: e.target.value || null })}
                     aria-label={t('tasks.fields.department')}
                     className="h-8"
@@ -1229,14 +1264,14 @@ export function TaskDrawer({
                     ))}
                   </NativeSelect>
                 </Prop>
-                <Prop label={t('tasks.fields.dates')}>
+                <Prop label={t('tasks.fields.dates')} locked={locked}>
                   <div className="flex flex-wrap items-center gap-2">
                     <Input
                       type="date"
                       dir="ltr"
                       value={task.startDate ?? ''}
                       max={task.dueDate ?? undefined}
-                      disabled={!ctx.canUpdate}
+                      disabled={!full.canUpdate}
                       onChange={(e) => void ctx.onPatch(task.id, { startDate: e.target.value || null })}
                       aria-label={t('tasks.fields.startDate')}
                       className="h-8 w-36"
@@ -1247,7 +1282,7 @@ export function TaskDrawer({
                       dir="ltr"
                       value={task.dueDate ?? ''}
                       min={task.startDate ?? undefined}
-                      disabled={!ctx.canUpdate}
+                      disabled={!full.canUpdate}
                       onChange={(e) => void ctx.onPatch(task.id, { dueDate: e.target.value || null })}
                       aria-label={t('tasks.fields.dueDate')}
                       className="h-8 w-36"
@@ -1256,7 +1291,7 @@ export function TaskDrawer({
                     <DueDate date={task.dueDate} done={task.statusCategory === 'done'} today={ctx.today} />
                   </div>
                 </Prop>
-                <Prop label={t('tasks.fields.estimate')}>
+                <Prop label={t('tasks.fields.estimate')} locked={locked}>
                   <div className="flex items-center gap-2">
                     <Input
                       type="number"
@@ -1265,7 +1300,7 @@ export function TaskDrawer({
                       step={15}
                       defaultValue={task.estimateMinutes ?? ''}
                       key={`${task.id}-${task.estimateMinutes}`}
-                      disabled={!ctx.canUpdate}
+                      disabled={!full.canUpdate}
                       onBlur={(e) => {
                         const v = e.target.value === '' ? null : Math.max(0, Math.round(Number(e.target.value)));
                         if (v !== task.estimateMinutes) void ctx.onPatch(task.id, { estimateMinutes: v });
@@ -1276,22 +1311,32 @@ export function TaskDrawer({
                     <span className="text-xs text-muted-foreground">{t('tasks.time.minutesUnit')}</span>
                   </div>
                 </Prop>
-                <Prop label={t('tasks.fields.tags')}>
-                  <Tags task={task} ctx={ctx} />
+                <Prop label={t('tasks.fields.tags')} locked={locked}>
+                  <Tags task={task} ctx={full} />
                 </Prop>
               </div>
 
               <section className="grid gap-2 border-t border-border px-5 py-4">
                 <h3 className="text-sm font-semibold">{t('tasks.fields.description')}</h3>
-                <Description key={`${task.id}:${task.description}`} task={task} ctx={ctx} />
+                <Description key={`${task.id}:${task.description}`} task={task} ctx={full} />
               </section>
 
-              <Checklist task={task} ctx={ctx} />
-              {!task.parentId ? <Subtasks task={task} ctx={ctx} onOpen={openOther} /> : null}
-              <Dependencies task={task} ctx={ctx} onOpen={openOther} />
-              <Deliverables task={task} ctx={ctx} />
-              <Attachments task={task} ctx={ctx} />
+              <Checklist task={task} ctx={own} />
+              {!task.parentId ? <Subtasks task={task} ctx={full} onOpen={openOther} /> : null}
+              <Dependencies task={task} ctx={full} onOpen={openOther} />
+              <Deliverables task={task} ctx={full} />
+              <Attachments task={task} ctx={full} />
               <TimeTracking task={task} ctx={ctx} />
+              <Section icon={History} title={t('tasks.history.title')} testId="drawer-history">
+                <TaskHistory
+                  key={task.id}
+                  taskId={task.id}
+                  statuses={ctx.statuses}
+                  people={ctx.people}
+                  departments={ctx.departments}
+                  allTasks={ctx.allTasks}
+                />
+              </Section>
 
               <Section icon={MessageSquare} title={t('tasks.comments')} testId="drawer-comments">
                 <p className="text-xs text-subtle-foreground">{t('tasks.commentsInternal')}</p>
@@ -1308,7 +1353,7 @@ export function TaskDrawer({
                   </div>
                 ) : null}
               </Section>
-              {status?.category !== 'done' && ctx.canUpdate ? (
+              {status?.category !== 'done' && own.canUpdate ? (
                 <div className="sticky bottom-0 border-t border-border bg-surface-raised/95 px-5 py-3 backdrop-blur">
                   <Button onClick={toggleDone} className="w-full" data-testid="drawer-mark-done">
                     <CheckCircle2 />

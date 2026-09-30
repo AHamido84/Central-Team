@@ -10,7 +10,7 @@ import { listReviewQueue } from '@/modules/deliverables/server/queries';
 import { listDepartments } from '@/modules/rbac/server/queries';
 import { MyWork } from '@/modules/tasks/components/my-work';
 import { dayInZone } from '@/modules/tasks/constants';
-import { getRunningTimer, listTasks } from '@/modules/tasks/server/queries';
+import { getRunningTimer, getTaskEditContext, listTasks } from '@/modules/tasks/server/queries';
 import { listTaskStatuses } from '@/modules/workflows/server/queries';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -31,6 +31,7 @@ export default async function MyWorkPage() {
     listDepartments(ctx),
     getRunningTimer(me),
   ]);
+  const edit = await getTaskEditContext(ctx.organization.id, me);
   return (
     <>
       <PageHeader title={t('title')} description={t('description')} />
@@ -48,6 +49,7 @@ export default async function MyWorkPage() {
           canUpdate: can(ctx.permissions, 'tasks:update'),
           canDelete: can(ctx.permissions, 'tasks:delete'),
           canManageDeliverables: can(ctx.permissions, 'deliverables:manage'),
+          edit,
         }}
       />
     </>

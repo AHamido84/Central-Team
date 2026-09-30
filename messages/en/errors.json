@@ -71,5 +71,6 @@
   "parent_deleted": "Restore the item it belongs to first — it's in the Trash too.",
   "reset_locked": "Data reset is locked. A Super Admin can unlock it with their password.",
   "invalid_password": "That password isn't right.",
-  "confirmation_mismatch": "The confirmation text doesn't match."
+  "confirmation_mismatch": "The confirmation text doesn't match.",
+  "field_forbidden": "You can't change this field on this task. Account managers, team leads and admins can; you can update the status and checklist of tasks assigned to you."
 }

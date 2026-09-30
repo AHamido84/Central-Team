@@ -34,7 +34,14 @@ import {
   startTimerSchema,
   updateTaskSchema,
 } from '@/modules/tasks/schemas';
-import { getRunningTimer, getTaskDetail, listTasks, type TaskDetail, type TaskListItem } from '@/modules/tasks/server/queries';
+import {
+  getRunningTimer,
+  getTaskDetail,
+  getTaskHistory,
+  listTasks,
+  type TaskDetail,
+  type TaskListItem,
+} from '@/modules/tasks/server/queries';
 
 const taskPaths = ['/tasks', '/my-work'];
 
@@ -106,6 +113,16 @@ export const loadTaskAction = defineAction({
   },
 });
 
+/** The task's change history for the drawer (FR1.4). */
+export const loadTaskHistoryAction = defineAction({
+  input: z.object({ taskId: z.uuid() }),
+  side: 'agency',
+  permission: 'tasks:read',
+  async handler({ input }) {
+    return getTaskHistory(input.taskId);
+  },
+});
+
 // ---------------------------------------------------------------------------
 // Tasks
 // ---------------------------------------------------------------------------
@@ -151,6 +168,24 @@ export const createTaskAction = defineAction({
   revalidate: taskPaths,
 });
 
+/** A new reviewer hears about it (FR1.4); clearing or keeping the reviewer notifies nobody. */
+async function emitReviewerChange(
+  tx: Tx,
+  ctx: AgencyContext,
+  task: { id: string; clientId: string; reviewerId: string | null },
+  reviewerId: string | null | undefined,
+) {
+  if (!reviewerId || reviewerId === task.reviewerId) return;
+  await emitEvent(tx, {
+    type: 'task.reviewer_assigned',
+    organizationId: ctx.organization.id,
+    actorId: ctx.session.userId,
+    aggregate: { type: 'task', id: task.id },
+    clientId: task.clientId,
+    payload: { taskId: task.id, clientId: task.clientId, userId: reviewerId },
+  });
+}
+
 export const updateTaskAction = defineAction({
   input: updateTaskSchema,
   side: 'agency',
@@ -177,6 +212,7 @@ export const updateTaskAction = defineAction({
       });
     }
     await emitStatusChange(tx, ctx, current, current.statusCategory, row.statusCategory);
+    await emitReviewerChange(tx, ctx, current, input.patch.reviewerId);
     return { taskId: current.id };
   },
 });
@@ -210,6 +246,8 @@ export const bulkUpdateTasksAction = defineAction({
     if (input.statusId) patch.statusId = input.statusId;
     if (input.priority) patch.priority = input.priority;
     if (input.dueDate !== undefined) patch.dueDate = input.dueDate;
+    if (input.reviewerId !== undefined) patch.reviewerId = input.reviewerId;
+    if (input.departmentId !== undefined) patch.departmentId = input.departmentId;
     if (Object.keys(patch).length) {
       const updated = await tx
         .update(tasks)
@@ -220,6 +258,7 @@ export const bulkUpdateTasksAction = defineAction({
       for (const r of rows) {
         const after = updated.find((u) => u.id === r.id)!;
         await emitStatusChange(tx, ctx, r, r.statusCategory, after.statusCategory);
+        await emitReviewerChange(tx, ctx, r, input.reviewerId);
       }
     }
     if (input.assigneeId) for (const r of rows) await addAssignees(tx, ctx, r, [input.assigneeId]);
@@ -259,6 +298,14 @@ export const setTaskMembersAction = defineAction({
           clientId: task.clientId,
         })),
       );
+      await emitEvent(tx, {
+        type: 'task.watchers_added',
+        organizationId: ctx.organization.id,
+        actorId: ctx.session.userId,
+        aggregate: { type: 'task', id: task.id },
+        clientId: task.clientId,
+        payload: { taskId: task.id, clientId: task.clientId, userIds: added },
+      });
     }
     return { taskId: task.id };
   },

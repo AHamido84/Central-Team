@@ -645,6 +645,13 @@ Focused improvements on Phases 0–8 — no new phase. Each item extends the exi
 - Every change → a `task_events` history row (who, field, from → to) shown in the drawer's activity; new assignees,
   reviewers and watchers are notified. Schema: `task_events`.
 
+**Status**
+- [x] `tasks:edit_all` / `tasks:edit_managed`; `app.task_edit_scope()` and guard triggers (ADR-084)
+- [x] Drawer fields locked with a reason; table inline cells per row; bulk edit (status, priority, due, assignee,
+  reviewer, department) follows the least access in the selection; Kanban card quick menu (status, priority)
+- [x] Task history in the drawer (fields, people, checklist, dependencies); notifications for new reviewers/watchers
+- [x] DB tests (`tests/db/task-fields.test.ts`, incl. UI-mirror equivalence), e2e (`e2e/task-fields.spec.ts`)
+
 ### FR1.5 AI credentials in `/admin/ai`
 - `ai_credentials` (provider `anthropic · voyage`, display name, masked key hint, default model, monthly token
   limit, active, last test result) with the key in **Supabase Vault** (same pattern as integration tokens, ADR-067) —

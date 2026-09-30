@@ -41,6 +41,8 @@ export const agencyPermissions = [
   'tasks:create',
   'tasks:update',
   'tasks:delete',
+  'tasks:edit_all',
+  'tasks:edit_managed',
   'workflows:manage',
   'deliverables:manage',
   'deliverables:review',

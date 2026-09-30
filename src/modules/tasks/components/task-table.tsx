@@ -11,6 +11,7 @@ import { Badge, Checkbox, NativeSelect } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
 import { localized, type Locale, type LocalizedText } from '@/lib/i18n/localized';
 import { cn } from '@/lib/utils/cn';
+import { taskAccess, type TaskAccess, type TaskEditContext } from '@/modules/tasks/access';
 import { Limited } from '@/modules/tasks/components/show-more';
 import { TaskRef, useDuration, type StatusOption } from '@/modules/tasks/components/badges';
 import { PeoplePicker, type PersonOption } from '@/modules/tasks/components/people-picker';
@@ -34,6 +35,9 @@ type Props = {
   today: string;
   canUpdate: boolean;
   canDelete: boolean;
+  /** Per-field edit rule (ADR-084). */
+  edit: TaskEditContext;
+  departments?: { id: string; name: LocalizedText }[];
   onOpen: (id: string) => void;
   onPatch: (taskId: string, patch: TaskPatch) => void;
   onChanged: () => void;
@@ -46,7 +50,7 @@ const TableRow = memo(function TableRow({
   today,
   selected,
   onSelect,
-  canUpdate,
+  access,
   onOpen,
   onPatch,
   onChanged,
@@ -57,7 +61,7 @@ const TableRow = memo(function TableRow({
   today: string;
   selected: boolean;
   onSelect: (on: boolean) => void;
-  canUpdate: boolean;
+  access: TaskAccess;
   onOpen: (id: string) => void;
   onPatch: Props['onPatch'];
   onChanged: () => void;
@@ -68,8 +72,12 @@ const TableRow = memo(function TableRow({
   const setMembers = useAction(setTaskMembersAction, { refresh: false });
   const duration = useDuration();
   const overdue = task.statusCategory !== 'done' && task.dueDate !== null && task.dueDate < today;
+  const canUpdate = access === 'full';
+  const lockHint = access === 'full' ? undefined : t(access === 'limited' ? 'tasks.access.limited' : 'tasks.access.none');
   return (
     <tr
+      title={lockHint}
+      data-access={access}
       className={cn('border-b border-border last:border-b-0 hover:bg-surface-muted/50', selected && 'bg-primary-soft/40')}
       data-testid="task-table-row"
       data-task-id={task.id}
@@ -98,7 +106,7 @@ const TableRow = memo(function TableRow({
       <td className="px-2">
         <NativeSelect
           value={task.statusId}
-          disabled={!canUpdate}
+          disabled={access === 'none'}
           onChange={(e) => onPatch(task.id, { statusId: e.target.value })}
           aria-label={t('tasks.fields.status')}
           className="h-8 min-w-36 text-xs"
@@ -211,6 +219,10 @@ export function TaskTable(props: Props) {
   const chosen = [...selected].filter((id) => visibleIds.has(id));
   const allSelected = chosen.length > 0 && chosen.length === tasks.length;
 
+  // Bulk fields follow the least access among the selected rows (the database checks every row again).
+  const chosenTasks = tasks.filter((x) => selected.has(x.id));
+  const bulkFull = canUpdate && chosenTasks.every((x) => taskAccess(x, props.edit) === 'full');
+  const bulkStatus = canUpdate && chosenTasks.every((x) => taskAccess(x, props.edit) !== 'none');
   const runBulk = async (patch: Omit<Parameters<typeof bulkUpdateTasksAction>[0], 'taskIds'>) => {
     const res = await bulk.run({ taskIds: chosen, ...patch });
     if (res.ok) {
@@ -237,7 +249,7 @@ export function TaskTable(props: Props) {
             onChange={(e) => e.target.value && void runBulk({ statusId: e.target.value })}
             aria-label={t('tasks.fields.status')}
             className="h-8 w-40 text-xs"
-            disabled={!canUpdate}
+            disabled={!bulkStatus}
             data-testid="bulk-status"
           >
             <option value="">{t('tasks.table.setStatus')}</option>
@@ -252,7 +264,7 @@ export function TaskTable(props: Props) {
             onChange={(e) => e.target.value && void runBulk({ priority: e.target.value as TaskPriority })}
             aria-label={t('tasks.fields.priority')}
             className="h-8 w-36 text-xs"
-            disabled={!canUpdate}
+            disabled={!bulkFull}
           >
             <option value="">{t('tasks.table.setPriority')}</option>
             {taskPriorities.map((p) => (
@@ -266,7 +278,7 @@ export function TaskTable(props: Props) {
             dir="ltr"
             className="h-8 w-36 text-xs"
             aria-label={t('tasks.table.setDue')}
-            disabled={!canUpdate}
+            disabled={!bulkFull}
             onChange={(e) => e.target.value && void runBulk({ dueDate: e.target.value })}
           />
           <div className="w-48">
@@ -275,10 +287,43 @@ export function TaskTable(props: Props) {
               value={[]}
               single
               label={t('tasks.table.assign')}
-              disabled={!canUpdate}
+              disabled={!bulkFull}
               onChange={(ids) => ids[0] && void runBulk({ assigneeId: ids[0] })}
             />
           </div>
+          <div className="w-44">
+            <PeoplePicker
+              people={people}
+              value={[]}
+              single
+              label={t('tasks.table.setReviewer')}
+              disabled={!bulkFull}
+              onChange={(ids) => ids[0] && void runBulk({ reviewerId: ids[0] })}
+            />
+          </div>
+          {props.departments?.length ? (
+            <NativeSelect
+              value=""
+              onChange={(e) => e.target.value && void runBulk({ departmentId: e.target.value === '__none' ? null : e.target.value })}
+              aria-label={t('tasks.fields.department')}
+              className="h-8 w-40 text-xs"
+              disabled={!bulkFull}
+              data-testid="bulk-department"
+            >
+              <option value="">{t('tasks.table.setDepartment')}</option>
+              <option value="__none">{t('tasks.noDepartment')}</option>
+              {props.departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {localized(d.name, locale)}
+                </option>
+              ))}
+            </NativeSelect>
+          ) : null}
+          {!bulkFull && chosenTasks.length ? (
+            <span className="text-xs text-muted-foreground" data-testid="bulk-limited">
+              {t('tasks.table.bulkLimited')}
+            </span>
+          ) : null}
           {canDelete ? (
             <BulkDeleteButton
               type="task"
@@ -350,7 +395,7 @@ export function TaskTable(props: Props) {
                           today={today}
                           selected={selected.has(task.id)}
                           onSelect={(on) => setSelected((s) => new Set(on ? [...s, task.id] : [...s].filter((x) => x !== task.id)))}
-                          canUpdate={canUpdate}
+                          access={taskAccess(task, props.edit)}
                           onOpen={onOpen}
                           onPatch={onPatch}
                           onChanged={onChanged}

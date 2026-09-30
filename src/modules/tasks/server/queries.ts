@@ -23,6 +23,7 @@ import { toFileItem, withThumbnails, type FileItem } from '@/modules/files/serve
 import { getThread, type ThreadDetail } from '@/modules/messaging/server/queries';
 import type { SavedViewConfig, StatusCategory, TaskLayout, TaskPriority } from '@/modules/tasks/constants';
 import type { DeliverableType } from '@/modules/workflows/constants';
+import type { TaskEditContext } from '@/modules/tasks/access';
 
 export type Person = { id: string; name: string; avatarPath: string | null };
 
@@ -418,4 +419,51 @@ export async function getRunningTimer(me: string): Promise<RunningTimer> {
   return row
     ? { id: row.id, taskId: row.taskId, taskNumber: row.number, taskTitle: row.title, startedAt: row.startedAt.toISOString() }
     : null;
+}
+
+/** What the task screens need to mirror the per-field edit rule (ADR-084). */
+export async function getTaskEditContext(organizationId: string, me: string): Promise<TaskEditContext> {
+  const [row] = await withRls((tx) =>
+    tx.execute<{ c: Omit<TaskEditContext, 'me'> }>(sql`select app.task_edit_context(${organizationId}::uuid) as c`),
+  );
+  return { me, ...(row?.c ?? { canUpdate: false, editAll: false, managedClientIds: [], ledDepartmentIds: [] }) };
+}
+
+export type TaskHistoryEntry = {
+  id: string;
+  actorName: string | null;
+  action: 'insert' | 'update' | 'delete';
+  table: 'tasks' | 'task_members' | 'task_checklist_items' | 'task_dependencies';
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  changedFields: string[];
+  createdAt: string;
+};
+
+/** Every change to a task, its people, checklist and dependencies (readable by anyone who can read the task). */
+export async function getTaskHistory(taskId: string): Promise<TaskHistoryEntry[]> {
+  const rows = await withRls((tx) =>
+    tx.execute<{
+      id: string;
+      actor_name: string | null;
+      action: TaskHistoryEntry['action'];
+      table_name: TaskHistoryEntry['table'];
+      before: Record<string, unknown> | null;
+      after: Record<string, unknown> | null;
+      changed_fields: string[] | null;
+      created_at: string | Date;
+    }>(sql`
+      select h.id::text, p.full_name as actor_name, h.action, h.table_name, h.before, h.after, h.changed_fields, h.created_at
+      from app.task_history(${taskId}::uuid) h left join public.profiles p on p.id = h.actor_id`),
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    actorName: r.actor_name,
+    action: r.action,
+    table: r.table_name,
+    before: r.before,
+    after: r.after,
+    changedFields: r.changed_fields ?? [],
+    createdAt: new Date(r.created_at).toISOString(),
+  }));
 }

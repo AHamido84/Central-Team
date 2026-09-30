@@ -58,6 +58,8 @@ export const bulkTasksSchema = z.object({
   dueDate: date.nullable().optional(),
   /** Adds this person as an assignee (keeps existing ones). */
   assigneeId: z.uuid().optional(),
+  reviewerId: z.uuid().nullable().optional(),
+  departmentId: z.uuid().nullable().optional(),
 });
 
 export const setMembersSchema = z.object({

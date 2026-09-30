@@ -752,6 +752,23 @@ step name) to the portal. Won-deal onboarding still converts without a review (`
 *Rejected*: creating tasks first and editing afterwards (notifications and events would fire for tasks that are then
 removed or renamed).
 
+### ADR-084 — Per-field task permissions, enforced by the database
+2026-09-30 · Accepted
+Three levels per task, computed by `app.task_edit_scope(task)`: **full** (every field, people, dependencies,
+attachments) with `tasks:edit_all` (Super Admin, Admin / Ops Manager) or `tasks:edit_managed` (Account Manager, Team Lead)
+on tasks of clients they manage or are assigned to, or in a department they lead; **limited** (status incl. board
+position, and the checklist) on tasks assigned to you with `tasks:update`; otherwise **none**. Comments and time keep
+their own rules. Guard triggers enforce it on `tasks` (changed columns are compared), `task_members`,
+`task_dependencies`, `task_attachments` and `task_checklist_items`, only for user edits (not service paths, cascades,
+purges) and not while the task is being created in the same transaction (so a specialist can assign a task they create).
+The UI mirrors the rule (`src/modules/tasks/access.ts`, context from `app.task_edit_context()`) to disable fields with a
+lock and a tooltip in the drawer, inline table cells, bulk edit and the Kanban card's quick menu; a DB test proves the
+mirror equals the database for every seeded user. History: tasks, members, checklist items and dependencies are
+audited, and `app.task_history(task)` exposes a task's entries to anyone who can read the task (the full audit log stays
+behind `audit_log:read`). New reviewers and watchers get notifications (`task.reviewer_assigned`,
+`task.watchers_added`), like assignees already did.
+*Rejected*: column-level GRANTs (can't express "own task" or "managed client"); UI-only checks.
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

@@ -2,7 +2,7 @@
 
 import { CheckSquare, GitBranch, Lock, MessageSquare } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
 
 import { useFormat } from '@/components/providers';
 import { AvatarGroup, Badge, Tooltip } from '@/components/ui/primitives';
@@ -22,6 +22,7 @@ export const TaskCard = memo(function TaskCard({
   showClient = true,
   className,
   dragging,
+  menu,
 }: {
   task: TaskListItem;
   today: string;
@@ -29,6 +30,8 @@ export const TaskCard = memo(function TaskCard({
   showClient?: boolean;
   className?: string;
   dragging?: boolean;
+  /** Quick edit menu (board). */
+  menu?: ReactNode;
 }) {
   const t = useTranslations('tasks');
   const locale = useLocale() as Locale;
@@ -56,6 +59,7 @@ export const TaskCard = memo(function TaskCard({
         <p className={cn('min-w-0 flex-1 text-sm leading-snug font-medium', done && 'line-through decoration-subtle-foreground')}>
           <bdi>{task.title}</bdi>
         </p>
+        {menu}
         {task.blocked ? (
           <Tooltip content={t('blockedHint')}>
             <Lock className="mt-0.5 size-3.5 shrink-0 text-danger" aria-label={t('blocked')} />

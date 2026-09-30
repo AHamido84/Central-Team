@@ -197,7 +197,10 @@
     "delete": "حذف",
     "deleteTitle": "{count, plural, one {حذف مهمة؟} two {حذف مهمتين؟} few {حذف # مهام؟} many {حذف # مهمة؟} other {حذف # مهمة؟}}",
     "deleteBody": "لا يمكن التراجع عن الحذف.",
-    "clearSelection": "إلغاء التحديد"
+    "clearSelection": "إلغاء التحديد",
+    "setReviewer": "تعيين المراجع",
+    "setDepartment": "تعيين القسم",
+    "bulkLimited": "بعض المهام المحددة لا تسمح لك إلا بتغيير الحالة."
   },
   "calendar": {
     "today": "اليوم",
@@ -271,5 +274,34 @@
   "discardBody": "لديك تعديلات لم تُحفظ بعد.",
   "discard": "تجاهل",
   "keepEditing": "متابعة التعديل",
-  "showMore": "عرض {count} أخرى"
+  "showMore": "عرض {count} أخرى",
+  "access": {
+    "limited": "يمكنك تغيير الحالة وقائمة المهام في المهام المسندة إليك. يغيّر الباقي مدير الحساب أو قائد الفريق أو المدير.",
+    "none": "للقراءة فقط: يغيّرها المسند إليهم أو مدير الحساب أو قائد الفريق أو المدير."
+  },
+  "quickMenu": "تعديل سريع لـ {title}",
+  "history": {
+    "title": "السجل",
+    "show": "عرض السجل",
+    "empty": "لا تغييرات بعد.",
+    "someone": "شخص ما",
+    "created": "أنشأ المهمة",
+    "deleted": "حذف المهمة",
+    "changed": "غيّر {field}",
+    "changedFromTo": "غيّر {field}: {from} ← {to}",
+    "addedMember": "أضاف {name} بصفته {role}",
+    "removedMember": "أزال {name} ({role})",
+    "roles": {
+      "assignee": "مسؤولًا",
+      "watcher": "متابعًا"
+    },
+    "checkAdded": "أضاف بند «{body}»",
+    "checkDone": "أنجز «{body}»",
+    "checkUndone": "أعاد فتح «{body}»",
+    "checkEdited": "عدّل بند «{body}»",
+    "checkRemoved": "أزال بند «{body}»",
+    "depAdded": "أصبحت تنتظر {task}",
+    "depRemoved": "لم تعد تنتظر {task}",
+    "empty_value": "—"
+  }
 }

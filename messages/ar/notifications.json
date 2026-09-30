@@ -161,6 +161,14 @@
     "ai_insight": {
       "title": "{severity, select, critical {رؤية حرجة} other {رؤية جديدة}} في «⁨{campaign}⁩»",
       "body": "{kind, select, spike {ارتفاع غير معتاد في الأرقام} drop {انخفاض غير معتاد في الأرقام} kpi_off_track {مؤشر أداء خارج المسار} kpi_at_risk {مؤشر أداء معرّض للخطر} budget_overspent {تجاوز الإنفاق الميزانية} budget_overpace {الإنفاق أسرع من الخطة} budget_underpace {الإنفاق أبطأ من الخطة} delivery_stopped {قناة توقّف عرضها} other {تغيّر ما}} لدى {client}. افتحها لترى الأرقام والخطوة التالية المقترحة."
+    },
+    "task_reviewer_assigned": {
+      "title": "أصبحت مراجعًا لمهمة",
+      "body": "عيّنك {actor} مراجعًا لـ «⁨{task}⁩» لـ ⁨{client}⁩."
+    },
+    "task_watching": {
+      "title": "أصبحت متابعًا لمهمة",
+      "body": "أضافك {actor} متابعًا لـ «⁨{task}⁩» لـ ⁨{client}⁩."
     }
   }
 }

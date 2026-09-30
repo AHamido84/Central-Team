@@ -31,6 +31,8 @@ export const notificationTypes = {
   task_overdue: 'tasks',
   task_unblocked: 'tasks',
   task_review_requested: 'tasks',
+  task_reviewer_assigned: 'tasks',
+  task_watching: 'tasks',
   review_requested: 'tasks',
   deliverable_approved: 'tasks',
   deliverable_changes_requested: 'tasks',

@@ -70,6 +70,7 @@ export const actionErrorCodes = [
   'reassign_required',
   'parent_deleted',
   'reset_locked',
+  'field_forbidden',
   'invalid_password',
   'confirmation_mismatch',
   'unknown',
@@ -138,6 +139,7 @@ const raisedCodes = new Set<ActionErrorCode>([
   'reassign_required',
   'parent_deleted',
   'reset_locked',
+  'field_forbidden',
 ]);
 
 /** Maps thrown errors (ActionFailure, Postgres errors raised by RLS/triggers) to a safe error code. */

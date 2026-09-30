@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
 import { localized, type Locale, type LocalizedText } from '@/lib/i18n/localized';
 import { cn } from '@/lib/utils/cn';
+import type { TaskEditContext } from '@/modules/tasks/access';
 import { statusDot, TaskRef, type StatusOption } from '@/modules/tasks/components/badges';
 import { NewTaskDialog, type NewTaskDefaults } from '@/modules/tasks/components/new-task-dialog';
 import type { PersonOption } from '@/modules/tasks/components/people-picker';
@@ -24,6 +25,7 @@ import { useTaskMutations, useTasks } from '@/modules/tasks/components/use-tasks
 import { taskLayouts, type SavedViewConfig, type TaskLayout } from '@/modules/tasks/constants';
 import { activeFilterCount, applyFilters, sortTasks } from '@/modules/tasks/filter';
 import { deleteViewAction, saveViewAction } from '@/modules/tasks/server/actions';
+import type { TaskPatch } from '@/modules/tasks/schemas';
 import type { RunningTimer, SavedViewItem, TaskListItem } from '@/modules/tasks/server/queries';
 
 export type WorkspaceProps = {
@@ -36,7 +38,7 @@ export type WorkspaceProps = {
   me: string;
   today: string;
   timer: RunningTimer;
-  perms: { canCreate: boolean; canUpdate: boolean; canDelete: boolean; canManageDeliverables: boolean };
+  perms: { canCreate: boolean; canUpdate: boolean; canDelete: boolean; canManageDeliverables: boolean; edit: TaskEditContext };
   initialLayout: TaskLayout;
   initialViewId: string | null;
 };
@@ -126,6 +128,7 @@ export function TasksWorkspace(props: WorkspaceProps) {
     canDelete: perms.canDelete,
     canCreate: perms.canCreate,
     canManageDeliverables: perms.canManageDeliverables,
+    edit: perms.edit,
     timer: props.timer,
   });
 
@@ -172,6 +175,7 @@ export function TasksWorkspace(props: WorkspaceProps) {
   const order = useMemo(() => ordered.map((x) => x.id), [ordered]);
   const doneStatus = statuses.find((s) => s.category === 'done');
   const reopenStatus = statuses.find((s) => s.category === 'active') ?? statuses[0];
+  const onPatch = useCallback((id: string, patch: TaskPatch) => void mutations.update(id, patch), [mutations]);
   const toggleDone = (task: TaskListItem) => {
     const target = task.statusCategory === 'done' ? reopenStatus : doneStatus;
     if (target) void mutations.update(task.id, { statusId: target.id });
@@ -240,6 +244,8 @@ export function TasksWorkspace(props: WorkspaceProps) {
             people={people}
             today={today}
             canUpdate={perms.canUpdate}
+            edit={perms.edit}
+            onPatch={onPatch}
             onOpen={setOpen}
             onMove={(id, statusId, position) => void mutations.move(id, statusId, position)}
             onAdd={perms.canCreate ? (statusId) => setNewTask({ statusId }) : undefined}
@@ -268,6 +274,8 @@ export function TasksWorkspace(props: WorkspaceProps) {
             today={today}
             canUpdate={perms.canUpdate}
             canDelete={perms.canDelete}
+            edit={perms.edit}
+            departments={departments}
             onOpen={setOpen}
             onPatch={(id, patch) => void mutations.update(id, patch)}
             onChanged={() => mutations.refresh('')}

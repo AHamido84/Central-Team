@@ -26,10 +26,13 @@ import { Avatar } from '@/components/ui/primitives';
 import { localized, type Locale, type LocalizedText } from '@/lib/i18n/localized';
 import { publicAssetUrl } from '@/lib/storage';
 import { cn } from '@/lib/utils/cn';
+import { taskAccess, type TaskEditContext } from '@/modules/tasks/access';
+import { BoardEditContext, CardQuickMenu, useCardAccess } from '@/modules/tasks/components/card-menu';
 import { ShowMore, useRenderLimit } from '@/modules/tasks/components/show-more';
 import { statusDot, type StatusOption } from '@/modules/tasks/components/badges';
 import { TaskCard } from '@/modules/tasks/components/task-card';
 import { positionBetween, type Swimlane } from '@/modules/tasks/constants';
+import type { TaskPatch } from '@/modules/tasks/schemas';
 import type { TaskListItem } from '@/modules/tasks/server/queries';
 
 type Lane = { key: string; label: string; avatar?: { name: string; src: string | null } };
@@ -75,9 +78,11 @@ const SortableCard = memo(function SortableCard({
   onOpen: (id: string) => void;
   showClient: boolean;
 }) {
+  const access = useCardAccess(task);
   const { setNodeRef, transform, transition, isDragging, attributes, listeners } = useSortable({
     id: `${lane}${SEP}${task.id}`,
     data: { taskId: task.id, statusId: task.statusId, lane },
+    disabled: access === 'none',
   });
   return (
     <div
@@ -87,7 +92,7 @@ const SortableCard = memo(function SortableCard({
       {...attributes}
       {...listeners}
     >
-      <TaskCard task={task} today={today} onOpen={onOpen} showClient={showClient} />
+      <TaskCard task={task} today={today} onOpen={onOpen} showClient={showClient} menu={<CardQuickMenu task={task} />} />
     </div>
   );
 });
@@ -175,10 +180,14 @@ export function TaskBoard({
   people,
   today,
   canUpdate,
+  edit,
+  onPatch,
   onOpen,
   onMove,
   onAdd,
 }: {
+  edit?: TaskEditContext;
+  onPatch?: (taskId: string, patch: TaskPatch) => void;
   tasks: TaskListItem[];
   statuses: StatusOption[];
   swimlane: Swimlane;
@@ -245,6 +254,8 @@ export function TaskBoard({
     const { active, over } = e;
     if (!over || !canUpdate) return;
     const taskId = String(active.data.current?.taskId);
+    const moving = tasks.find((x) => x.id === taskId);
+    if (edit && moving && taskAccess(moving, edit) === 'none') return;
     const lane = String(over.data.current?.lane ?? 'all');
     const statusId = String(over.data.current?.statusId ?? '');
     if (!statusId) return;
@@ -271,56 +282,59 @@ export function TaskBoard({
   };
 
   const active = activeId ? tasks.find((x) => x.id === activeId) : null;
+  const boardEdit = useMemo(() => (edit && onPatch ? { edit, statuses, onPatch } : null), [edit, statuses, onPatch]);
   return (
-    <DndContext
-      id={dndId}
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      onDragCancel={() => setActiveId(null)}
-      accessibility={{ announcements, screenReaderInstructions: { draggable: t('dnd.instructions') } }}
-    >
-      <div className="-mx-(--gutter) overflow-x-auto px-(--gutter) pb-4" data-testid="task-board">
-        <div className="inline-grid min-w-full gap-4">
-          {swimlane !== 'none' ? (
-            <div className="flex gap-3">
-              {statuses.map((s) => (
-                <div key={s.id} className="flex w-72 shrink-0 items-center gap-2 px-3">
-                  <span className={cn('size-2 rounded-full', statusDot[s.color])} aria-hidden />
-                  <span className="truncate text-sm font-semibold">{localized(s.name, locale)}</span>
-                </div>
-              ))}
-            </div>
-          ) : null}
-          {lanes.map((lane) => (
-            <div key={lane.key} className="grid gap-2" data-testid="board-lane">
-              {swimlane !== 'none' ? (
-                <h3 className="sticky start-0 flex w-fit items-center gap-2 text-sm font-semibold">
-                  {lane.avatar ? <Avatar name={lane.avatar.name} src={lane.avatar.src} size="xs" /> : null}
-                  {lane.label}
-                </h3>
-              ) : null}
+    <BoardEditContext.Provider value={boardEdit}>
+      <DndContext
+        id={dndId}
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        onDragCancel={() => setActiveId(null)}
+        accessibility={{ announcements, screenReaderInstructions: { draggable: t('dnd.instructions') } }}
+      >
+        <div className="-mx-(--gutter) overflow-x-auto px-(--gutter) pb-4" data-testid="task-board">
+          <div className="inline-grid min-w-full gap-4">
+            {swimlane !== 'none' ? (
               <div className="flex gap-3">
                 {statuses.map((s) => (
-                  <Column
-                    key={s.id}
-                    lane={lane.key}
-                    status={s}
-                    tasks={cell.get(`${lane.key}${SEP}${s.id}`) ?? []}
-                    today={today}
-                    onOpen={onOpen}
-                    onAdd={onAdd}
-                    showClient={swimlane !== 'client'}
-                    showHeader={swimlane === 'none'}
-                  />
+                  <div key={s.id} className="flex w-72 shrink-0 items-center gap-2 px-3">
+                    <span className={cn('size-2 rounded-full', statusDot[s.color])} aria-hidden />
+                    <span className="truncate text-sm font-semibold">{localized(s.name, locale)}</span>
+                  </div>
                 ))}
               </div>
-            </div>
-          ))}
+            ) : null}
+            {lanes.map((lane) => (
+              <div key={lane.key} className="grid gap-2" data-testid="board-lane">
+                {swimlane !== 'none' ? (
+                  <h3 className="sticky start-0 flex w-fit items-center gap-2 text-sm font-semibold">
+                    {lane.avatar ? <Avatar name={lane.avatar.name} src={lane.avatar.src} size="xs" /> : null}
+                    {lane.label}
+                  </h3>
+                ) : null}
+                <div className="flex gap-3">
+                  {statuses.map((s) => (
+                    <Column
+                      key={s.id}
+                      lane={lane.key}
+                      status={s}
+                      tasks={cell.get(`${lane.key}${SEP}${s.id}`) ?? []}
+                      today={today}
+                      onOpen={onOpen}
+                      onAdd={onAdd}
+                      showClient={swimlane !== 'client'}
+                      showHeader={swimlane === 'none'}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-      <DragOverlay>{active ? <TaskCard task={active} today={today} dragging /> : null}</DragOverlay>
-    </DndContext>
+        <DragOverlay>{active ? <TaskCard task={active} today={today} dragging /> : null}</DragOverlay>
+      </DndContext>
+    </BoardEditContext.Provider>
   );
 }

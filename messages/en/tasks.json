@@ -197,7 +197,10 @@
     "delete": "Delete",
     "deleteTitle": "{count, plural, one {Delete # task?} other {Delete # tasks?}}",
     "deleteBody": "This can't be undone.",
-    "clearSelection": "Clear selection"
+    "clearSelection": "Clear selection",
+    "setReviewer": "Set reviewer",
+    "setDepartment": "Set department",
+    "bulkLimited": "Some selected tasks only allow a status change for you."
   },
   "calendar": {
     "today": "Today",
@@ -271,5 +274,34 @@
   "discardBody": "You have edits that aren't saved yet.",
   "discard": "Discard",
   "keepEditing": "Keep editing",
-  "showMore": "Show {count} more"
+  "showMore": "Show {count} more",
+  "access": {
+    "limited": "You can change the status and checklist of tasks assigned to you. Account managers, team leads and admins can change the rest.",
+    "none": "Read-only for you: only people on this task, its account manager, team lead or an admin can change it."
+  },
+  "quickMenu": "Quick edit {title}",
+  "history": {
+    "title": "History",
+    "show": "Show history",
+    "empty": "No changes yet.",
+    "someone": "Someone",
+    "created": "created the task",
+    "deleted": "deleted the task",
+    "changed": "changed {field}",
+    "changedFromTo": "changed {field}: {from} → {to}",
+    "addedMember": "added {name} as {role}",
+    "removedMember": "removed {name} ({role})",
+    "roles": {
+      "assignee": "assignee",
+      "watcher": "watcher"
+    },
+    "checkAdded": "added the checklist item “{body}”",
+    "checkDone": "ticked “{body}”",
+    "checkUndone": "unticked “{body}”",
+    "checkEdited": "edited the checklist item “{body}”",
+    "checkRemoved": "removed the checklist item “{body}”",
+    "depAdded": "now waits for {task}",
+    "depRemoved": "no longer waits for {task}",
+    "empty_value": "—"
+  }
 }

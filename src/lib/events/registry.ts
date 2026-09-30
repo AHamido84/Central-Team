@@ -65,6 +65,8 @@ export type DomainEventPayloads = {
   'task.updated': { taskId: string; clientId: string; fields: string[] };
   'task.deleted': { taskId: string; clientId: string };
   'task.assigned': { taskId: string; clientId: string; userIds: string[] };
+  'task.reviewer_assigned': { taskId: string; clientId: string; userId: string };
+  'task.watchers_added': { taskId: string; clientId: string; userIds: string[] };
   'task.status_changed': { taskId: string; clientId: string; from: string; to: string };
   'task.due_soon': { taskId: string; clientId: string; dueDate: string };
   'task.overdue': { taskId: string; clientId: string; dueDate: string };
