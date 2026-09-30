@@ -18,6 +18,7 @@ import * as schema from '../src/lib/db/schema';
 import { hashInvitationToken } from '../src/modules/invitations/server/tokens';
 import { artworkPng, simplePdf } from './seed-assets';
 import { seedCampaignsData } from './seed-campaigns';
+import { seedSlaData } from './seed-sla';
 import { seedRequestsData } from './seed-requests';
 import { seedTasksData } from './seed-tasks';
 
@@ -839,6 +840,8 @@ async function main() {
       new Date(),
     ),
   });
+
+  await seedSlaData({ db, ids, clientIds, orgId: ORG_ID });
 
   // --- Invitations (pending + expired) --------------------------------------
   await db.insert(schema.invitations).values([

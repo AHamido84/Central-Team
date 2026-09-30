@@ -62,6 +62,12 @@ async function main() {
           env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
         });
         if (result.status !== 0) throw new Error(`campaign seed failed with exit code ${result.status}`);
+        // Same for Phase 5: the demo SLA policies, holidays and breach log, once.
+        const sla = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-sla-standalone.ts'], {
+          stdio: 'inherit',
+          env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
+        });
+        if (sla.status !== 0) throw new Error(`SLA seed failed with exit code ${sla.status}`);
       } else {
         const [org] = await sql<{ count: number }[]>`select count(*)::int as count from public.organizations`;
         if ((org?.count ?? 0) === 0) {
