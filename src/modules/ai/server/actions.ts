@@ -1,16 +1,29 @@
 'use server';
 
-import { and, eq, ne } from 'drizzle-orm';
+import { and, eq, ne, sql } from 'drizzle-orm';
 import { getLocale } from 'next-intl/server';
+import { z } from 'zod';
 
 import { defineAction } from '@/lib/actions/define-action';
 import { ActionFailure } from '@/lib/actions/errors';
-import { dbAdmin } from '@/lib/db/client';
-import { aiConversations, aiInsights, aiRecommendations, aiSettings, campaigns, taskMembers, taskStatuses, tasks } from '@/lib/db/schema';
+import type { AgencyContext } from '@/lib/auth/context';
+import { dbAdmin, type Tx } from '@/lib/db/client';
+import {
+  aiConversations,
+  aiCredentials,
+  aiInsights,
+  aiRecommendations,
+  aiSettings,
+  campaigns,
+  taskMembers,
+  taskStatuses,
+  tasks,
+} from '@/lib/db/schema';
 import { env } from '@/lib/env';
 import { emitEvent } from '@/lib/events/emit';
 import type { Locale } from '@/lib/i18n/localized';
 import { can } from '@/lib/permissions/can';
+import { testAiKey } from '@/modules/ai/providers/test-key';
 import { insightTitle, recommendationBody, recommendationTitle } from '@/modules/ai/insight-text';
 import { textKit } from '@/modules/ai/kit';
 import { insightFactLines, insightPrompt } from '@/modules/ai/prompts';
@@ -28,6 +41,7 @@ import {
 import { answerQuestion, recordQuestion } from '@/modules/ai/server/assistant';
 import { catchUpIndex } from '@/modules/ai/server/indexer';
 import { prepareReportDraft, writeReportDraft } from '@/modules/ai/server/reports';
+import { decryptAiKey, invalidateAiClient } from '@/modules/ai/server/client';
 import { generate } from '@/modules/ai/server/runtime';
 import { addDays, dayInZone } from '@/modules/tasks/constants';
 
@@ -257,6 +271,150 @@ export const saveAiSettingsAction = defineAction({
     return { fields };
   },
   revalidate: ['/admin/ai', '/assistant', '/insights'],
+});
+
+// ---------------------------------------------------------------------------
+// Provider credentials (FR1.5 / ADR-085). Keys go straight to Vault; nothing returns them to the browser.
+// ---------------------------------------------------------------------------
+
+const credentialFields = z.object({
+  displayName: z.string().trim().min(1, { message: 'required' }).max(80, { message: 'too_long' }),
+  defaultModel: z.string().trim().max(100).nullable(),
+  monthlyTokenLimit: z.number().int().min(0).max(1_000_000_000).nullable(),
+  isActive: z.boolean(),
+});
+const apiKey = z.string().trim().min(8, { message: 'invalid_key' }).max(500, { message: 'too_long' });
+
+async function credentialEvent(
+  tx: Tx,
+  ctx: AgencyContext,
+  credentialId: string,
+  provider: string,
+  change: 'created' | 'updated' | 'rotated' | 'deleted' | 'tested',
+) {
+  await emitEvent(tx, {
+    type: 'ai_credential.changed',
+    organizationId: ctx.organization.id,
+    actorId: ctx.session.userId,
+    aggregate: { type: 'organization', id: ctx.organization.id },
+    payload: { credentialId, provider, change },
+  });
+}
+
+/** One active key per provider: switching one on switches the others off. */
+async function deactivateOthers(tx: Tx, organizationId: string, provider: string, keep: string) {
+  await tx
+    .update(aiCredentials)
+    .set({ isActive: false })
+    .where(and(eq(aiCredentials.organizationId, organizationId), eq(aiCredentials.provider, provider), ne(aiCredentials.id, keep)));
+}
+
+export const createAiCredentialAction = defineAction({
+  input: credentialFields.extend({ provider: z.enum(['anthropic', 'voyage']), apiKey }),
+  side: 'agency',
+  permission: 'ai:manage',
+  async handler({ input, tx, ctx }) {
+    const id = crypto.randomUUID();
+    if (input.isActive) await deactivateOthers(tx, ctx.organization.id, input.provider, id);
+    // Explicit columns: users hold INSERT on these only (never on `secret_id`, which only the Vault function sets).
+    await tx.execute(sql`
+      insert into public.ai_credentials (id, organization_id, provider, display_name, key_hint, default_model,
+        monthly_token_limit, is_active, created_by, updated_by)
+      values (${id}::uuid, ${ctx.organization.id}::uuid, ${input.provider}, ${input.displayName}, '••••', ${input.defaultModel},
+        ${input.monthlyTokenLimit}, ${input.isActive}, ${ctx.session.userId}::uuid, ${ctx.session.userId}::uuid)`);
+    await tx.execute(sql`select app.ai_credential_put_key(${id}::uuid, ${input.apiKey})`);
+    await credentialEvent(tx, ctx, id, input.provider, 'created');
+    return { id };
+  },
+  async complete({ prepared, ctx }) {
+    invalidateAiClient(ctx.organization.id);
+    return prepared;
+  },
+  revalidate: ['/admin/ai'],
+});
+
+export const updateAiCredentialAction = defineAction({
+  input: credentialFields.extend({ id: z.uuid(), apiKey: apiKey.optional() }),
+  side: 'agency',
+  permission: 'ai:manage',
+  async handler({ input, tx, ctx }) {
+    const [row] = await tx.select({ provider: aiCredentials.provider }).from(aiCredentials).where(eq(aiCredentials.id, input.id));
+    if (!row) throw new ActionFailure('not_found');
+    if (input.isActive) await deactivateOthers(tx, ctx.organization.id, row.provider, input.id);
+    await tx
+      .update(aiCredentials)
+      .set({
+        displayName: input.displayName,
+        defaultModel: input.defaultModel,
+        monthlyTokenLimit: input.monthlyTokenLimit,
+        isActive: input.isActive,
+        updatedBy: ctx.session.userId,
+      })
+      .where(eq(aiCredentials.id, input.id));
+    if (input.apiKey) await tx.execute(sql`select app.ai_credential_put_key(${input.id}::uuid, ${input.apiKey})`);
+    await credentialEvent(tx, ctx, input.id, row.provider, input.apiKey ? 'rotated' : 'updated');
+    return { id: input.id };
+  },
+  async complete({ prepared, ctx }) {
+    invalidateAiClient(ctx.organization.id);
+    return prepared;
+  },
+  revalidate: ['/admin/ai'],
+});
+
+export const deleteAiCredentialAction = defineAction({
+  input: z.object({ id: z.uuid() }),
+  side: 'agency',
+  permission: 'ai:manage',
+  async handler({ input, tx, ctx }) {
+    const [row] = await tx.delete(aiCredentials).where(eq(aiCredentials.id, input.id)).returning({ provider: aiCredentials.provider });
+    if (!row) throw new ActionFailure('not_found');
+    await credentialEvent(tx, ctx, input.id, row.provider, 'deleted');
+    return { id: input.id };
+  },
+  async complete({ prepared, ctx }) {
+    invalidateAiClient(ctx.organization.id);
+    return prepared;
+  },
+  revalidate: ['/admin/ai'],
+});
+
+/**
+ * "Test connection": with a saved credential (`id`, decrypted on the server) or a key typed in the form and not saved
+ * yet (`provider` + `apiKey`). Returns whether it works and the models the key can use — never the key.
+ */
+export const testAiCredentialAction = defineAction({
+  input: z.union([
+    z.object({ id: z.uuid() }),
+    z.object({ provider: z.enum(['anthropic', 'voyage']), apiKey, model: z.string().trim().max(100).nullable().optional() }),
+  ]),
+  side: 'agency',
+  permission: 'ai:manage',
+  rateLimit: { key: 'ai_key_test', max: 20, windowSeconds: 600 },
+  async handler({ input, tx }) {
+    if (!('id' in input)) return { id: null, provider: input.provider, model: input.model ?? null };
+    const [row] = await tx
+      .select({ provider: aiCredentials.provider, model: aiCredentials.defaultModel })
+      .from(aiCredentials)
+      .where(eq(aiCredentials.id, input.id));
+    if (!row) throw new ActionFailure('not_found');
+    return { id: input.id, provider: row.provider as 'anthropic' | 'voyage', model: row.model };
+  },
+  async complete({ prepared, input, ctx }) {
+    const key = prepared.id ? await decryptAiKey(prepared.id) : 'apiKey' in input ? input.apiKey : null;
+    if (!key) throw new ActionFailure('not_found');
+    const result = await testAiKey(prepared.provider, key, prepared.model);
+    if (prepared.id) {
+      // Service path: the test outcome is bookkeeping on the credential (users can't write these columns).
+      await dbAdmin.transaction(async (tx) => {
+        await tx.execute(sql`select set_config('request.jwt.claims', ${JSON.stringify({ sub: ctx.session.userId })}, true)`);
+        await tx.execute(sql`select app.ai_credential_record_test(${prepared.id}::uuid, ${result.ok}, ${result.ok ? null : result.code})`);
+      });
+    }
+    if (!result.ok) console.error('[ai] key test failed', prepared.provider, result.detail);
+    return result.ok ? { ok: true as const, models: result.models } : { ok: false as const, code: result.code };
+  },
+  revalidate: ['/admin/ai'],
 });
 
 export const rebuildIndexAction = defineAction({

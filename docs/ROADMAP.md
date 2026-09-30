@@ -658,6 +658,13 @@ Focused improvements on Phases 0–8 — no new phase. Each item extends the exi
   never returned to the browser. Model dropdown from the provider's models API (manual input fallback). Test
   connection. `getAIClient(orgId)` resolves the active credential and falls back to env. Audited.
 
+**Status**
+- [x] `ai_credentials` + Vault functions, masked hint, column privileges, audit (ADR-085)
+- [x] Add / edit / rotate / delete / activate keys; "Load models" and "Test connection"; monthly limit per key
+- [x] `getAIClient(orgId)` with environment fallback; runtime, assistant and indexer use it
+- [x] DB tests (`tests/db/ai-credentials.test.ts`: never readable back, other users see nothing, Vault cleanup, audit
+  without the key), e2e (`e2e/ai-credentials.spec.ts`: the key never reaches the browser)
+
 ### FR1.6 Social accounts per responsible person
 - `integration_connections.owner_id` + `scope` (`organization · personal`), pasted-token connections (token, app id /
   secret or refresh token in Vault, expiry, ad account ids) alongside OAuth; providers extended with X and LinkedIn.

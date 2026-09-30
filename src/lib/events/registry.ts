@@ -195,6 +195,7 @@ export type DomainEventPayloads = {
     taskId: string | null;
   };
   'ai_settings.updated': { fields: string[] };
+  'ai_credential.changed': { credentialId: string; provider: string; change: 'created' | 'updated' | 'rotated' | 'deleted' | 'tested' };
   'ai_report.drafted': { reportId: string; clientId: string; section: 'commentary' | 'next_steps' };
   // Trash and data management (Feedback Round 1)
   'trash.deleted': { batch: string; entityType: string; entityId: string; clientId: string | null; counts: Record<string, number> };

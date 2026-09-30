@@ -71,6 +71,7 @@ export const actionErrorCodes = [
   'parent_deleted',
   'reset_locked',
   'field_forbidden',
+  'ai_key_invalid',
   'invalid_password',
   'confirmation_mismatch',
   'unknown',

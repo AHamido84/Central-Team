@@ -769,6 +769,20 @@ behind `audit_log:read`). New reviewers and watchers get notifications (`task.re
 `task.watchers_added`), like assignees already did.
 *Rejected*: column-level GRANTs (can't express "own task" or "managed client"); UI-only checks.
 
+### ADR-085 — AI provider keys per organization, in Vault
+2026-09-30 · Accepted
+`/admin/ai` stores provider keys (Anthropic for writing, Voyage for embeddings) in `ai_credentials`: display name,
+default model (listed from the provider by "Load models" / "Test connection", or typed), monthly token limit, active
+switch (one active key per provider). The key goes once to `app.ai_credential_put_key`, which writes it to Supabase
+Vault and keeps only a masked hint (`sk-…a1b2`). Users hold column privileges on every column except `secret_id` (so
+even `select *` fails for them), `app.ai_credential_get_key` refuses the `authenticated` role, and only
+`getAIClient(orgId)` (server, service path) decrypts — cached for a minute and invalidated on change. Resolution order:
+the organization's active key → the environment keys → the mock outside production (ADR-073). A credential's monthly
+limit is checked before each call on top of the organization budget. Audited by the generic trigger (the row holds no
+key). Server Function argument logging is turned off in `next.config` so keys and passwords never reach dev logs.
+*Rejected*: application-level encryption with an env master key (a second key to manage; Vault is already used for
+integration tokens, ADR-067).
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

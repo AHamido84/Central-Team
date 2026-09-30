@@ -64,6 +64,13 @@
       "when": 1790791024724,
       "tag": "20260930175704_soft_delete_data_reset",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790798308189,
+      "tag": "20260930220000_ai_credentials",
+      "breakpoints": true
     }
   ]
 }

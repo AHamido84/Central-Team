@@ -142,7 +142,7 @@ export async function answerQuestion(
 
   try {
     await assertAiReady(ctx.organization.id);
-    const embedder = currentEmbedder();
+    const embedder = await currentEmbedder(ctx.organization.id);
     if (!embedder) throw new ActionFailure('ai_not_configured');
     const [vector] = await embedTexts(embedder, { organizationId: ctx.organization.id, userId: ctx.session.userId }, [question], 'query');
     const sources = await withRls((tx) => searchChunks(tx, vector!, embedder.model, embedder.key === 'mock' ? 0.15 : 0.2), ctx.session);

@@ -1,15 +1,26 @@
 import 'server-only';
 
-import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 
 import type { AgencyContext } from '@/lib/auth/context';
 import { withRls } from '@/lib/db/rls';
 import { env } from '@/lib/env';
-import { aiInsights, aiRecommendations, aiSettings, campaignChannels, campaigns, clients, profiles, tasks } from '@/lib/db/schema';
+import {
+  aiCredentials,
+  aiInsights,
+  aiRecommendations,
+  aiSettings,
+  campaignChannels,
+  campaigns,
+  clients,
+  profiles,
+  tasks,
+} from '@/lib/db/schema';
 import type { LocalizedText } from '@/lib/i18n/localized';
 import { can } from '@/lib/permissions/can';
 import type { InsightKind, InsightSeverity, InsightStatus, RecommendationKind } from '@/modules/ai/insights-core';
-import { aiMode, missingAiEnv, type AiMode } from '@/modules/ai/providers';
+import { missingAiEnv, type AiMode } from '@/modules/ai/providers';
+import { getAIClient } from '@/modules/ai/server/client';
 import type { InsightFacts, RecommendationFacts } from '@/modules/ai/types';
 
 const iso = (d: Date | string | null) => (d ? new Date(d).toISOString() : null);
@@ -186,7 +197,7 @@ export type AiAvailability = {
 };
 
 export async function getAiAvailability(ctx: AgencyContext): Promise<AiAvailability> {
-  const mode = aiMode();
+  const mode = (await getAIClient(ctx.organization.id)).mode;
   if (!can(ctx.permissions, 'ai:use') && !can(ctx.permissions, 'ai:manage')) return { enabled: false, mode, usable: false };
   const [row] = await withRls((tx) => tx.select({ enabled: aiSettings.enabled }).from(aiSettings).limit(1));
   const enabled = Boolean(row?.enabled);
@@ -200,9 +211,28 @@ export type AiAdminView = {
   model: string;
   embeddingModel: string;
   usage: { total: number; byPurpose: Record<string, number> };
+  /** Provider keys stored for the organization — masked; the key never leaves the server (ADR-085). */
+  credentials: AiCredentialView[];
+  /** Per provider: an active organization credential is in use (otherwise the environment keys, if any). */
+  sources: { anthropic: boolean; voyage: boolean };
 };
 
-export async function getAiAdmin(): Promise<AiAdminView> {
+export type AiCredentialView = {
+  id: string;
+  provider: 'anthropic' | 'voyage';
+  displayName: string;
+  keyHint: string;
+  defaultModel: string | null;
+  monthlyTokenLimit: number | null;
+  isActive: boolean;
+  lastTestedAt: string | null;
+  lastTestOk: boolean | null;
+  lastTestError: string | null;
+  usedThisMonth: number;
+};
+
+export async function getAiAdmin(organizationId: string): Promise<AiAdminView> {
+  const client = await getAIClient(organizationId);
   return withRls(async (tx) => {
     const [s] = await tx.select().from(aiSettings).limit(1);
     const usage = await tx.execute<{ purpose: string; n: number }>(sql`
@@ -210,7 +240,27 @@ export async function getAiAdmin(): Promise<AiAdminView> {
       where created_at >= date_trunc('month', now() at time zone 'utc') at time zone 'utc'
       group by purpose`);
     const byPurpose = Object.fromEntries(usage.map((u) => [u.purpose, u.n]));
-    const mode = aiMode();
+    const byProvider = await tx.execute<{ provider: string; n: number }>(sql`
+      select provider, coalesce(sum(input_tokens + output_tokens), 0)::int as n from public.ai_usage
+      where created_at >= date_trunc('month', now() at time zone 'utc') at time zone 'utc'
+      group by provider`);
+    // Every column but `secret_id`, which users may not select (ADR-085).
+    const creds = await tx
+      .select({
+        id: aiCredentials.id,
+        provider: aiCredentials.provider,
+        displayName: aiCredentials.displayName,
+        keyHint: aiCredentials.keyHint,
+        defaultModel: aiCredentials.defaultModel,
+        monthlyTokenLimit: aiCredentials.monthlyTokenLimit,
+        isActive: aiCredentials.isActive,
+        lastTestedAt: aiCredentials.lastTestedAt,
+        lastTestOk: aiCredentials.lastTestOk,
+        lastTestError: aiCredentials.lastTestError,
+      })
+      .from(aiCredentials)
+      .orderBy(asc(aiCredentials.provider), asc(aiCredentials.createdAt));
+    const mode = client.mode;
     return {
       settings: {
         enabled: Boolean(s?.enabled),
@@ -219,10 +269,27 @@ export async function getAiAdmin(): Promise<AiAdminView> {
         monthlyTokenBudget: s?.monthlyTokenBudget ?? 0,
       },
       mode,
-      missing: mode === 'live' ? [] : missingAiEnv(),
-      model: mode === 'mock' ? 'mock-writer-1' : env().AI_MODEL,
-      embeddingModel: mode === 'mock' ? 'mock-hash-1024' : env().AI_EMBEDDING_MODEL,
+      missing:
+        mode === 'live'
+          ? []
+          : missingAiEnv().filter((k) => !(k === 'ANTHROPIC_API_KEY' ? client.sources.anthropic : client.sources.voyage)),
+      model: client.completer?.model ?? env().AI_MODEL,
+      embeddingModel: client.embedder?.model ?? env().AI_EMBEDDING_MODEL,
       usage: { total: Object.values(byPurpose).reduce((a, b) => a + b, 0), byPurpose },
+      credentials: creds.map((c) => ({
+        id: c.id,
+        provider: c.provider as AiCredentialView['provider'],
+        displayName: c.displayName,
+        keyHint: c.keyHint,
+        defaultModel: c.defaultModel,
+        monthlyTokenLimit: c.monthlyTokenLimit,
+        isActive: c.isActive,
+        lastTestedAt: c.lastTestedAt?.toISOString() ?? null,
+        lastTestOk: c.lastTestOk,
+        lastTestError: c.lastTestError,
+        usedThisMonth: byProvider.find((p) => p.provider === c.provider)?.n ?? 0,
+      })),
+      sources: { anthropic: Boolean(client.sources.anthropic), voyage: Boolean(client.sources.voyage) },
     };
   });
 }

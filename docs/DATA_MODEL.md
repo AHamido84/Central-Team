@@ -956,6 +956,16 @@ members, open tasks, workflow steps and pending invitations to another departmen
 `app.audit_skip` suppresses per-row audit writes during the wipe; one `activity_log` entry (`data_reset`) is written after
 it, so it survives. Storage objects are listed first (`app.data_reset_paths`) and removed after the transaction commits.
 
+## 3k. Feedback Round 1 — AI keys and task permissions
+
+| Table | Purpose |
+|---|---|
+| `ai_credentials` | Provider keys per organization (ADR-085): `provider` (anthropic / voyage), `display_name`, `key_hint` (masked), `secret_id` (Vault; no user column privilege), `default_model`, `monthly_token_limit`, `is_active` (one per provider), last test result. RLS: `ai:manage` in the organization. |
+
+Task field access (ADR-084) is computed, not stored: `app.task_edit_scope(task)` → full / limited / none; guard
+triggers on `tasks`, `task_members`, `task_dependencies`, `task_attachments`, `task_checklist_items`. History comes from
+`activity_log` through `app.task_history(task)`; checklist items and dependencies are now audited.
+
 ## 4. Forward-looking sketch (all phases — not built in Phase 0)
 
 ```mermaid

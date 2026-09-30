@@ -68,7 +68,7 @@ export async function indexTargets(organizationId: string, targets: readonly Tar
     if (error instanceof ActionFailure) return 0;
     throw error;
   }
-  const embedder = currentEmbedder();
+  const embedder = await currentEmbedder(organizationId);
   if (!embedder) return 0;
   const { locale, tz } = await orgLocale(organizationId);
   const kit = textKit(locale, tz);
@@ -95,7 +95,7 @@ export async function reindexForEvent(event: StoredEvent): Promise<void> {
 
 /** Works through missing / outdated chunks in batches (daily catch-up, and "Rebuild index" with a larger cap). */
 export async function catchUpIndex(organizationId: string, maxSources = 300): Promise<number> {
-  const embedder = currentEmbedder();
+  const embedder = await currentEmbedder(organizationId);
   if (!embedder) return 0;
   try {
     await assertAiReady(organizationId);
@@ -117,6 +117,6 @@ export async function catchUpIndex(organizationId: string, maxSources = 300): Pr
 }
 
 export async function getIndexStatus(organizationId: string) {
-  const embedder = currentEmbedder();
+  const embedder = await currentEmbedder(organizationId);
   return dbAdmin.transaction((tx) => indexStatus(tx, organizationId, embedder?.model ?? ''));
 }

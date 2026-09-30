@@ -33,6 +33,40 @@ export const aiSettings = pgTable(
   ],
 );
 
+/**
+ * AI provider credentials per organization (FR1.5, ADR-085). The key itself lives in Supabase Vault (`secret_id`,
+ * readable by no user); the row keeps a masked hint for display. One active credential per provider.
+ */
+export const aiCredentials = pgTable(
+  'ai_credentials',
+  {
+    id: id(),
+    organizationId: org(),
+    provider: text('provider').notNull(),
+    displayName: text('display_name').notNull(),
+    keyHint: text('key_hint').notNull(),
+    secretId: uuid('secret_id'),
+    defaultModel: text('default_model'),
+    monthlyTokenLimit: integer('monthly_token_limit'),
+    isActive: boolean('is_active').notNull().default(true),
+    lastTestedAt: timestamp('last_tested_at', { withTimezone: true }),
+    lastTestOk: boolean('last_test_ok'),
+    lastTestError: text('last_test_error'),
+    createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    updatedBy: uuid('updated_by').references(() => profiles.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('ai_credentials_active_idx')
+      .on(t.organizationId, t.provider)
+      .where(sql`${t.isActive}`),
+    check('ai_credentials_provider_check', sql`${t.provider} in ('anthropic','voyage')`),
+    check('ai_credentials_name_check', sql`char_length(${t.displayName}) between 1 and 80`),
+    check('ai_credentials_limit_check', sql`${t.monthlyTokenLimit} is null or ${t.monthlyTokenLimit} between 0 and 1000000000`),
+  ],
+);
+
 /** Every model call (tokens only — never the prompt). The monthly budget sums this table. */
 export const aiUsage = pgTable(
   'ai_usage',
