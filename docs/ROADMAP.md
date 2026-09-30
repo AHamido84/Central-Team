@@ -498,5 +498,48 @@ portal except the numbers the sync writes into campaigns. Data model: `docs/DATA
 - [ ] Human QA on real devices (screens checked in AR/EN × light/dark × 390px/1440px with screenshots)
 
 ## Phase 8 — AI Intelligence
-Campaign analysis & anomaly detection, recommendations, AI-drafted reports (AR/EN), assistant over the agency's data
-with citations and permission-aware retrieval.
+
+Campaign insights (anomalies, KPI and budget pacing) with recommendations the team can turn into tasks, AI-drafted
+report text in Arabic and English, and an assistant over the agency's data that only retrieves what the asking user may
+open and cites every source. Numbers are always computed by code; the model only writes prose grounded in facts we pass
+it (ADR-073/074). Every model call sits behind one `AiProvider` interface with a deterministic **mock** provider, so the
+phase runs and is tested without keys. Agency-only: nothing here reaches the portal (clients see the published reports
+their team edited). Data model: `docs/DATA_MODEL.md` §3i.
+
+### 8.1 Data & security
+- [ ] Extension `vector` (pgvector); tables `ai_settings`, `ai_usage`, `ai_insights`, `ai_recommendations`, `ai_chunks` (embeddings), `ai_conversations`, `ai_messages`
+- [ ] Permissions `ai:use` (assistant, drafts, explanations), `ai:manage` (settings, usage, index); flag `module.ai`; grants: Super Admin / Admin both, every other agency role `ai:use`
+- [ ] RLS: insights / recommendations readable with campaign access (`campaigns:read`), acted on with `campaigns:manage`; chunks readable only with `ai:use` **and** when the caller can read the source row (policy delegates to the source table's own RLS); conversations and messages own-only; settings and usage with `ai:manage`; no client access anywhere
+- [ ] Guards: server-owned insight / recommendation columns (facts, severity, detection dates); users change status only; one open insight per dedupe key
+
+### 8.2 Provider & guardrails
+- [ ] `AiProvider` (`complete`, `embed`) with a live adapter (Anthropic Claude via the official SDK + Voyage embeddings) and a deterministic mock (always outside production; in production only with `AI_PROVIDER=mock`)
+- [ ] Grounding: prompts carry numbered sources / facts; citations the answer makes are validated against what was sent (unknown markers dropped); refusals and budget stops handled with translated messages
+- [ ] Data minimization: phone numbers and e-mail addresses redacted from indexed text; only retrieved snippets leave the platform; organization switch (off = no model calls at all)
+- [ ] Usage log per call (purpose, model, tokens), monthly token budget per organization, per-user rate limit
+
+### 8.3 Campaign insights & recommendations
+- [ ] Detectors (pure, unit-tested): daily anomalies per channel and campaign (robust z-score against the trailing 14 days — spend, clicks, CTR, CPC, CPL, CPA, conversions, leads) with minimum volume, KPI off track / at risk, budget over- / under-pace and overspend, delivery stopped; sensitivity setting
+- [ ] Runs after `metrics.synced` / `metrics.recorded` / `metrics.imported` (consumer `ai.analysis`) and daily from the cron; upsert by dedupe key, auto-resolve when a condition clears, historical anomalies resolve after 14 days
+- [ ] Recommendations (rule-based, computed impact): shift budget to the cheaper channel, reduce / increase daily budget to land on plan, refresh creative, review targeting, check tracking, resume delivery; accept → a task on the client (optionally assigned), dismiss with reason
+- [ ] `ai_insight.detected` → notification to the campaign owner and the client's account managers (warning / critical), and a new automation trigger
+- [ ] UI: `/insights` (filters: client, severity, kind, status; acknowledge / dismiss / reopen), campaign **Insights** tab, "Explain" (AI narrative in the viewer's language, cached per insight)
+
+### 8.4 AI-drafted reports
+- [ ] "Draft with AI" on commentary and next-steps sections of a draft report, in the report's language, grounded on the report snapshot (totals vs previous period, KPIs, channels) and the period's insights; the draft lands in the editor — never auto-published
+- [ ] Optional: scheduled drafts get AI commentary automatically (setting, off by default)
+
+### 8.5 Assistant
+- [ ] Indexer (consumer `ai.indexer` + daily catch-up): clients, campaigns (with totals and health), requests, tasks, reports, leads, deals and insights → text chunks with embeddings; content hash skips unchanged sources; model change re-embeds
+- [ ] `/assistant`: private conversations, question → embed → RLS-scoped vector search → grounded answer in the user's language with numbered citations linking to the source pages; history, rename, delete; suggested questions
+- [ ] Refusal, budget, disabled and "no sources found" states
+
+### 8.6 Admin
+- [ ] `/admin/ai`: enable, provider status (live / mock, missing variables), sensitivity, auto-draft switch, monthly budget with usage this month by purpose, index status by source with "Rebuild index"
+
+### 8.7 Quality
+- [ ] Seed: AI settings, insights and recommendations from the demo metrics, index built with the mock embedder, a sample conversation
+- [ ] Unit: detectors (spikes, drops, minimum volume, pacing, delivery), recommendations and impact math, redaction, citation parsing, mock determinism, prompt builders, embedding similarity
+- [ ] DB: RLS allow / deny for every table; retrieval never returns chunks of sources the user can't read (assigned vs unassigned clients, agency-only CRM, client users denied); guards; analysis idempotency; budget enforcement
+- [ ] Playwright: insights list → explain → accept a recommendation → task exists; draft report commentary with AI; assistant answers with citations that open the source
+- [ ] Docs: ROADMAP, DATA_MODEL, ARCHITECTURE, DECISIONS, HANDOFF, CLAUDE.md, `.env.example`

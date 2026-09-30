@@ -607,6 +607,67 @@ the dry-run event picker is limited to them), `whatsapp:send`. Grants: Super Adm
 `automations:read`, `automations:manage`, `whatsapp:send`; Sales Rep `whatsapp:send`. Everything is agency-only; clients
 only ever see the synced numbers through their existing campaign pages. Flag `module.integrations` (on).
 
+
+### ADR-073 — AI behind one provider interface with a deterministic mock; Claude + Voyage live
+2026-09-30 · Accepted
+Every model call goes through `AiProvider` (`complete` for text, `embed` for vectors). The live provider uses Anthropic's
+Claude through the official `@anthropic-ai/sdk` (Messages API, model from `AI_MODEL`, default `claude-opus-5-5`, effort set
+per purpose, server-side refusal fallback `fallbacks: "default"`) and Voyage AI for embeddings (`voyage-3.5`, 1024
+dimensions, multilingual — Anthropic has no embedding endpoint). A **mock** provider composes answers and drafts from the
+facts and sources it is given and embeds text with feature hashing (1024 dimensions, Arabic-aware tokenization), so the
+whole phase runs, demos and is tested without keys: always outside production, in production only with
+`AI_PROVIDER=mock`. Without keys and without the mock, AI features show "not configured"; the deterministic parts
+(detectors, recommendations) keep working. Each call records purpose, model and tokens in `ai_usage`; an organization's
+monthly token budget stops further calls with a translated message; the assistant is rate-limited per user.
+*Rejected*: calling a provider from components or actions directly (no single place for budgets, redaction, logging
+and tests); an OpenAI-compatible shim (loses refusal handling and typed errors).
+
+### ADR-074 — Insights are computed by code; the model only explains
+2026-09-30 · Accepted
+Anomalies, KPI / budget pacing and delivery stops are pure detectors over `metrics_daily` and the Phase 4 campaign
+analysis: a robust z-score (median / MAD of the trailing 14 days, ≥ 7 days of history) with a minimum relative change
+(30 %) and minimum volume, thresholds by sensitivity (low 4 · normal 3 · high 2.5; ≥ 2× → critical); a move in the good
+direction is `info`, in the bad direction `warning`. Recommendations are rules with computed impact (e.g. move 20 % of a
+channel's daily spend to the channel whose CPL is ≥ 25 % lower → expected extra leads per day). Titles and bodies render
+from translations with the stored facts, so every insight exists in Arabic and English, costs nothing and never
+contains a number the platform didn't compute. "Explain" asks the model for a short narrative from the same facts,
+cached per insight and language. Detection runs as the `ai.analysis` consumer after metrics change and daily from the
+cron; it is idempotent per dedupe key, auto-resolves cleared conditions and reopens them when they return.
+*Rejected*: asking the model to find anomalies in raw numbers (non-deterministic, untestable, can invent figures).
+
+### ADR-075 — Permission-aware retrieval through the sources' own RLS
+2026-09-30 · Accepted
+The assistant searches `ai_chunks` **inside `withRls`**. The table's SELECT policy requires `ai:use` and
+`app.ai_source_visible(source_type, source_id)`, a `security invoker` SQL function that checks the source row exists
+*as the caller* — so the clients, campaigns, requests, tasks, reports, leads, deals and insights tables' existing policies
+decide, and a chunk can never be more visible than the record it came from (assigned clients, agency-only CRM, internal
+rows). The index is written by the service path (indexer consumer + daily catch-up); a deleted source's chunk is removed
+by the indexer and is invisible meanwhile because the policy finds no source row. The model sees only the top-k chunks
+the user could read, numbered; the answer's `[n]` markers are validated against them and rendered as links to the
+source pages, which enforce RLS again. Agency-only in Phase 8 (the same design would serve the portal later).
+*Rejected*: a denormalized ACL column on each chunk (drifts from the real rules on every assignment change).
+
+### ADR-076 — Data minimization for AI (PDPL)
+2026-09-30 · Accepted
+Indexed text has phone numbers and e-mail addresses redacted before it is stored, embedded or sent; prompts carry only
+the retrieved snippets and computed facts, never whole tables or files. AI is an organization-level switch (off = no
+model calls) that the owner turns on after accepting where the providers process data (Anthropic and Voyage process in
+the US; see open question 6). Conversations are private to their author. Usage is logged without prompt text.
+
+### ADR-077 — AI-drafted report text is a draft
+2026-09-30 · Accepted
+"Draft with AI" fills the commentary or next-steps section of a **draft** report in the report's language, grounded on
+the report's own snapshot (totals vs the previous period, KPIs, budget, channels) and the period's open insights. The text
+lands in the editor, unsaved, for the team to edit; publishing stays a human action. Scheduled report drafts can get AI
+commentary automatically (`ai_settings.auto_draft_reports`, off by default); they are still drafts that notify the team.
+
+### ADR-078 — AI permissions and visibility
+2026-09-30 · Accepted
+`ai:use` (assistant, report drafts, explanations) for every agency role; `ai:manage` (settings, usage, rebuild index) for
+Super Admin and Admin. Insights and recommendations follow campaign access: read with `campaigns:read` on the client,
+acknowledge / dismiss / accept with `campaigns:manage`. Flag `module.ai` (on). Nothing in Phase 8 is visible to client
+users. Notifications: `ai_insight` (category `ai`) to the campaign owner and the client's account managers for warning
+and critical insights.
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

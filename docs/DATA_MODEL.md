@@ -862,6 +862,44 @@ depth + 1 and the chain of rules that led to them — the loop guard reads both)
 | `automations` | read `automations:read`; write `automations:manage` | — |
 | `automation_runs` | read `automations:read`; written by the engine (service path) | — |
 
+## 3i. Phase 8 — AI intelligence
+
+```mermaid
+erDiagram
+  organizations ||--|| ai_settings : ""
+  organizations ||--o{ ai_usage : "per model call"
+  campaigns ||--o{ ai_insights : "detected on"
+  campaign_channels ||--o{ ai_insights : "optional channel"
+  ai_insights ||--o{ ai_recommendations : ""
+  ai_recommendations |o--o| tasks : "accepted → task"
+  ai_chunks }o--|| sources : "client · campaign · request · task · report · lead · deal · insight"
+  profiles ||--o{ ai_conversations : "private"
+  ai_conversations ||--o{ ai_messages : ""
+```
+
+| Table | Key columns | Notes |
+|---|---|---|
+| `ai_settings` | `organization_id` (pk), `enabled`, `sensitivity` (`low · normal · high`), `auto_draft_reports`, `monthly_token_budget`, `updated_by`, `updated_at` | One row per organization (created by `bootstrap_organization` and the migration). `enabled = false` → no model calls at all (detectors still run: they are code, not AI). |
+| `ai_usage` | `organization_id`, `user_id?`, `purpose` (`assistant · report_draft · insight_explain · embedding`), `provider` (`anthropic · voyage · mock`), `model`, `input_tokens`, `output_tokens`, `created_at` | Written by the service path after every call; the monthly budget sums it. |
+| `ai_insights` | `client_id`, `campaign_id`, `channel_id?`, `kind` (`spike · drop · kpi_off_track · kpi_at_risk · budget_overspent · budget_overpace · budget_underpace · delivery_stopped`), `metric?`, `severity` (`info · warning · critical`), `status` (`open · acknowledged · dismissed · resolved`), `dedupe_key`, `detected_on` (date), `facts jsonb` (value, baseline, change, z, window, currency…), `explanation?`, `explanation_locale?`, `explained_at?`, `first_detected_at`, `last_detected_at`, `resolved_at?`, `dismiss_reason?`, `acted_by?`, `acted_at?` | Unique (organization, `dedupe_key`). Anomalies are keyed by day (`campaign:channel:kind:metric:date`), pacing ones without the day, so they reopen when a cleared condition comes back. Titles and bodies are rendered from translations with `facts` (both languages, no model). |
+| `ai_recommendations` | `insight_id`, `client_id`, `campaign_id`, `kind` (`shift_budget · reduce_budget · increase_budget · refresh_creative · review_targeting · check_tracking · resume_delivery`), `facts jsonb` (channels, amounts in minor units, expected impact), `status` (`proposed · accepted · dismissed`), `task_id?`, `decided_by?`, `decided_at?`, `dismiss_reason?` | Unique (insight, kind). Accepting creates a task on the client in the same transaction. |
+| `ai_chunks` | `source_type`, `source_id`, `client_id?`, `title`, `url`, `content`, `content_hash`, `embedding vector(1024)`, `embedding_model`, `source_updated_at`, `indexed_at` | Unique (`source_type`, `source_id`). HNSW index on `embedding` (cosine). Content has phone numbers and e-mails redacted. Only the service path writes. |
+| `ai_conversations` | `user_id`, `title`, `last_message_at` | Private to their owner. |
+| `ai_messages` | `conversation_id`, `role` (`user · assistant`), `content`, `citations jsonb` (`[{n, sourceType, sourceId, title, url}]`), `status` (`ok · failed · refused · budget · disabled · no_sources`), `model?`, `input_tokens`, `output_tokens` | Citations keep only markers that point at sources sent with the question. |
+
+**RLS**
+
+| Table | Agency | Client users |
+|---|---|---|
+| `ai_settings`, `ai_usage` | read `ai:manage` (settings also `ai:use`, a yes/no the UI needs); update settings `ai:manage`; usage written by the service path | — |
+| `ai_insights`, `ai_recommendations` | read with `campaigns:read` on the client (`app.agency_can_task`); update status with `campaigns:manage` (guard keeps every other column) | — |
+| `ai_chunks` | read with `ai:use` **and** `app.ai_source_visible(source_type, source_id)` — a `security invoker` function that selects the source row, so the source table's own policies decide (ADR-075); no user writes | — |
+| `ai_conversations`, `ai_messages` | own rows only (and `ai:use`) | — |
+
+**Events**: `ai_insight.detected` (new or reopened, with kind / severity / metric), `ai_insight.status_changed`,
+`ai_recommendation.decided`, `ai_settings.updated`, `ai_report.drafted`. `ai_insight.detected` is an automation trigger
+(subject: the campaign).
+
 ## 4. Forward-looking sketch (all phases — not built in Phase 0)
 
 ```mermaid
@@ -920,4 +958,4 @@ erDiagram
 | 5 Ops | **Built** — see §3f | SLA tables + read models over earlier phases |
 | 6 CRM | **Built** — see §3g | Won deal → creates client |
 | 7 Integrations | **Built** — see §3h | Tokens in Supabase Vault; automation triggers = `domain_events` types |
-| 8 AI | `ai_insights`, `ai_recommendations`, `ai_conversations`, `ai_messages`, `embeddings` (pgvector) | Every AI output linked to source records for traceability |
+| 8 AI | **Built** — see §3i | Every AI output linked to its sources; numbers computed by code |
