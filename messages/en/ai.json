@@ -31,8 +31,8 @@
     "title": {
       "spike": "{metric} jumped {change}{hasChannel, select, yes { on {channel}} other {}}",
       "drop": "{metric} fell {change}{hasChannel, select, yes { on {channel}} other {}}",
-      "kpi_off_track": "{metric} is off track{hasChannel, select, yes { on {channel}} other {}}",
-      "kpi_at_risk": "{metric} is at risk{hasChannel, select, yes { on {channel}} other {}}",
+      "kpi_off_track": "{metric} KPI is off track{hasChannel, select, yes { on {channel}} other {}}",
+      "kpi_at_risk": "{metric} KPI is at risk{hasChannel, select, yes { on {channel}} other {}}",
       "budget_overspent": "Spend is over the campaign budget",
       "budget_overpace": "Spend is ahead of plan",
       "budget_underpace": "Spend is behind plan",

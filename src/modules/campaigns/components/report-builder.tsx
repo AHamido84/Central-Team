@@ -12,6 +12,7 @@ import { Input, Textarea } from '@/components/ui/input';
 import { ConfirmDialog, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/overlays';
 import { Badge, Card, Checkbox, NativeSelect } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
+import { AiDraftButton } from '@/modules/ai/components/ai-draft-button';
 import { ReportView } from '@/modules/campaigns/components/report-view';
 import { metricKeys, reportSectionKinds, type MetricKey, type ReportSectionKind } from '@/modules/campaigns/constants';
 import { sectionHasBody } from '@/modules/campaigns/periods';
@@ -23,7 +24,16 @@ type Draft = { key: string; kind: ReportSectionKind; config: ReportSectionConfig
 
 const withMetrics: readonly ReportSectionKind[] = ['kpi_summary', 'trend', 'channel_breakdown'];
 
-export function ReportBuilder({ report, canManage }: { report: ReportDetail; canManage: boolean }) {
+export function ReportBuilder({
+  report,
+  canManage,
+  aiDraft = false,
+}: {
+  report: ReportDetail;
+  canManage: boolean;
+  /** Phase 8: "Draft with AI" on commentary / next-steps sections (ADR-077). */
+  aiDraft?: boolean;
+}) {
   const t = useTranslations('reports');
   const tc = useTranslations('common');
   const tm = useTranslations('campaigns');
@@ -237,6 +247,20 @@ export function ReportBuilder({ report, canManage }: { report: ReportDetail; can
                       </Button>
                     </span>
                   </div>
+                  {aiDraft && (s.kind === 'commentary' || s.kind === 'next_steps') ? (
+                    <div className="mt-2 flex justify-end">
+                      <AiDraftButton
+                        reportId={report.id}
+                        section={s.kind}
+                        hasText={s.body.trim() !== ''}
+                        disabled={
+                          draft.periodStart !== report.periodStart || draft.periodEnd !== report.periodEnd || draft.locale !== report.locale
+                        }
+                        disabledReason={t('builder.saveFirst')}
+                        onDraft={(text) => setSection(i, { body: text })}
+                      />
+                    </div>
+                  ) : null}
                   {sectionHasBody(s.kind) ? (
                     <Textarea
                       className="mt-2"

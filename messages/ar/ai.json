@@ -31,8 +31,8 @@
     "title": {
       "spike": "ارتفاع في {metric} بنسبة {change}{hasChannel, select, yes { في {channel}} other {}}",
       "drop": "انخفاض في {metric} بنسبة {change}{hasChannel, select, yes { في {channel}} other {}}",
-      "kpi_off_track": "{metric} خارج المسار{hasChannel, select, yes { في {channel}} other {}}",
-      "kpi_at_risk": "{metric} معرّض للخطر{hasChannel, select, yes { في {channel}} other {}}",
+      "kpi_off_track": "مؤشر {metric} خارج المسار{hasChannel, select, yes { في {channel}} other {}}",
+      "kpi_at_risk": "مؤشر {metric} معرّض للخطر{hasChannel, select, yes { في {channel}} other {}}",
       "budget_overspent": "الإنفاق تجاوز ميزانية الحملة",
       "budget_overpace": "الإنفاق أسرع من الخطة",
       "budget_underpace": "الإنفاق أبطأ من الخطة",

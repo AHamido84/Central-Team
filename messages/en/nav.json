@@ -53,5 +53,8 @@
   "integrations": "Integrations",
   "automations": "Automations",
   "sandbox": "Sandbox",
-  "authorize": "Authorize"
+  "authorize": "Authorize",
+  "insights": "Insights",
+  "assistant": "Assistant",
+  "aiSettings": "AI settings"
 }

@@ -53,5 +53,8 @@
   "integrations": "التكاملات",
   "automations": "الأتمتة",
   "sandbox": "البيئة التجريبية",
-  "authorize": "منح الصلاحية"
+  "authorize": "منح الصلاحية",
+  "insights": "الرؤى",
+  "assistant": "المساعد",
+  "aiSettings": "إعدادات الذكاء الاصطناعي"
 }

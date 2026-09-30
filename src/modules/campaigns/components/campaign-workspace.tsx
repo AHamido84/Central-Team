@@ -4,7 +4,7 @@ import { ChevronDown, FilePlus2, ImageIcon, Link2, Pencil, Trash2, Unlink, Uploa
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { useFormat } from '@/components/providers';
 import { EmptyState, PageHeader } from '@/components/patterns';
@@ -39,7 +39,7 @@ import { deleteCampaignAction, linkDeliverableAction, setCampaignStatusAction } 
 import type { CampaignDetail, CampaignOption } from '@/modules/campaigns/server/queries';
 import type { DeliverableSummary } from '@/modules/deliverables/server/queries';
 
-const tabs = ['overview', 'metrics', 'creatives', 'reports'] as const;
+const tabs = ['overview', 'metrics', 'creatives', 'reports', 'insights'] as const;
 type Tab = (typeof tabs)[number];
 
 export function CreativeGrid({
@@ -147,6 +147,7 @@ export function CampaignWorkspace({
   campaignOptions,
   linkable,
   today,
+  insights,
 }: {
   campaign: CampaignDetail;
   initialTab: string | undefined;
@@ -156,6 +157,8 @@ export function CampaignWorkspace({
   campaignOptions: CampaignOption[];
   linkable: DeliverableSummary[];
   today: string;
+  /** Phase 8: the campaign's AI insights, rendered by the page when the AI module is on. */
+  insights?: { panel: ReactNode; count: number };
 }) {
   const t = useTranslations('campaigns');
   const tc = useTranslations('common');
@@ -164,7 +167,8 @@ export function CampaignWorkspace({
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const [tab, setTab] = useState<Tab>(tabs.includes(initialTab as Tab) ? (initialTab as Tab) : 'overview');
+  const visibleTabs = tabs.filter((k) => k !== 'insights' || insights);
+  const [tab, setTab] = useState<Tab>(visibleTabs.includes(initialTab as Tab) ? (initialTab as Tab) : 'overview');
   const status = useAction(setCampaignStatusAction, { successMessage: t('actions.statusChanged') });
   const remove = useAction(deleteCampaignAction, {
     successMessage: t('actions.deleted'),
@@ -282,10 +286,15 @@ export function CampaignWorkspace({
       {campaign.description ? <p className="-mt-3 mb-5 max-w-3xl text-sm text-muted-foreground">{campaign.description}</p> : null}
 
       <Tabs value={tab} onValueChange={onTab}>
-        <TabsList className="mb-4">
-          {tabs.map((k) => (
+        <TabsList className="mb-4 max-w-full overflow-x-auto">
+          {visibleTabs.map((k) => (
             <TabsTrigger key={k} value={k} data-testid={`tab-${k}`}>
               {t(`tabs.${k}`)}
+              {k === 'insights' && insights?.count ? (
+                <Badge tone="warning" className="ms-1.5">
+                  {insights.count}
+                </Badge>
+              ) : null}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -391,6 +400,7 @@ export function CampaignWorkspace({
             </Card>
           ) : null}
         </TabsContent>
+        {insights ? <TabsContent value="insights">{insights.panel}</TabsContent> : null}
         <TabsContent value="reports">
           <ReportList reports={campaign.reports} hrefBase="/reports" showClient={false} emptyLabel={t('reportsTab.empty')} />
         </TabsContent>

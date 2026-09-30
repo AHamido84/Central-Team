@@ -33,6 +33,9 @@ import {
   SlidersHorizontal,
   PlugZap,
   Zap,
+  Sparkles,
+  Lightbulb,
+  BrainCircuit,
 } from 'lucide-react';
 
 import { can, type PermissionSet } from '@/lib/permissions/can';
@@ -60,6 +63,7 @@ export const agencyNav: NavSection[] = [
       { key: 'dashboard', href: '/dashboard', icon: LayoutDashboard },
       { key: 'myWork', href: '/my-work', icon: ListChecks, anyOf: ['tasks:read'], flag: 'module.tasks' },
       { key: 'inbox', href: '/notifications', icon: Inbox },
+      { key: 'assistant', href: '/assistant', icon: Sparkles, anyOf: ['ai:use'], flag: 'module.ai' },
       { key: 'team', href: '/team', icon: UsersRound, anyOf: ['operations:read'] },
     ],
   },
@@ -72,6 +76,7 @@ export const agencyNav: NavSection[] = [
       { key: 'deliverables', href: '/deliverables', icon: FileCheck2, anyOf: ['tasks:read'], flag: 'module.tasks' },
       { key: 'campaigns', href: '/campaigns', icon: Megaphone, anyOf: ['campaigns:read'], flag: 'module.campaigns' },
       { key: 'reports', href: '/reports', icon: FileChartColumn, anyOf: ['campaigns:read'], flag: 'module.campaigns' },
+      { key: 'insights', href: '/insights', icon: Lightbulb, anyOf: ['campaigns:read'], flag: 'module.ai' },
       { key: 'clients', href: '/clients', icon: Briefcase, anyOf: ['clients:read_all', 'clients:read_assigned'], flag: 'module.clients' },
       {
         key: 'messages',
@@ -116,6 +121,7 @@ export const agencyNav: NavSection[] = [
         anyOf: ['automations:read', 'automations:manage'],
         flag: 'module.integrations',
       },
+      { key: 'aiSettings', href: '/admin/ai', icon: BrainCircuit, anyOf: ['ai:manage'], flag: 'module.ai' },
       { key: 'packages', href: '/admin/packages', icon: Package, anyOf: ['packages:manage'], flag: 'module.clients' },
       { key: 'features', href: '/admin/features', icon: Blocks, anyOf: ['feature_flags:manage'] },
       { key: 'audit', href: '/admin/audit', icon: ScrollText, anyOf: ['audit_log:read'] },

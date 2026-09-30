@@ -17,6 +17,9 @@ export type TextKit = {
   platform: (key: string) => string;
 };
 
+/** First-strong isolation for names inside a sentence of the other direction (gotcha 5). */
+const isolate = (s: string) => (s ? `\u2068${s}\u2069` : '');
+
 /** Node and browsers disagree on invisible bidi marks in some Arabic outputs; the surrounding text sets direction. */
 const clean = (s: string) => s.replace(/[‎‏؜]/g, '');
 
@@ -54,7 +57,7 @@ export function insightTitle(kit: TextKit, i: InsightLike): string {
   return kit.t(`insight.title.${i.kind}`, {
     metric: i.metric ? kit.metric(i.metric) : '',
     change,
-    channel: channel ?? '',
+    channel: isolate(channel ?? ''),
     hasChannel: channel ? 'yes' : 'no',
   });
 }
@@ -105,7 +108,7 @@ export type RecommendationLike = { kind: RecommendationKind | string; facts: Rec
 const named = (kit: TextKit, name?: string, platform?: string) => name || (platform ? kit.platform(platform) : '');
 
 export function recommendationTitle(kit: TextKit, r: RecommendationLike): string {
-  return kit.t(`rec.title.${r.kind}`, { to: named(kit, r.facts.toChannel, r.facts.toPlatform) });
+  return kit.t(`rec.title.${r.kind}`, { to: isolate(named(kit, r.facts.toChannel, r.facts.toPlatform)) });
 }
 
 export function recommendationBody(kit: TextKit, r: RecommendationLike): string {
@@ -115,8 +118,8 @@ export function recommendationBody(kit: TextKit, r: RecommendationLike): string 
   return kit.t(`rec.body.${r.kind}`, {
     amount: money(f, x.amountMinor, currency),
     daily: money(f, x.dailyBudgetMinor, currency),
-    from: named(kit, x.fromChannel, x.fromPlatform),
-    to: named(kit, x.toChannel, x.toPlatform),
+    from: isolate(named(kit, x.fromChannel, x.fromPlatform)),
+    to: isolate(named(kit, x.toChannel, x.toPlatform)),
     fromCost: money(f, x.fromCost, currency),
     toCost: money(f, x.toCost, currency),
     delta: clean(f.number(x.expectedDelta ?? 0, { maximumFractionDigits: 1 })),

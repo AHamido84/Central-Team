@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation';
 import { BreadcrumbLabel } from '@/components/shell/breadcrumbs';
 import { requireAgency } from '@/lib/auth/context';
 import { can } from '@/lib/permissions/can';
+import { CampaignInsights } from '@/modules/ai/components/campaign-insights';
+import { listInsights } from '@/modules/ai/server/queries';
 import { CampaignWorkspace } from '@/modules/campaigns/components/campaign-workspace';
 import { getCampaign, listCampaignOptions } from '@/modules/campaigns/server/queries';
 import { listAgencyPeople, listClients } from '@/modules/clients/server/queries';
@@ -32,12 +34,15 @@ export default async function CampaignPage({
   if (!ctx.flags['module.campaigns']) notFound();
   const campaign = await getCampaign(campaignId);
   if (!campaign) notFound();
-  const [clients, people, campaignOptions, clientDeliverables] = await Promise.all([
+  const [clients, people, campaignOptions, clientDeliverables, insights] = await Promise.all([
     listClients(ctx),
     listAgencyPeople(ctx),
     listCampaignOptions(campaign.clientId),
     ctx.flags['module.tasks'] ? listDeliverables({ clientId: campaign.clientId }) : Promise.resolve([]),
+    ctx.flags['module.ai'] ? listInsights({ campaignId: campaign.id, status: 'all' }) : Promise.resolve(null),
   ]);
+  // Live insights first; resolved and dismissed ones stay visible below them for context.
+  const activeInsights = insights?.filter((i) => i.status === 'open' || i.status === 'acknowledged').length ?? 0;
   return (
     <>
       <BreadcrumbLabel segment={campaignId} label={campaign.name} />
@@ -54,6 +59,11 @@ export default async function CampaignPage({
         campaignOptions={campaignOptions}
         linkable={clientDeliverables.filter((d) => d.campaignId === null)}
         today={dayInZone(new Date(), ctx.organization.defaultTimezone)}
+        insights={
+          insights
+            ? { panel: <CampaignInsights items={insights.slice(0, 30)} campaignId={campaign.id} />, count: activeInsights }
+            : undefined
+        }
       />
     </>
   );
