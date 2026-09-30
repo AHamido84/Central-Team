@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils/cn';
 
 export type AuditEntry = {
   id: number;
-  action: 'insert' | 'update' | 'delete';
+  action: 'insert' | 'update' | 'delete' | 'data_export' | 'data_reset';
   tableName: string;
   recordId: string | null;
   before: Record<string, unknown> | null;
@@ -25,7 +25,7 @@ export type AuditEntry = {
 };
 
 const HIDDEN_FIELDS = new Set(['updated_at', 'created_at', 'organization_id']);
-const actionTone = { insert: 'success', update: 'info', delete: 'danger' } as const;
+const actionTone = { insert: 'success', update: 'info', delete: 'danger', data_export: 'neutral', data_reset: 'danger' } as const;
 
 function formatValue(value: unknown): string {
   if (value === null || value === undefined) return '—';

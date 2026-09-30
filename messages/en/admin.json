@@ -168,12 +168,16 @@
     "actionsLabel": {
       "insert": "Created",
       "update": "Updated",
-      "delete": "Deleted"
+      "delete": "Deleted",
+      "data_export": "Backup",
+      "data_reset": "Data reset"
     },
     "actions": {
       "insert": "created a",
       "update": "updated a",
-      "delete": "deleted a"
+      "delete": "deleted a",
+      "data_export": "downloaded a data backup",
+      "data_reset": "reset the agency's data"
     },
     "tables": {
       "organizations": "agency settings",

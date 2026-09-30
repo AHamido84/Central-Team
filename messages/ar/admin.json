@@ -168,12 +168,16 @@
     "actionsLabel": {
       "insert": "إضافة",
       "update": "تعديل",
-      "delete": "حذف"
+      "delete": "حذف",
+      "data_export": "نسخة احتياطية",
+      "data_reset": "إعادة ضبط البيانات"
     },
     "actions": {
       "insert": "أضاف",
       "update": "عدّل",
-      "delete": "حذف"
+      "delete": "حذف",
+      "data_export": "نزّل نسخة احتياطية من البيانات",
+      "data_reset": "أعاد ضبط بيانات الوكالة"
     },
     "tables": {
       "organizations": "إعدادات الوكالة",

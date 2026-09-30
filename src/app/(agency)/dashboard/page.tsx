@@ -272,10 +272,15 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                         <p className="min-w-0 flex-1 text-sm">
                           <span className="font-medium">{a.actorName}</span>{' '}
                           <span className="text-muted-foreground">
-                            {t(`admin.audit.actions.${a.action as 'insert' | 'update' | 'delete'}`)}{' '}
-                            {t.has(`admin.audit.tables.${a.tableName}` as never)
-                              ? t(`admin.audit.tables.${a.tableName}` as never)
-                              : a.tableName}
+                            {t(`admin.audit.actions.${a.action as 'insert' | 'update' | 'delete' | 'data_export' | 'data_reset'}`)}
+                            {a.action === 'data_export' || a.action === 'data_reset' ? null : (
+                              <>
+                                {' '}
+                                {t.has(`admin.audit.tables.${a.tableName}` as never)
+                                  ? t(`admin.audit.tables.${a.tableName}` as never)
+                                  : a.tableName}
+                              </>
+                            )}
                           </span>
                           <span className="block text-xs text-subtle-foreground">{f.relative(a.createdAt)}</span>
                         </p>
