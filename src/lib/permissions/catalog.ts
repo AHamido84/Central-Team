@@ -59,6 +59,11 @@ export const agencyPermissions = [
   'crm:admin',
   'capacity:read',
   'capacity:manage',
+  'integrations:read',
+  'integrations:manage',
+  'automations:read',
+  'automations:manage',
+  'whatsapp:send',
 ] as const;
 
 export const clientPermissions = [

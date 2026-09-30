@@ -43,6 +43,13 @@
       "when": 1790733588332,
       "tag": "20260930015948_crm_capacity",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790748413006,
+      "tag": "20260930060653_integrations_automations",
+      "breakpoints": true
     }
   ]
 }

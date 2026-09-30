@@ -120,10 +120,10 @@ export type DomainEventPayloads = {
   'sla.breached': { breachId: string; requestId: string; clientId: string; kind: 'response' | 'resolution'; dueAt: string };
   'sla_breach.acknowledged': { breachId: string; requestId: string; clientId: string };
   // CRM & capacity (Phase 6)
-  'lead.created': { leadId: string; source: string; ownerId: string | null; via: 'manual' | 'import' | 'form' | 'webhook' };
+  'lead.created': { leadId: string; source: string; ownerId: string | null; via: 'manual' | 'import' | 'form' | 'webhook' | 'lead_ad' };
   'lead.updated': { leadId: string; fields: string[] };
   'lead.assigned': { leadId: string; ownerId: string | null; previousOwnerId: string | null; ruleId: string | null };
-  'lead.resubmitted': { leadId: string; via: 'form' | 'webhook' };
+  'lead.resubmitted': { leadId: string; via: 'form' | 'webhook' | 'lead_ad' };
   'lead.merged': { leadId: string; mergedId: string };
   'lead.converted': { leadId: string; dealId: string };
   'leads.imported': { count: number; skipped: number; source: string };
@@ -141,6 +141,35 @@ export type DomainEventPayloads = {
   'quote.status_changed': { quoteId: string; dealId: string; status: string };
   'crm_settings.updated': { area: string; id: string | null };
   'capacity.updated': { area: 'member' | 'time_off' | 'effort'; id: string };
+  // Integrations & automation (Phase 7)
+  'integration.connected': { connectionId: string; provider: string; mode: 'live' | 'sandbox' };
+  'integration.reconnected': { connectionId: string; provider: string };
+  'integration.disconnected': { connectionId: string; provider: string };
+  'integration.updated': { connectionId: string; fields: string[] };
+  /** The token expired or was revoked: someone with `integrations:manage` has to reconnect. */
+  'integration.connection_expired': { connectionId: string; provider: string; errorCode: string };
+  'integration.account_mapped': { accountId: string; clientId: string | null; syncEnabled: boolean };
+  'integration.campaign_linked': { linkId: string; channelId: string | null };
+  'integration.sync_requested': { runId: string; connectionId: string; from: string; to: string };
+  /** A sync run gave up after its last retry. */
+  'integration.sync_failed': { runId: string; connectionId: string; provider: string; errorCode: string };
+  /** One campaign got fresh numbers from a platform sync. */
+  'metrics.synced': { campaignId: string; clientId: string; runId: string; rows: number; from: string; to: string };
+  'whatsapp.templates_synced': { connectionId: string; count: number };
+  'whatsapp.template_updated': { templateId: string; isNotification: boolean };
+  'whatsapp.message_sent': {
+    messageId: string;
+    purpose: 'notification' | 'lead' | 'automation';
+    leadId: string | null;
+    dealId: string | null;
+  };
+  'whatsapp.message_failed': { messageId: string; errorCode: string };
+  'whatsapp.opt_in_changed': { userId: string; optedIn: boolean };
+  'automation.saved': { automationId: string; created: boolean };
+  'automation.toggled': { automationId: string; isActive: boolean };
+  'automation.deleted': { automationId: string };
+  /** A run failed after the dispatcher's last retry. */
+  'automation.failed': { automationId: string; runId: string; error: string };
 };
 
 export type DomainEventType = keyof DomainEventPayloads;

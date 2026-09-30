@@ -18,6 +18,31 @@ const serverSchema = z.object({
   /** Bearer secret for /api/cron/* (the event dispatcher safety net). */
   CRON_SECRET: z.string().min(16).optional(),
   FORM_SIGNING_SECRET: z.string().min(16).optional(),
+  // Phase 7 — integrations. A provider without its keys shows as "not configured" (sandbox still works).
+  /** `1` enables the sandbox providers in production (always on outside production). */
+  INTEGRATIONS_SANDBOX: z.enum(['0', '1']).optional(),
+  /** HMAC key for OAuth `state` and sandbox webhook signatures (falls back to the Supabase secret key). */
+  INTEGRATIONS_SIGNING_SECRET: z.string().min(16).optional(),
+  META_APP_ID: z.string().min(1).optional(),
+  META_APP_SECRET: z.string().min(1).optional(),
+  META_WEBHOOK_VERIFY_TOKEN: z.string().min(8).optional(),
+  META_GRAPH_VERSION: z
+    .string()
+    .regex(/^v\d+\.\d+$/)
+    .default('v23.0'),
+  TIKTOK_APP_ID: z.string().min(1).optional(),
+  TIKTOK_APP_SECRET: z.string().min(1).optional(),
+  SNAPCHAT_CLIENT_ID: z.string().min(1).optional(),
+  SNAPCHAT_CLIENT_SECRET: z.string().min(1).optional(),
+  SNAPCHAT_WEBHOOK_SECRET: z.string().min(8).optional(),
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+  GOOGLE_ADS_DEVELOPER_TOKEN: z.string().min(1).optional(),
+  GOOGLE_ADS_LOGIN_CUSTOMER_ID: z
+    .string()
+    .regex(/^\d{10}$/)
+    .optional(),
+  GOOGLE_LEAD_WEBHOOK_KEY: z.string().min(8).optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;
