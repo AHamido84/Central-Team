@@ -144,3 +144,73 @@ test('sandbox connect → map → sync → metrics on the campaign → automatio
     await db.end();
   }
 });
+
+/**
+ * WhatsApp: a sales rep sends an approved template to a lead from the lead page (sandbox number) → the message shows
+ * with its delivery status from the status webhook and a WhatsApp activity; an agency user opts in to WhatsApp
+ * notifications from their settings and can choose categories.
+ */
+test('whatsapp: send a template from the lead page, see delivery; opt in to notifications', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const db = postgres(process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 1 });
+  const since = new Date();
+  try {
+    const [lead] = await db<{ id: string }[]>`select id from public.leads where external_ref = 'meta:sbx_lead_90001'`;
+    const page = await (await browser.newContext()).newPage();
+    await login(page, 'ruba@ofoq.test');
+    await page.goto(`/crm/leads/${lead!.id}`);
+    await expect(page.getByTestId('whatsapp-panel')).toBeVisible();
+    await page.getByTestId('whatsapp-send-open').click();
+    await page.getByTestId('whatsapp-template').selectOption({ label: 'meeting_reminder · EN' });
+    await page.getByTestId('whatsapp-param-1').fill('Sunday');
+    await page.getByTestId('whatsapp-param-2').fill('10:00');
+    await expect(page.getByTestId('whatsapp-preview')).toHaveText('A reminder of our meeting on Sunday at 10:00.');
+    await page.getByTestId('whatsapp-send').click();
+    await expect(page.getByTestId('whatsapp-history').getByText('A reminder of our meeting on Sunday at 10:00.').first()).toBeVisible();
+    await expect(page.getByTestId('message-status').first()).toHaveText(/Read|قُرئت/);
+    // The history may already hold the same text from an earlier run: wait for this send's row.
+    await expect
+      .poll(
+        async () =>
+          (
+            await db<{ status: string; sent_by: string }[]>`
+              select m.status, u.email as sent_by from public.whatsapp_messages m join auth.users u on u.id = m.sent_by
+              where m.lead_id = ${lead!.id} and m.created_at >= ${since}`
+          )[0],
+        { timeout: 20_000 },
+      )
+      .toEqual({ status: 'read', sent_by: 'ruba@ofoq.test' });
+
+    // Opt in to WhatsApp notifications (Noura has not yet), then switch a category on.
+    const noura = await (await browser.newContext()).newPage();
+    await login(noura, 'noura@ofoq.test');
+    await db`delete from public.whatsapp_opt_ins where user_id = (select id from auth.users where email = 'noura@ofoq.test')`;
+    await noura.goto('/settings/notifications');
+    await expect(noura.getByTestId('pref-sales-whatsapp')).toBeDisabled();
+    await noura.getByTestId('whatsapp-phone').fill('0501110003');
+    await noura.getByTestId('whatsapp-opt-in-submit').click();
+    await expect(noura.getByTestId('whatsapp-opt-in').getByRole('alert')).toBeVisible();
+    await noura.getByTestId('whatsapp-consent').click();
+    await noura.getByTestId('whatsapp-opt-in-submit').click();
+    await expect(noura.getByTestId('whatsapp-opt-out')).toBeVisible();
+    await expect(noura.getByTestId('pref-sales-whatsapp')).toBeEnabled();
+    await noura.getByTestId('pref-sales-whatsapp').click();
+    await expect
+      .poll(
+        async () =>
+          (
+            await db<{ whatsapp: boolean }[]>`
+        select p.whatsapp from public.notification_preferences p join auth.users u on u.id = p.user_id
+        where u.email = 'noura@ofoq.test' and p.category = 'sales'`
+          )[0]?.whatsapp,
+      )
+      .toBe(true);
+    const [opt] = await db<{ phone: string }[]>`
+      select phone from public.whatsapp_opt_ins where user_id = (select id from auth.users where email = 'noura@ofoq.test')`;
+    expect(opt?.phone).toBe('+966501110003');
+  } finally {
+    await db`delete from public.whatsapp_opt_ins where user_id = (select id from auth.users where email = 'noura@ofoq.test')`;
+    await db`update public.notification_preferences set whatsapp = false where user_id = (select id from auth.users where email = 'noura@ofoq.test')`;
+    await db.end();
+  }
+});
