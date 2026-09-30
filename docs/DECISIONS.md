@@ -737,6 +737,21 @@ no longer refreshes the router, and columns/groups mount 15–40 rows with "show
 *Rejected*: caching permissions in JWT claims (stale after role changes until re-login); list virtualization (drag &
 drop across virtualized columns is fragile; bounded rendering was enough).
 
+### ADR-083 — Conversion goes through a reviewed plan
+2026-09-30 · Accepted
+"Convert to tasks" now has two steps: the server proposes a plan from the template (`planFromTemplate`: names,
+assignees resolved from the step's mode, reviewer, department, priority, working-day durations and dates), the user edits
+it (rename, reassign, reviewer, department, priority, dates, order, dependencies, remove steps, add tasks), and the server
+validates it again (`planSchema`: unique keys, no cycles, start ≤ due, workflow items must be steps of that template) and
+creates exactly that (`createFromPlan`). The plan type and scheduler (`src/modules/workflows/plan.ts`) are shared, so the
+review screen and the server compute the same dates; hand-typed dates are kept when the plan is rescheduled. Items
+without a step are "outside the workflow" (`workflow_step_id is null`) and are badged. After conversion, tasks can be
+added to the request (`addRequestTaskAction`; dates follow the tasks they wait for unless set) and deleted (Trash).
+`app.request_progress` now includes hand-added tasks for the agency (by title) but still shows only workflow steps (by
+step name) to the portal. Won-deal onboarding still converts without a review (`generateWorkflow` = plan + create).
+*Rejected*: creating tasks first and editing afterwards (notifications and events would fire for tasks that are then
+removed or renamed).
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

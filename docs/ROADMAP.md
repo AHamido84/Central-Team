@@ -629,6 +629,13 @@ Focused improvements on Phases 0–8 — no new phase. Each item extends the exi
   dates recompute when tasks are added or removed. Ad-hoc tasks: `workflow_step_id is null` on a request's task →
   shown as "Outside workflow" and reported separately.
 
+**Status**
+- [x] Review step: rename, reassign, reviewer, department, dates, priority, reorder, dependencies, remove steps, add
+  tasks outside the workflow; dates recompute live (ADR-083)
+- [x] Request page lists its tasks with "Add task" (dates follow what it waits for) and delete; "outside workflow" badge
+  on the request page and in the drawer; progress includes added tasks for the agency
+- [x] Unit tests (`tests/unit/plan.test.ts`), e2e (`e2e/convert-review.spec.ts`)
+
 ### FR1.4 Edit every task field, by permission
 - Editable in the drawer, table (inline + bulk) and the Kanban card menu: assignees, reviewer, watchers, department,
   status, priority, dates, estimate, tags, title, description, checklist, subtasks, dependencies, client / request.

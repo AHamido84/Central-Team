@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/patterns';
 import { requireAgency } from '@/lib/auth/context';
 import { can } from '@/lib/permissions/can';
+import { listDepartments } from '@/modules/rbac/server/queries';
 import { listAgencyPeople } from '@/modules/clients/server/queries';
 import { RequestsInbox } from '@/modules/requests/components/requests-inbox';
 import { inboxViews, type InboxView } from '@/modules/requests/constants';
@@ -21,7 +22,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
   if (!ctx.flags['module.requests']) notFound();
   const { view } = await searchParams;
   const t = await getTranslations('requests');
-  const [requests, people] = await Promise.all([listRequests(), listAgencyPeople(ctx)]);
+  const [requests, people, departments] = await Promise.all([listRequests(), listAgencyPeople(ctx), listDepartments(ctx)]);
   return (
     <>
       <PageHeader title={t('inboxTitle')} description={t('inboxDescription')} />
@@ -37,6 +38,8 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
             ? {
                 today: dayInZone(new Date(), ctx.organization.defaultTimezone),
                 canManageWorkflows: can(ctx.permissions, 'workflows:manage'),
+                people: people.map((p) => ({ id: p.id, name: p.name })),
+                departments: departments.map((d) => ({ id: d.id, name: d.name })),
               }
             : undefined
         }

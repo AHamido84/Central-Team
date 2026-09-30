@@ -1,8 +1,9 @@
 import { z } from 'zod';
 
 import { localizedText } from '@/lib/validation';
-import { statusCategories, statusColors } from '@/modules/tasks/constants';
+import { statusCategories, statusColors, taskPriorities } from '@/modules/tasks/constants';
 import { assigneeModes, deliverableTypes, MAX_STEPS, orderSteps } from '@/modules/workflows/constants';
+import { planSchema } from '@/modules/workflows/plan';
 
 const bilingual = (max: number) =>
   z.object({ ar: z.string().trim().max(max, { message: 'too_long' }), en: z.string().trim().max(max, { message: 'too_long' }) });
@@ -71,4 +72,20 @@ export const convertSchema = z.object({
   templateId: z.uuid(),
   /** First working day of the workflow (defaults to today in the organization's time zone). */
   startDate: z.iso.date({ message: 'invalid_date' }).optional(),
+  /** The reviewed plan (FR1.3). Without it the template's own plan is used as proposed. */
+  plan: planSchema.optional(),
+});
+
+/** A task added to a converted request (FR1.3): dates follow the tasks it waits for unless set by hand. */
+export const addRequestTaskSchema = z.object({
+  requestId: z.uuid(),
+  title: z.string().trim().min(1, { message: 'required' }).max(200, { message: 'too_long' }),
+  departmentId: z.uuid().nullable(),
+  assigneeId: z.uuid().nullable(),
+  reviewerId: z.uuid().nullable(),
+  priority: z.enum(taskPriorities),
+  durationDays: z.number().int().min(0).max(365),
+  dependsOn: z.array(z.uuid()).max(20),
+  startDate: z.iso.date({ message: 'invalid_date' }).nullable(),
+  dueDate: z.iso.date({ message: 'invalid_date' }).nullable(),
 });

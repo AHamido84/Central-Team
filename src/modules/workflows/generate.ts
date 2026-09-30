@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 
 import type { Tx } from '@/lib/db/client';
 import {
@@ -14,7 +14,9 @@ import {
   workflowTemplateSteps,
 } from '@/lib/db/schema';
 import { localized, type Locale } from '@/lib/i18n/localized';
-import { scheduleSteps } from '@/modules/workflows/constants';
+import { taskPriorities, type TaskPriority } from '@/modules/tasks/constants';
+import { scheduleSteps, type DeliverableType } from '@/modules/workflows/constants';
+import { orderPlan, type PlanItem } from '@/modules/workflows/plan';
 
 export type GenerateInput = {
   organizationId: string;
@@ -34,10 +36,10 @@ export type GeneratedWorkflow = {
 };
 
 /**
- * Turns a workflow template into the request's task chain: one task per step (dependencies, assignee, reviewer,
- * due dates) plus a deliverable for steps that produce one. Runs in the caller's transaction (RLS-scoped for users).
+ * The plan a workflow template proposes for a request (FR1.3): one item per step with its assignee, reviewer,
+ * department, priority and scheduled dates. Nothing is written — the review screen edits it before `createFromPlan`.
  */
-export async function generateWorkflow(tx: Tx, input: GenerateInput): Promise<GeneratedWorkflow> {
+export async function planFromTemplate(tx: Tx, input: Omit<GenerateInput, 'createdBy'>): Promise<PlanItem[]> {
   const steps = await tx
     .select()
     .from(workflowTemplateSteps)
@@ -57,11 +59,6 @@ export async function generateWorkflow(tx: Tx, input: GenerateInput): Promise<Ge
     .select({ userId: departmentMembers.userId, departmentId: departmentMembers.departmentId })
     .from(departmentMembers)
     .where(eq(departmentMembers.organizationId, input.organizationId));
-  const [todo] = await tx
-    .select({ id: taskStatuses.id })
-    .from(taskStatuses)
-    .where(and(eq(taskStatuses.organizationId, input.organizationId), eq(taskStatuses.isDefault, true)));
-  if (!todo) throw new Error('no_default_status');
 
   const assigneeFor = (s: (typeof steps)[number]): string | null => {
     switch (s.assigneeMode) {
@@ -79,55 +76,98 @@ export async function generateWorkflow(tx: Tx, input: GenerateInput): Promise<Ge
         return null;
     }
   };
-
-  const idFor = new Map(steps.map((s) => [s.id, crypto.randomUUID()]));
-  const title = (s: (typeof steps)[number]) => `${localized(s.name, input.locale)} · ${input.request.title}`.slice(0, 200);
   const reviewer = client?.am ?? null;
+  const priority = (taskPriorities as readonly string[]).includes(input.request.priority)
+    ? (input.request.priority as TaskPriority)
+    : 'normal';
 
+  return steps.map((s) => ({
+    key: s.id,
+    stepId: s.id,
+    title: `${localized(s.name, input.locale)} · ${input.request.title}`.slice(0, 200),
+    departmentId: s.departmentId,
+    assigneeId: assigneeFor(s),
+    reviewerId: s.requiresInternalReview ? reviewer : null,
+    priority,
+    durationDays: s.slaDays,
+    startDate: schedule.get(s.id)!.startDate,
+    dueDate: schedule.get(s.id)!.dueDate,
+    manualDates: false,
+    dependsOn: s.dependsOn,
+    deliverableType: (s.deliverableType as DeliverableType | null) ?? null,
+    requiresInternalReview: s.requiresInternalReview,
+    requiresClientApproval: s.requiresClientApproval,
+  }));
+}
+
+/**
+ * Creates a request's tasks exactly as planned — order, names, people, dates, dependencies — plus a deliverable for
+ * items that produce one. Items without a `stepId` are "outside the workflow". Runs in the caller's transaction (RLS
+ * for users; the database checks assignees, departments and the dependency graph again).
+ */
+export async function createFromPlan(
+  tx: Tx,
+  input: {
+    organizationId: string;
+    request: { id: string; clientId: string; title: string };
+    templateId: string | null;
+    items: PlanItem[];
+    createdBy: string | null;
+    locale: Locale;
+  },
+): Promise<GeneratedWorkflow> {
+  if (!orderPlan(input.items)) throw new Error('dependency_cycle');
+  const [todo] = await tx
+    .select({ id: taskStatuses.id })
+    .from(taskStatuses)
+    .where(and(eq(taskStatuses.organizationId, input.organizationId), eq(taskStatuses.isDefault, true)));
+  if (!todo) throw new Error('no_default_status');
+  const [maxOrder] = await tx
+    .select({ n: sql<number>`coalesce(max(${tasks.stepOrder}), 0)::int` })
+    .from(tasks)
+    .where(eq(tasks.requestId, input.request.id));
+  const offset = maxOrder?.n ?? 0;
+
+  const idFor = new Map(input.items.map((i) => [i.key, crypto.randomUUID()]));
   await tx.insert(tasks).values(
-    steps.map((s, i) => ({
-      id: idFor.get(s.id)!,
+    input.items.map((item, i) => ({
+      id: idFor.get(item.key)!,
       organizationId: input.organizationId,
       clientId: input.request.clientId,
       requestId: input.request.id,
-      workflowTemplateId: input.templateId,
-      workflowStepId: s.id,
-      title: title(s),
-      description: localized(s.description, input.locale),
-      departmentId: s.departmentId,
+      workflowTemplateId: item.stepId ? input.templateId : null,
+      workflowStepId: item.stepId,
+      title: item.title,
+      departmentId: item.departmentId,
       statusId: todo.id,
-      priority: input.request.priority,
-      startDate: schedule.get(s.id)!.startDate,
-      dueDate: schedule.get(s.id)!.dueDate,
-      reviewerId: s.requiresInternalReview ? reviewer : null,
-      stepOrder: i + 1,
-      position: i + 1,
-      requiresInternalReview: s.requiresInternalReview,
-      requiresClientApproval: s.requiresClientApproval,
+      priority: item.priority,
+      startDate: item.startDate,
+      dueDate: item.dueDate,
+      reviewerId: item.reviewerId,
+      stepOrder: offset + i + 1,
+      position: offset + i + 1,
+      requiresInternalReview: item.requiresInternalReview,
+      requiresClientApproval: item.requiresClientApproval,
       createdBy: input.createdBy,
     })),
   );
 
-  const assignments = steps
-    .map((s) => ({ taskId: idFor.get(s.id)!, userIds: [assigneeFor(s)].filter(Boolean) as string[] }))
-    .filter((a) => a.userIds.length > 0);
+  const assignments = input.items.filter((i) => i.assigneeId).map((i) => ({ taskId: idFor.get(i.key)!, userIds: [i.assigneeId!] }));
   if (assignments.length) {
     await tx.insert(taskMembers).values(
-      assignments.flatMap((a) =>
-        a.userIds.map((userId) => ({
-          taskId: a.taskId,
-          userId,
-          role: 'assignee',
-          organizationId: input.organizationId,
-          clientId: input.request.clientId,
-        })),
-      ),
+      assignments.map((a) => ({
+        taskId: a.taskId,
+        userId: a.userIds[0]!,
+        role: 'assignee',
+        organizationId: input.organizationId,
+        clientId: input.request.clientId,
+      })),
     );
   }
 
-  const deps = steps.flatMap((s) =>
-    s.dependsOn.map((d) => ({
-      taskId: idFor.get(s.id)!,
+  const deps = input.items.flatMap((item) =>
+    item.dependsOn.map((d) => ({
+      taskId: idFor.get(item.key)!,
       dependsOnId: idFor.get(d)!,
       organizationId: input.organizationId,
       clientId: input.request.clientId,
@@ -135,21 +175,21 @@ export async function generateWorkflow(tx: Tx, input: GenerateInput): Promise<Ge
   );
   if (deps.length) await tx.insert(taskDependencies).values(deps);
 
-  const producing = steps.filter((s) => s.deliverableType);
+  const producing = input.items.filter((i) => i.deliverableType);
   const deliverableIds: string[] = [];
   if (producing.length) {
     const rows = await tx
       .insert(deliverables)
       .values(
-        producing.map((s) => ({
+        producing.map((item) => ({
           organizationId: input.organizationId,
           clientId: input.request.clientId,
           requestId: input.request.id,
-          taskId: idFor.get(s.id)!,
-          type: s.deliverableType!,
-          title: (producing.length > 1 ? `${input.request.title} · ${localized(s.name, input.locale)}` : input.request.title).slice(0, 200),
-          requiresInternalReview: s.requiresInternalReview,
-          requiresClientApproval: s.requiresClientApproval,
+          taskId: idFor.get(item.key)!,
+          type: item.deliverableType!,
+          title: (producing.length > 1 ? item.title : input.request.title).slice(0, 200),
+          requiresInternalReview: item.requiresInternalReview,
+          requiresClientApproval: item.requiresClientApproval,
           createdBy: input.createdBy,
         })),
       )
@@ -157,7 +197,20 @@ export async function generateWorkflow(tx: Tx, input: GenerateInput): Promise<Ge
     deliverableIds.push(...rows.map((r) => r.id));
   }
 
-  return { taskIds: steps.map((s) => idFor.get(s.id)!), deliverableIds, assignments };
+  return { taskIds: input.items.map((i) => idFor.get(i.key)!), deliverableIds, assignments };
+}
+
+/** Template → tasks without a review (won-deal onboarding): the template's plan, created as proposed. */
+export async function generateWorkflow(tx: Tx, input: GenerateInput): Promise<GeneratedWorkflow> {
+  const items = await planFromTemplate(tx, input);
+  return createFromPlan(tx, {
+    organizationId: input.organizationId,
+    request: input.request,
+    templateId: input.templateId,
+    items,
+    createdBy: input.createdBy,
+    locale: input.locale,
+  });
 }
 
 /** Assignee ids per task, for notifications after bulk inserts. */

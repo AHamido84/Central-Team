@@ -246,7 +246,25 @@
     "stopTimer": "Stop"
   },
   "requestWork": {
-    "title": "Work on this request"
+    "title": "Work on this request",
+    "addTask": "Add task",
+    "addTitle": "Add a task to this request",
+    "title_": "Task name",
+    "waitsFor": "Waits for",
+    "duration": "Working days",
+    "startDate": "Start",
+    "dueDate": "Due",
+    "datesHint": "Leave the dates empty to start when the tasks it waits for are due.",
+    "assignee": "Assignee",
+    "reviewer": "Reviewer",
+    "department": "Department",
+    "priority": "Priority",
+    "nobody": "Nobody",
+    "none": "None",
+    "add": "Add task",
+    "added": "Task added",
+    "outsideWorkflow": "Outside workflow",
+    "edit": "Open"
   },
   "editItem": "Edit item",
   "discardTitle": "Discard your changes?",

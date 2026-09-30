@@ -5,11 +5,12 @@ import { eq } from 'drizzle-orm';
 import { ActionFailure } from '@/lib/actions/errors';
 import type { AgencyContext } from '@/lib/auth/context';
 import type { Tx } from '@/lib/db/client';
-import { requests, workflowTemplates } from '@/lib/db/schema';
+import { requests, workflowTemplateSteps, workflowTemplates } from '@/lib/db/schema';
 import { emitEvent } from '@/lib/events/emit';
 import { isLocale } from '@/lib/i18n/localized';
 import { dayInZone } from '@/modules/tasks/constants';
-import { generateWorkflow } from '@/modules/workflows/generate';
+import { createFromPlan, generateWorkflow } from '@/modules/workflows/generate';
+import type { PlanItem } from '@/modules/workflows/plan';
 
 /**
  * "Convert to tasks" (ADR-037) in the caller's RLS transaction: accept the request if needed, generate the workflow's
@@ -18,7 +19,7 @@ import { generateWorkflow } from '@/modules/workflows/generate';
 export async function convertRequest(
   tx: Tx,
   ctx: AgencyContext,
-  input: { requestId: string; templateId: string; startDate?: string | null },
+  input: { requestId: string; templateId: string; startDate?: string | null; plan?: PlanItem[] },
 ): Promise<{ requestId: string; taskIds: string[]; deliverableIds: string[] }> {
   if (!ctx.flags['module.tasks']) throw new ActionFailure('forbidden');
   const [request] = await tx.select().from(requests).where(eq(requests.id, input.requestId));
@@ -51,14 +52,35 @@ export async function convertRequest(
   const locale = isLocale(ctx.organization.defaultLocale) ? ctx.organization.defaultLocale : 'ar';
   let generated;
   try {
-    generated = await generateWorkflow(tx, {
-      organizationId: ctx.organization.id,
-      locale,
-      request: { id: request.id, clientId: request.clientId, title: request.title, priority: request.priority },
-      templateId: template.id,
-      start: input.startDate ?? dayInZone(new Date(), ctx.organization.defaultTimezone),
-      createdBy: ctx.session.userId,
-    });
+    if (input.plan) {
+      // Reviewed plan: workflow items must be steps of this template; the rest are "outside the workflow".
+      const stepIds = new Set(
+        (
+          await tx
+            .select({ id: workflowTemplateSteps.id })
+            .from(workflowTemplateSteps)
+            .where(eq(workflowTemplateSteps.templateId, template.id))
+        ).map((r) => r.id),
+      );
+      if (input.plan.some((i) => i.stepId && !stepIds.has(i.stepId))) throw new ActionFailure('validation');
+      generated = await createFromPlan(tx, {
+        organizationId: ctx.organization.id,
+        request: { id: request.id, clientId: request.clientId, title: request.title },
+        templateId: template.id,
+        items: input.plan,
+        createdBy: ctx.session.userId,
+        locale,
+      });
+    } else {
+      generated = await generateWorkflow(tx, {
+        organizationId: ctx.organization.id,
+        locale,
+        request: { id: request.id, clientId: request.clientId, title: request.title, priority: request.priority },
+        templateId: template.id,
+        start: input.startDate ?? dayInZone(new Date(), ctx.organization.defaultTimezone),
+        createdBy: ctx.session.userId,
+      });
+    }
   } catch (error) {
     const message = (error as Error).message;
     if (message === 'workflow_empty' || message === 'dependency_cycle') throw new ActionFailure(message);

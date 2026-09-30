@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/overlays';
 import { Avatar, Badge, NativeSelect, Skeleton } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
-import { localized, type Locale } from '@/lib/i18n/localized';
+import { localized, type Locale, type LocalizedText } from '@/lib/i18n/localized';
 import { publicAssetUrl } from '@/lib/storage';
 import { cn } from '@/lib/utils/cn';
 import { BulkDeleteButton } from '@/modules/data/components/bulk-delete';
@@ -36,7 +36,12 @@ import { ConvertToTasksButton } from '@/modules/workflows/components/convert-dia
 import { convertTemplatesAction } from '@/modules/workflows/server/actions';
 import type { TemplateDetail } from '@/modules/workflows/server/queries';
 
-export type ConvertOptions = { today: string; canManageWorkflows: boolean };
+export type ConvertOptions = {
+  today: string;
+  canManageWorkflows: boolean;
+  people: { id: string; name: string }[];
+  departments: { id: string; name: LocalizedText }[];
+};
 
 const priorityRank: Record<RequestPriority, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
 const slaRank = { overdue: 0, at_risk: 1, on_track: 2, paused: 3, missed: 4, met: 5, none: 6 } as const;
@@ -152,6 +157,8 @@ function PreviewDrawer({
                   templates={templates.list}
                   today={convert.today}
                   canManageWorkflows={convert.canManageWorkflows}
+                  people={convert.people}
+                  departments={convert.departments}
                 />
               ) : null}
               <Button asChild variant="ghost" size="sm" className="justify-self-start">

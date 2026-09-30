@@ -59,7 +59,8 @@ test('request → tasks → deliverable → internal review → client changes �
   const am = await as(browser, 'noura@ofoq.test');
   await am.goto(`/requests/${requestId}`);
   await am.getByTestId('convert-to-tasks').click();
-  await expect(am.getByTestId('convert-preview').locator('li')).toHaveCount(2);
+  await am.getByTestId('convert-review-button').click();
+  await expect(am.getByTestId('plan-item')).toHaveCount(2);
   await am.getByTestId('convert-confirm').click();
   await expect(am.getByTestId('request-status').first()).toHaveAttribute('data-status', 'in_progress');
   await expect(am.getByTestId('request-tasks').locator('li')).toHaveCount(2);

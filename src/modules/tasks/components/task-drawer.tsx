@@ -1100,6 +1100,11 @@ export function TaskDrawer({
                     </Link>
                   ) : null}
                   {task.stepName ? <Badge tone="outline">{localized(task.stepName, locale)}</Badge> : null}
+                  {task.requestId && !task.fromWorkflow ? (
+                    <Badge tone="warning" data-testid="drawer-outside-workflow">
+                      {t('tasks.requestWork.outsideWorkflow')}
+                    </Badge>
+                  ) : null}
                 </div>
                 <SheetTitle asChild>
                   <div>

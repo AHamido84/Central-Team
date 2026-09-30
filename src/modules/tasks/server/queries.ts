@@ -54,6 +54,8 @@ export type TaskListItem = {
   comments: number;
   blocked: boolean;
   deliverable: { id: string; status: DeliverableStatus } | null;
+  /** Created from a workflow step (false = added by hand, "outside the workflow"). */
+  fromWorkflow: boolean;
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
@@ -87,6 +89,7 @@ type Row = {
   comments: number;
   blocked: boolean;
   deliverable: { id: string; status: DeliverableStatus } | null;
+  from_workflow: boolean;
   created_at: string | Date;
   updated_at: string | Date;
   completed_at: string | Date | null;
@@ -123,6 +126,7 @@ function toItem(r: Row): TaskListItem {
     comments: r.comments,
     blocked: r.blocked,
     deliverable: r.deliverable,
+    fromWorkflow: Boolean(r.from_workflow),
     createdAt: iso(r.created_at)!,
     updatedAt: iso(r.updated_at)!,
     completedAt: iso(r.completed_at),
@@ -144,7 +148,7 @@ export async function listTasks(scope: TaskScope = {}): Promise<TaskListItem[]> 
       with base as (
         select t.id, t.number, t.title, t.client_id, t.request_id, t.parent_id, t.status_id, t.status_category, t.priority,
           t.start_date, t.due_date, t.estimate_minutes, t.tags, t.department_id, t.reviewer_id, t.position,
-          t.created_at, t.updated_at, t.completed_at
+          t.workflow_step_id is not null as from_workflow, t.created_at, t.updated_at, t.completed_at
         from public.tasks t
         where (t.status_category <> 'done' or t.completed_at > now() - make_interval(days => ${doneDays}))
           ${scope.clientId ? sql`and t.client_id = ${scope.clientId}` : sql``}
@@ -169,7 +173,7 @@ export async function listTasks(scope: TaskScope = {}): Promise<TaskListItem[]> 
         coalesce(st.n, 0) as subtasks, coalesce(st.done, 0) as subtasks_done,
         coalesce(ck.n, 0) as checklist, coalesce(ck.done, 0) as checklist_done,
         coalesce(cm.n, 0) as comments, coalesce(bl.blocked, false) as blocked, dl.deliverable,
-        b.created_at, b.updated_at, b.completed_at
+        b.from_workflow, b.created_at, b.updated_at, b.completed_at
       from base b
       join public.clients c on c.id = b.client_id
       left join public.requests r on r.id = b.request_id

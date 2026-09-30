@@ -15,6 +15,7 @@ import { publicAssetUrl } from '@/lib/storage';
 import { DeleteButton } from '@/modules/data/components/delete-button';
 import { CampaignLinkField } from '@/modules/campaigns/components/campaign-link';
 import { listCampaignOptions } from '@/modules/campaigns/server/queries';
+import { listDepartments } from '@/modules/rbac/server/queries';
 import { listAgencyPeople } from '@/modules/clients/server/queries';
 import { Conversation } from '@/modules/messaging/components/conversation';
 import { getThread } from '@/modules/messaging/server/queries';
@@ -53,7 +54,11 @@ export default async function AgencyRequestPage({ params }: { params: Promise<{ 
   if (!request) notFound();
   const t = await getTranslations();
   const f = await getFormatters();
-  const [thread, people] = await Promise.all([request.threadId ? getThread(request.threadId) : null, listAgencyPeople(ctx)]);
+  const [thread, people, departments] = await Promise.all([
+    request.threadId ? getThread(request.threadId) : null,
+    listAgencyPeople(ctx),
+    listDepartments(ctx),
+  ]);
   const canTriage = can(ctx.permissions, 'requests:triage');
   const isAssignee = can(ctx.permissions, 'requests:update') && request.assigneeId === ctx.session.userId;
   const clientName = localized(request.clientName, f.locale);
@@ -124,6 +129,11 @@ export default async function AgencyRequestPage({ params }: { params: Promise<{ 
         <div className="min-w-0 space-y-6">
           {work ? (
             <RequestWork
+              requestId={request.id}
+              canCreate={can(ctx.permissions, 'tasks:create')}
+              canDelete={can(ctx.permissions, 'tasks:delete')}
+              people={people.map((p) => ({ id: p.id, name: p.name }))}
+              departments={departments.map((d) => ({ id: d.id, name: d.name }))}
               steps={work[0]}
               tasks={work[1]}
               deliverables={work[2]}
@@ -191,6 +201,8 @@ export default async function AgencyRequestPage({ params }: { params: Promise<{ 
                   templates={templates}
                   today={today}
                   canManageWorkflows={can(ctx.permissions, 'workflows:manage')}
+                  people={people.map((p) => ({ id: p.id, name: p.name }))}
+                  departments={departments.map((d) => ({ id: d.id, name: d.name }))}
                 />
               ) : null
             }

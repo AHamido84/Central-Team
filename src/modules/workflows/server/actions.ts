@@ -6,9 +6,19 @@ import { z } from 'zod';
 import { defineAction } from '@/lib/actions/define-action';
 import { ActionFailure } from '@/lib/actions/errors';
 import type { Tx } from '@/lib/db/client';
-import { taskStatuses, workflowTemplateSteps, workflowTemplates } from '@/lib/db/schema';
+import { requests, taskDependencies, taskStatuses, tasks, workflowTemplateSteps, workflowTemplates } from '@/lib/db/schema';
 import { emitEvent } from '@/lib/events/emit';
-import { convertSchema, saveStatusesSchema, saveStepsSchema, templateSettingsSchema } from '@/modules/workflows/schemas';
+import { isLocale } from '@/lib/i18n/localized';
+import { addWorkingDays } from '@/modules/requests/constants';
+import { dayInZone } from '@/modules/tasks/constants';
+import { createFromPlan, planFromTemplate } from '@/modules/workflows/generate';
+import {
+  addRequestTaskSchema,
+  convertSchema,
+  saveStatusesSchema,
+  saveStepsSchema,
+  templateSettingsSchema,
+} from '@/modules/workflows/schemas';
 import { templatesForRequestType, type TemplateDetail } from '@/modules/workflows/server/queries';
 import { convertRequest } from '@/modules/workflows/server/services';
 
@@ -195,6 +205,116 @@ export const saveTaskStatusesAction = defineAction({
 // ---------------------------------------------------------------------------
 // Convert a request into tasks (tasks:create; the request's own transition rules still apply)
 // ---------------------------------------------------------------------------
+
+/** The plan a template proposes for a request, for the review step (nothing is written). */
+export const previewConversionAction = defineAction({
+  input: convertSchema.pick({ requestId: true, templateId: true, startDate: true }),
+  side: 'agency',
+  permission: 'tasks:create',
+  async handler({ input, tx, ctx }) {
+    const [request] = await tx.select().from(requests).where(eq(requests.id, input.requestId));
+    if (!request) throw new ActionFailure('not_found');
+    if (request.convertedAt) throw new ActionFailure('already_converted');
+    const [template] = await tx
+      .select({ id: workflowTemplates.id, isActive: workflowTemplates.isActive })
+      .from(workflowTemplates)
+      .where(eq(workflowTemplates.id, input.templateId));
+    if (!template?.isActive) throw new ActionFailure('not_found');
+    const start = input.startDate ?? dayInZone(new Date(), ctx.organization.defaultTimezone);
+    try {
+      const items = await planFromTemplate(tx, {
+        organizationId: ctx.organization.id,
+        locale: isLocale(ctx.organization.defaultLocale) ? ctx.organization.defaultLocale : 'ar',
+        request: { id: request.id, clientId: request.clientId, title: request.title, priority: request.priority },
+        templateId: template.id,
+        start,
+      });
+      return { start, items };
+    } catch (error) {
+      const message = (error as Error).message;
+      if (message === 'workflow_empty' || message === 'dependency_cycle') throw new ActionFailure(message);
+      throw error;
+    }
+  },
+});
+
+/**
+ * Adds a task to a converted request, outside its workflow (FR1.3). Unless dates are given, it starts when the last
+ * task it waits for is due (or today) and lasts `durationDays` working days; request progress includes it.
+ */
+export const addRequestTaskAction = defineAction({
+  input: addRequestTaskSchema,
+  side: 'agency',
+  permission: 'tasks:create',
+  async handler({ input, tx, ctx }) {
+    const [request] = await tx.select().from(requests).where(eq(requests.id, input.requestId));
+    if (!request) throw new ActionFailure('not_found');
+    const blockers = input.dependsOn.length
+      ? await tx
+          .select({ id: tasks.id, dueDate: tasks.dueDate })
+          .from(tasks)
+          .where(and(inArray(tasks.id, input.dependsOn), eq(tasks.requestId, request.id)))
+      : [];
+    if (blockers.length !== input.dependsOn.length) throw new ActionFailure('validation');
+    const today = dayInZone(new Date(), ctx.organization.defaultTimezone);
+    const startDate = input.startDate ?? blockers.reduce((max, b) => (b.dueDate && b.dueDate > max ? b.dueDate : max), today);
+    const dueDate = input.dueDate ?? addWorkingDays(startDate, input.durationDays);
+    if (dueDate < startDate) throw new ActionFailure('validation');
+    const locale = isLocale(ctx.organization.defaultLocale) ? ctx.organization.defaultLocale : 'ar';
+    const created = await createFromPlan(tx, {
+      organizationId: ctx.organization.id,
+      request: { id: request.id, clientId: request.clientId, title: request.title },
+      templateId: null,
+      items: [
+        {
+          key: 'new',
+          stepId: null,
+          title: input.title,
+          departmentId: input.departmentId,
+          assigneeId: input.assigneeId,
+          reviewerId: input.reviewerId,
+          priority: input.priority,
+          durationDays: input.durationDays,
+          startDate,
+          dueDate,
+          manualDates: true,
+          dependsOn: [],
+          deliverableType: null,
+          requiresInternalReview: Boolean(input.reviewerId),
+          requiresClientApproval: false,
+        },
+      ],
+      createdBy: ctx.session.userId,
+      locale,
+    });
+    const taskId = created.taskIds[0]!;
+    if (blockers.length) {
+      await tx
+        .insert(taskDependencies)
+        .values(blockers.map((b) => ({ taskId, dependsOnId: b.id, organizationId: ctx.organization.id, clientId: request.clientId })));
+    }
+    await emitEvent(tx, {
+      type: 'task.created',
+      organizationId: ctx.organization.id,
+      actorId: ctx.session.userId,
+      aggregate: { type: 'task', id: taskId },
+      clientId: request.clientId,
+      payload: { taskId, clientId: request.clientId, parentId: null },
+    });
+    if (input.assigneeId) {
+      await emitEvent(tx, {
+        type: 'task.assigned',
+        organizationId: ctx.organization.id,
+        actorId: ctx.session.userId,
+        aggregate: { type: 'task', id: taskId },
+        clientId: request.clientId,
+        payload: { taskId, clientId: request.clientId, userIds: [input.assigneeId] },
+      });
+    }
+    return { taskId, requestId: request.id };
+  },
+  revalidate: (_i, r) => [`/requests/${r.requestId}`, '/tasks', '/my-work', `/portal/requests/${r.requestId}`],
+});
 
 export const convertRequestToTasksAction = defineAction({
   input: convertSchema,
