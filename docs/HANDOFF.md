@@ -1,6 +1,6 @@
 # Handoff — state of the project
 
-Last updated: 2026-09-30 (Phase 7) · Branch: `claude/stoic-cray-wud1ib` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
+Last updated: 2026-09-30 (Phase 8) · Branch: `claude/stoic-cray-wud1ib` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
 
 ## Where we are
 
@@ -14,11 +14,13 @@ Last updated: 2026-09-30 (Phase 7) · Branch: `claude/stoic-cray-wud1ib` · Read
 | 5 — Agency Operations | **Built.** Ops dashboard across accessible clients (scope by account manager, tiles, client portfolio by health, needs-attention list, workload by department, SLA compliance); Client 360 on the client overview (health score with reasons, SLA compliance, deadlines, one activity stream) and health on the clients list; team workload (`/team`, `/team/[id]`); SLA policies (`/admin/sla`: match by client/type/priority, reply in business hours, delivery in working days, pause on client, escalation, business hours, holidays), SLA targets on requests, daily breach sweep + alerts, SLA monitor (`/sla`) with acknowledgement |
 | 6 — CRM & Capacity | **Built.** Leads (manual, CSV import with mapping, public embeddable form `/f/[token]` with honeypot + signed ticket + rate limits, inbound webhook), Saudi phone normalisation, duplicates + merge, assignment rules with round-robin; configurable pipelines, Kanban with drag & drop (+ keyboard), deal page (stage bar, contacts, activities, files, quotes with AR/EN print), won → client in one step (client, package, portal invitation, onboarding tasks); follow-ups view, due / quiet-deal reminders and sales notifications; sales dashboard (pipeline by stage, conversion, win rate, cycle, sources, per person, forecast vs target); capacity planning (`/capacity`: 8-week department heatmap, over-allocated people, "can we take this client?" simulator, hours / time off / service effort); Sales Manager + Sales Rep roles |
 | 7 — Integrations & Automation | **Built, not deployed yet.** One `IntegrationProvider` interface with live adapters (Meta Ads + Pages + lead ads, WhatsApp Cloud API, TikTok, Snapchat, Google Ads / GA4) and a deterministic **sandbox** per platform; OAuth with signed state + nonce cookie, tokens only in Supabase Vault; `/admin/integrations` (connect / reconnect / disconnect / test, health with expiry, account → client and platform campaign → channel mapping, sync now, backfill ≤ 90 days, sync log with retries, webhook log, WhatsApp templates and messages); daily idempotent sync into `metrics_daily`; signed webhooks `/api/hooks/[provider]` → lead ads into `ingestLead()`; WhatsApp notifications (opt-in + per-category switch) and template messages from lead / deal pages with delivery status; automation engine (`/admin/automations`: trigger catalog, conditions, 6 action types, dry run, run log, retries, loop guard) |
+| 8 — AI Intelligence | **Built, not deployed yet.** Campaign insights computed by code (robust z-score anomalies on complete days, KPI and budget pacing, delivery stopped) with rule-based recommendations and computed impact → one click to a task; `/insights` + campaign Insights tab + detail with an AI explanation; notifications (`ai_insight`) and an automation trigger; "Draft with AI" for report commentary / next steps in the report's language (and optional auto-drafts for scheduled reports); `/assistant` with private conversations, retrieval through pgvector **inside the user's RLS** (a chunk is visible only if its source row is) and validated citations; `/admin/ai` (switch, sensitivity, budget + usage, provider status, index rebuild). Everything behind `AiProvider` (Claude via the Anthropic SDK + Voyage embeddings) with a deterministic mock |
 
-Verified green on a fresh seed: `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 190 unit tests, 162 DB tests
+Verified green on a fresh seed: `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 220 unit tests, 187 DB tests
 (RLS, dispatcher, approval state machine, reminders, campaign sweep, SLA calendar parity, SLA triggers/RLS, SLA sweep,
 CRM triggers/RLS, capacity readers, lead intake, CRM sweep, Vault isolation, integrations/automations RLS, sync
-idempotency, lead-ad webhooks, WhatsApp statuses, automation engine), 25 Playwright e2e tests, `pnpm build`. The CI workflow (`.github/workflows/ci.yml`) is written but has not run on GitHub yet.
+idempotency, lead-ad webhooks, WhatsApp statuses, automation engine, AI RLS + permission-aware retrieval, detector
+idempotency, indexer, AI budget), 28 Playwright e2e tests, `pnpm build`. The CI workflow (`.github/workflows/ci.yml`) is written but has not run on GitHub yet.
 
 ## Run it
 
@@ -115,13 +117,29 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 38. **Automation rules are unique per (rule, event)**: tests that create rules must drain pending events first, or the
     new rule also runs on events left over from earlier tests (`tests/db/integrations.test.ts`).
 
+39. **Model calls never run inside the action's transaction**: put them in `defineAction`'s post-commit `complete` step
+    (ADR-079) and go through `runtime.generate()` / `embedTexts()` (switch, budget, usage). Do the RLS-checked reads in
+    the handler.
+40. **A new assistant source type touches five places**: `sourceTypes` (`ai/types.ts`), `app.ai_source_visible` (SQL),
+    `buildChunks` + the `sourceTable` map (`indexer-core.ts`) and `targetsOf` (`server/indexer.ts`). The chunk policy
+    delegates to the source table's RLS through that `security invoker` function — never make it `security definer`.
+41. **Detectors skip today** (partial day) and need 7 days of history in the last 14; to demo an anomaly change
+    *yesterday's* numbers (`scripts/seed-ai.ts`). Anomaly insights are keyed by day; pacing ones reopen when they return.
+42. **The mock embedder is lexical** (Arabic normalization + word pairs + trigrams, stop words): English questions over
+    Arabic records find little. Retrieval cut-offs: 0.15 (mock) / 0.2 (live) cosine similarity.
+43. **Raw `tx.execute` returns timestamps as Postgres text** ("2026-09-30 10:00:00.1+00"): normalize before `new Date()`
+    (`iso()` in `indexer-core.ts`).
+44. **Names inside insight / recommendation sentences are wrapped in U+2068/U+2069**; tests compare with `plain()`.
+45. **The profile language wins over the `NEXT_LOCALE` cookie**: e2e personas with an Arabic profile (Noura) render Arabic
+    even in an `en-US` browser context — assert the Arabic UI or use Sara.
+
 ## Production (live demo)
 
 | | |
 |---|---|
 | URL | https://centralteam.vercel.app (Vercel project `centralteam`, Hobby plan) |
 | Database | Supabase project `udqhetkwsqpyyuurajcb` (created through the Vercel ↔ Supabase integration) |
-| Deployed from | branch `claude/stoic-cray-wud1ib`, commit `70541bb` (Phases 0–6), deployment `dpl_5GC5GRe1SgdUKCYfQcdJ4SFBJ55m` on 2026-09-30 — migrations through `20260930020100` applied, Phase 5 SLA and Phase 6 sales demo data loaded |
+| Deployed from | branch `claude/stoic-cray-wud1ib`, commit `70541bb` (Phases 0–6; Phases 7–8 built, not deployed), deployment `dpl_5GC5GRe1SgdUKCYfQcdJ4SFBJ55m` on 2026-09-30 — migrations through `20260930020100` applied, Phase 5 SLA and Phase 6 sales demo data loaded |
 | Data | the demo seed (agency "Ofoq", 5 clients, 25 users incl. `majed@` / `ruba@ofoq.test`, password `Passw0rd!` for all) + demo campaigns, SLA data and sales pipeline |
 
 How it works:
@@ -136,7 +154,7 @@ How it works:
 - **Auth**: the custom access token hook is **not** enabled in the Supabase dashboard; the app works anyway because
   the claims are mirrored into `app_metadata` (ADR-046). Site URL / redirect URLs in Supabase Auth should be set to the
   Vercel URL (owner's task) for magic links and password resets.
-- **Cron**: daily at 05:00 UTC (08:00 Riyadh) — reminder sweep, campaign sweep, SLA breach sweep, CRM sweep (follow-ups due, quiet deals), integrations sweep (token expiry, daily sync + retries, stuck webhooks, WhatsApp retry — after Phase 7 deploys), dispatcher safety net (ADR-044/055/066/069).
+- **Cron**: daily at 05:00 UTC (08:00 Riyadh) — reminder sweep, campaign sweep, SLA breach sweep, CRM sweep (follow-ups due, quiet deals), integrations sweep (token expiry, daily sync + retries, stuck webhooks, WhatsApp retry — after Phase 7 deploys), AI detectors + assistant index catch-up (after Phase 8 deploys), dispatcher safety net (ADR-044/055/066/069/074).
 - **Network (cloud sessions)**: `api.vercel.com` must be allowed; Supabase (Postgres and HTTPS) is blocked from the
   sandbox, so DB changes only happen through the Vercel build. The site answers `curl`, but headless Chromium can't
   load its scripts through the sandbox proxy (forms submit as plain HTML), so check the logged-in UI from a real browser.
@@ -148,9 +166,17 @@ How it works:
 - Before real clients: set `SEED_ON_DEPLOY=0`, delete the demo accounts or change their passwords, **rotate the Supabase
   DB password and the Vercel token** (both were pasted into a chat), enable the auth hook, set Auth URLs.
 - Email: Resend account + verified sending domain, then `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `EMAIL_FROM`.
-- **Phase 7 is not deployed yet** (waiting for the owner's go and a Vercel token). The next deploy applies migrations
-  `20260930061507` / `20260930061600` and, with `SEED_ON_DEPLOY=1`, loads the sandbox integrations demo once
-  (`scripts/seed-integrations-standalone.ts`). Set `INTEGRATIONS_SANDBOX=1` on Vercel to keep the sandbox in the demo.
+- **Phases 7 and 8 are not deployed yet** (waiting for the owner's go and a Vercel token). The next deploy applies
+  migrations `20260930061507` / `20260930061600` (Phase 7) and `20260930102618` / `20260930102700` (Phase 8 — creates
+  the `vector` extension in `extensions`) and, with `SEED_ON_DEPLOY=1`, loads the sandbox integrations demo once
+  (`scripts/seed-integrations-standalone.ts`) and the AI demo once (`scripts/seed-ai-standalone.ts`). On Vercel set
+  `INTEGRATIONS_SANDBOX=1` to keep the sandbox and `AI_PROVIDER=mock` to keep AI working in the demo without keys.
+- **Live AI needs** (ADR-073): an Anthropic API key (`ANTHROPIC_API_KEY`, console.anthropic.com; model `AI_MODEL`,
+  default `claude-opus-5-5`) and a Voyage AI key (`VOYAGE_API_KEY`, `AI_EMBEDDING_MODEL=voyage-3.5`, 1024 dims);
+  outbound hosts `api.anthropic.com`, `api.voyageai.com`. With both keys set (and `AI_PROVIDER` unset or `anthropic`)
+  the app switches to live; "Rebuild index" in `/admin/ai` re-embeds the mock index with the live model.
+  **Decide data residency first** (open question 6 / ADR-076): both providers process in the US; AI stays off per
+  organization until an admin turns it on (the demo seed turns it on).
 - **Live platforms need the owner's developer apps** (see the report / ADR-068): Meta app (App ID, secret, verify token,
   app review for `ads_read`, `leads_retrieval`, `pages_*`, `business_management`), a WhatsApp Business system-user token
   + phone number id + WABA id and approved templates, TikTok for Business app, Snapchat Marketing API app + webhook
@@ -178,6 +204,28 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
 7. On a connection's Webhooks tab: copy the URL; rejected deliveries appear in the log.
 8. Repeat the screens in AR / EN × light / dark × mobile / desktop.
 
+## Phase 8 — manual test checklist (mock provider locally, or the demo with `AI_PROVIDER=mock`)
+
+Sign in as `sara@ofoq.test` (password `Passw0rd!`).
+1. `/admin/ai`: provider shows "Demo (mock)" (or "Live" with keys), AI is on, usage and the index counts per source are
+   shown; "Rebuild index" reports what it indexed. Turn AI off → the assistant and "Explain" show "AI is off".
+2. `/insights`: the orthodontics campaign (Future Smile) shows a **critical** cost-per-lead jump and a leads drop from
+   yesterday, plus KPI / budget / delivery insights on other campaigns. Filter by client, severity, type and status.
+3. Open an insight → "Explain with AI" → a short explanation in your language. On a suggestion → "Create task"
+   (assignee, due date) → the suggestion shows Accepted with "Open task", the insight turns Acknowledged, and the task
+   opens in the tasks drawer with a link back. Dismiss another insight with a reason; reopen it.
+4. A campaign's **Insights** tab lists its insights with a count badge.
+5. As `noura@ofoq.test`: a draft report → "Draft with AI" on Commentary and Next steps → text in the report's
+   language (not the UI's) → Save → Publish as usual. Turn on "Draft commentary for scheduled reports" in `/admin/ai`
+   and generate a scheduled draft → its empty commentary / next steps are filled.
+6. `/assistant`: ask "لخّص وضع حملة عروض تقويم الأسنان" → an answer with numbered markers and a Sources list; the
+   links open the records. Rename / delete the conversation.
+7. As `khalid@ofoq.test` (Specialist — no CRM access, two assigned clients): ask about a lead by name → no lead or deal
+   is cited; ask about Lujain (not his client) → nothing from Lujain.
+8. `/admin/automations` → a rule on "An AI insight is detected" (severity = critical) → notify; a critical insight
+   triggers it. `/notifications` shows `ai_insight` alerts for campaign owners / account managers.
+9. Repeat the screens in AR / EN × light / dark × mobile / desktop.
+
 ## Starting a new session
 
 1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md`; then `bash scripts/bootstrap.sh` (or `pnpm db:start` +
@@ -186,18 +234,18 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
    `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`, and `pnpm dev` must be started in the background. If `dockerd` won't
    start after a container restart, remove the stale `/var/run/docker.pid` first. Repeated logins trip the login rate
    limit locally — `delete from public.rate_limits` via `docker exec supabase_db_central-team psql -U postgres`.
-2. Verify: `pnpm check`, `pnpm test:db`, `pnpm test:e2e` (expect 190 / 162 / 25 green), `pnpm build`. On a cold dev
+2. Verify: `pnpm check`, `pnpm test:db`, `pnpm test:e2e` (expect 220 / 187 / 28 green), `pnpm build`. On a cold dev
    server the first e2e run can time out on a first-compiled route; re-run that spec before treating it as a failure.
 3. Deploys need a Vercel token from the owner each session (never store it); trigger a production deployment of this
    branch through the Vercel API (`POST /v13/deployments` with `gitSource` for repo id `1393530120`) and read the
    build log for the `[deploy-db]` / seed lines. Revoke-and-rotate reminders are under "Open items".
 4. Work on branch `claude/stoic-cray-wud1ib` (or the one the owner names); Conventional Commits; plan in ROADMAP +
-   DATA_MODEL before building a phase; decisions in DECISIONS (next ADR: **073**).
+   DATA_MODEL before building a phase; decisions in DECISIONS (next ADR: **080**).
 
-## Suggested Phase 8 scope (from the roadmap)
+## After Phase 8
 
-AI intelligence: campaign analysis and anomaly detection over `metrics_daily` (now filled by the Phase 7 sync),
-recommendations, AI-drafted reports in Arabic and English, and an assistant over the agency's data with citations and
-permission-aware retrieval (RLS-scoped reads; pgvector for embeddings; the provider behind an interface like Phase 7's).
-It can react to `domain_events` as a consumer and act through automation actions. Deferred items: `docs/ROADMAP.md`
-(Deferred lists in §3–§7).
+All eight roadmap phases are built. Suggested next steps, in order: deploy Phases 7–8 (production branch, env vars
+above, the build log's `[deploy-db]` / seed lines, the two manual checklists); plug in live AI keys once data residency
+is decided and verify the Claude / Voyage adapters (ROADMAP 8.8); verify the Phase 7 live platform adapters with the
+owner's developer apps (7.8); then the human QA pass and the deferred lists in `docs/ROADMAP.md` (§2.9–§8.8) —
+streaming assistant answers and a portal assistant are the most visible AI follow-ups.

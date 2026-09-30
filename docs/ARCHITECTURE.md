@@ -293,6 +293,8 @@ export const updateRolePermissions = defineAction({
 
 `defineAction` guarantees: input validation → session → side check → `can()` → `withRls` transaction →
 handler → commit → `revalidatePath` → `Result<T>` with translatable error codes. Rate limiting is opt-in per action.
+An optional `complete` step runs **after commit** with what the handler prepared (RLS-checked) and returns the action's
+result — for slow work such as an AI provider call that must not hold a transaction open (ADR-079).
 
 ## 7. Domain events
 
@@ -413,7 +415,7 @@ Migrations are applied to staging/prod by CI (`supabase db push`) on merge, neve
 | Notify a user | `notify()` + a `notifications.types.*` translation + a preference category |
 | Client-scoped data | `client_id` column + `app.client_access(client_id)` in RLS |
 | Integrations (Phase 7) | **Built** — §22: `IntegrationProvider` per platform, tokens in Vault, webhooks under `/api/hooks/<provider>` |
-| AI (Phase 8) | Consumes `domain_events` + read models; pgvector for embeddings; provider behind an interface |
+| AI (Phase 8) | **Built** — §23 |
 
 ## 16. Phase 1 — client portal flows
 
@@ -745,3 +747,48 @@ X-Central-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256(key, "<t>.<raw body>")
 ```
 
 The key is shown to `automations:manage` in the builder; any 2xx is success, anything else is retried (ADR-071).
+
+## 23. Phase 8 — AI intelligence
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant M as metrics_daily (sync / manual / CSV)
+  participant D as Dispatcher
+  participant A as ai.analysis (detectors — code)
+  participant I as ai.indexer
+  participant U as User (withRls)
+  participant P as AiProvider (Claude + Voyage, or mock)
+  M->>D: metrics.synced / recorded / imported
+  D->>A: runCampaignAnalysis → ai_insights + ai_recommendations (idempotent, resolve / reopen)
+  A-->>D: ai_insight.detected → notifications.ai · automations.engine · ai.indexer
+  D->>I: record events → buildChunks (redacted) → embed changed text → ai_chunks
+  U->>U: askAssistantAction: save question (RLS) — commit
+  U->>P: embed(question)
+  U->>U: withRls: nearest chunks (policy: ai:use + source row visible to the user)
+  U->>P: complete(grounded prompt with numbered sources)
+  U->>U: validate [n] citations → save answer (RLS)
+```
+
+- Module `src/modules/ai`: `types.ts`, `insights-core.ts` (detectors + recommendation rules — pure), `analysis.ts`
+  (reconcile insights for one campaign — shared with the seed), `insight-text.ts` + `kit.ts` (the sentences for insights
+  and recommendations in AR/EN, for UI, index, prompts and tasks), `prompts.ts` (grounded prompts, citation validation
+  — pure), `indexer-core.ts` (chunk text per source, redaction, hash-based reconcile — shared with the seed),
+  `providers/` (`types.ts` interface, `anthropic.ts`, `voyage.ts`, `mock.ts`, `mock-embedder.ts`, `index.ts` registry
+  / mode), `server/` (`runtime.ts` switch + budget + usage, `insights.ts`, `indexer.ts`, `reports.ts`, `assistant.ts`,
+  `consumers.ts`, `sweep.ts`, `queries.ts`, `actions.ts`), `components/`.
+- Routes: `/insights`, `/insights/[insightId]`, `/assistant`, `/assistant/[conversationId]`, `/admin/ai`; campaign
+  `?tab=insights`; "Draft with AI" in the report builder.
+- Service paths (ADR-073/075): usage records, cached explanations after an RLS-checked lookup, detector runs, the
+  indexer, scheduled-report auto-drafts and the index status counts run with the service connection. Every read a user
+  triggers (insight lookups, report snapshots, chunk search) runs in their RLS transaction first.
+- Model calls run in `defineAction`'s post-commit `complete` step (no open transaction while the model thinks) and
+  always go through `runtime.generate()` / `embedTexts()`: AI switch → provider configured → monthly budget → call →
+  usage row. Refusals are shown as such; provider errors map to `ai_unavailable` / `ai_not_configured`.
+- Events: `ai_insight.detected` / `status_changed`, `ai_recommendation.decided`, `ai_settings.updated`,
+  `ai_report.drafted`. Consumers: `ai.analysis`, `notifications.ai`, `ai.indexer`, `ai.report_drafts`;
+  `ai_insight.detected` is also an automation trigger (subject: campaign).
+- Cron: after the integrations sweep, `runAiSweep()` runs the detectors over live campaigns and catches the index up
+  (missing, outdated or re-modelled chunks, 500 per organization per run).
+- Environment: `AI_PROVIDER`, `ANTHROPIC_API_KEY`, `AI_MODEL`, `VOYAGE_API_KEY`, `AI_EMBEDDING_MODEL` (see
+  `.env.example`). Hosts: `api.anthropic.com`, `api.voyageai.com`.

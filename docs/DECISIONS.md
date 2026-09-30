@@ -668,6 +668,17 @@ Super Admin and Admin. Insights and recommendations follow campaign access: read
 acknowledge / dismiss / accept with `campaigns:manage`. Flag `module.ai` (on). Nothing in Phase 8 is visible to client
 users. Notifications: `ai_insight` (category `ai`) to the campaign owner and the client's account managers for warning
 and critical insights.
+
+### ADR-079 — Post-commit `complete` step in `defineAction`
+2026-09-30 · Accepted
+AI actions need an RLS-checked lookup (can this user see the insight / report / conversation?) and then a model call that
+can take tens of seconds. Holding the RLS transaction open during the call would pin a pooled connection (5 per function
+in production) and risk idle-in-transaction timeouts. `defineAction` therefore accepts an optional `complete` step: the
+handler does the checked reads and writes in the transaction and returns what it prepared; after commit `complete` runs
+with that and its return value (or failure) becomes the action's result. Writes in `complete` go through a fresh
+`withRls` or a listed service path, and events they emit are dispatched like the handler's.
+*Rejected*: raw Server Actions for AI (bypass validation, permission and error mapping); streaming route handlers
+(deferred with streaming answers).
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

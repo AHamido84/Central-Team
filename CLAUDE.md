@@ -34,7 +34,7 @@ Built single-agency first, but **multi-tenant ready**: every tenant-scoped row c
 | 5 — Agency Operations | Ops dashboard across clients, Client 360 with client health, team workload views, SLA policies (business hours, holidays, pause on client) with breach alerts, SLA monitor | **Done** |
 | 6 — CRM & Capacity | Leads (manual, CSV, public form, webhook; dedup/merge; assignment rules), pipelines & deals, quotes, won → client, follow-ups, sales dashboard, capacity planning with simulator | **Done** |
 | 7 — Integrations & Automation | Provider interface + sandbox, connections with Vault tokens (Meta, WhatsApp, TikTok, Snapchat, Google), daily metric sync, signed lead-ad webhooks, WhatsApp notifications and lead messages, automation engine with builder, dry run and run log | **Done** |
-| 8 — AI Intelligence | AI analysis, recommendations, reports, assistant | **Next** |
+| 8 — AI Intelligence | Campaign insights (code-computed anomalies + pacing) with recommendations → tasks, AI explanations, AI-drafted report text (AR/EN), assistant with permission-aware retrieval (pgvector) and citations; `AiProvider` (Claude + Voyage) with a mock | **Done** |
 
 Current state & gotchas: `docs/HANDOFF.md` (read first in a new session). Details: `docs/ROADMAP.md`. Architecture: `docs/ARCHITECTURE.md`. Data: `docs/DATA_MODEL.md`.
 UI: `docs/UI.md`. Decisions: `docs/DECISIONS.md` (append-only, numbered).
@@ -51,6 +51,7 @@ UI: `docs/UI.md`. Decisions: `docs/DECISIONS.md` (append-only, numbered).
 | Validation / forms | Zod v4, React Hook Form |
 | Data fetching | Server Components first; TanStack Query for client-side/realtime state; TanStack Table |
 | i18n | next-intl (Arabic default, English), cookie-based locale, no URL prefix |
+| AI | `AiProvider` interface (ADR-073): Anthropic Claude via `@anthropic-ai/sdk` + Voyage embeddings, deterministic mock for dev/tests; pgvector in Postgres; numbers are computed by code, never by the model |
 | Email | App emails: React Email + `EmailProvider` → Resend (prod), SMTP/Mailpit (local), Console (test). Auth emails: GoTrue bilingual templates (ADR-017) |
 | Tests | Vitest (unit + DB/RLS integration), Playwright (E2E) |
 | Tooling | pnpm, ESLint (flat config), Prettier, Husky + lint-staged, commitlint (Conventional Commits) |
@@ -117,7 +118,8 @@ Rules:
 - **Localized DB content** (org-defined names like roles, departments): `jsonb` `{ "ar": "...", "en": "..." }`
   typed as `LocalizedText`; render with `localized(value, locale)` which falls back to the other language.
 - **Mutations** go through `defineAction()` (see ARCHITECTURE §5): Zod-validate → authenticate →
-  `can()` check → RLS-scoped transaction → `emitEvent()` → typed `Result`. No raw Server Actions.
+  `can()` check → RLS-scoped transaction → `emitEvent()` → typed `Result`. No raw Server Actions. Slow external calls
+  (AI providers) go in the action's post-commit `complete` step, never inside the transaction (ADR-079).
 - **Side effects of events** (notifications, automations) are consumers in `src/lib/events/consumers.ts`, never
   inline in actions (ADR-027/028). Consumers must be idempotent.
 - **Reads** in Server Components go through module `server/queries.ts` using the RLS-scoped DB (`withRls`).
@@ -126,7 +128,8 @@ Rules:
   (`runReminderSweep`, `runCampaignSweep`, `runSlaSweep`, `runCrmSweep`, cron), public lead intake (`ingestLead` from the
   website form, the lead webhook and platform lead ads — no session exists), integration token storage in Vault, platform
   calls with their bookkeeping (sync, discovery, webhook processing, WhatsApp sends) and the automation engine (ADR-067/071),
-  and the seed. Every use needs a comment why.
+  AI bookkeeping and background work (usage rows, cached explanations after an RLS-checked lookup, detector runs, the
+  assistant indexer, scheduled-report auto-drafts, index status — ADR-073/075), and the seed. Every use needs a comment why.
 - **Errors**: actions return `{ ok: true, data } | { ok: false, error: { code, message?, fieldErrors? } }`;
   error `code`s are translated in the UI. Never leak DB error text to users.
 - **Commits**: Conventional Commits (`feat(auth): …`, `fix(rbac): …`, `docs: …`). One logical change per commit.

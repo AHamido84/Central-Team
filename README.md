@@ -3,7 +3,7 @@
 Operations platform and client portal for a Saudi marketing agency's central team. Arabic-first (RTL) with English (LTR),
 light and dark, mobile-first portal.
 
-**Status:** Phase 0 (Foundation) and Phase 1 (Client Portal) are built. Next: Phase 2 (Requests).
+**Status:** Phases 0–8 are built (foundation, client portal, requests, tasks & deliverables, campaigns, agency operations, CRM & capacity, integrations & automation, AI intelligence). Current state and next steps: [`docs/HANDOFF.md`](docs/HANDOFF.md).
 
 ## Run it locally
 
