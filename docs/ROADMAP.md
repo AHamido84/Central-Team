@@ -554,3 +554,90 @@ their team edited). Data model: `docs/DATA_MODEL.md` §3i.
 - [ ] Recommendations that act on the platform (e.g. change a budget through the Phase 7 adapters) — today they create tasks
 - [ ] Budget in money and per-user quotas (today: tokens per organization per month); a daily insights digest e-mail
 - [ ] Human QA on real devices (screens checked in AR/EN × light/dark × 390px/1440px with screenshots)
+
+## Feedback Round 1 (owner review of the running app)
+
+Focused improvements on Phases 0–8 — no new phase. Each item extends the existing modules; conventions unchanged
+(`defineAction` + `can()` + RLS, AR/EN, RTL/LTR, light/dark, mobile, tests, docs). Built in this order.
+
+### FR1.1 Edit & delete everywhere, Trash, data reset
+- **Soft delete** (`deleted_at`, `deleted_by`, `delete_batch`) on clients, client users, team memberships, packages,
+  request types, workflow templates, requests, tasks (+ subtasks), file folders, files, deliverables, deliverable
+  versions and comments/messages. Row visibility: every SELECT policy on these tables hides deleted rows unless the
+  transaction opted into Trash mode (`app.trash_mode` setting, only set by Trash queries of users holding the
+  matching `*:delete`). A deleted **client** hides all its data at once: `app.agency_can_access_client` /
+  `app.is_client_member` treat it as gone. Service paths (sweeps, dispatcher consumers, indexer, security-definer
+  readers) skip deleted rows too.
+- **Cascades** (documented per entity in DATA_MODEL §5): deleting a request soft-deletes its tasks and deliverables in
+  the same batch; a task its subtasks and deliverables; a folder its sub-folders and files; a deliverable its versions.
+  Blocking rules: a request type / workflow template / package / role in use by live records can't be deleted (the
+  dialog says by what); removing a team member with open work asks who takes their tasks, requests, clients and deals.
+  Restore brings the whole batch back; **purge** deletes permanently (FK cascades) and removes Storage objects.
+- **Checklist items, departments and roles** are small configuration rows: they get edit + hard delete (departments
+  ask where members go; roles must be unused), not Trash.
+- **Permissions**: `<resource>:delete` (soft) and `<resource>:purge` (permanent) for clients, client_users, users,
+  packages, request_types, workflows, requests, tasks, files, deliverables, messages; `trash:read`. Seeded: Super Admin
+  / Admin all; Account Manager and Team Lead `:delete` within their clients; Specialists only their own comments and
+  files they uploaded (never other people's work). Enforced by RLS/SQL functions, mirrored by `can()`.
+- **UI**: a row-actions menu (edit / delete) on every list and detail page that lacked one; edit forms where missing
+  (clients, client users, packages, request types, requests, comments/messages, deliverables, departments); bulk select
+  + bulk delete in list/table views; an in-page confirm dialog that lists the impact ("12 requests, 48 tasks, 30
+  files") and asks to type the item's name for cascading deletes; `/admin/trash` (filter by type, restore, purge,
+  empty trash). Everything is audited (soft delete = update with before/after, purge = delete).
+- **Data management** (`/settings/data`, Super Admin only): three reset options with a live checklist and counts —
+  demo data only (`is_demo = true` on seeded roots: users, clients, leads, deals, packages, request types, workflow
+  templates, SLA policies, holidays, automations, connections, CRM settings rows; the seed and the deploy migration mark
+  them), all operational data, factory reset (then the organization is re-bootstrapped). One-click backup ZIP (JSON per
+  table + storage file list), password re-entry, typed phrase, a background job with progress and a result summary,
+  Storage cleanup, and a **lock** (unlock needs the password). Schema: `organizations.data_reset_locked_at`,
+  `data_reset_jobs` (mode, status, step, counts, error, requested_by). The audit entry is written after the wipe.
+
+### FR1.2 Tasks performance + drawer
+- Profile first (EXPLAIN ANALYZE of `listTasks` as a user, network waterfall, React Profiler) with a **1,000-task
+  seed** (`pnpm db:seed:perf`); record before/after in DECISIONS.
+- Expected fixes: RLS policies that call per-row permission functions → a per-transaction cached "clients I can
+  access" set; the list query's per-row correlated sub-selects → grouped aggregates; select only list fields;
+  indexes for the list filters; virtualized list/table and Kanban columns; memoized rows and stable callbacks;
+  realtime patches single rows instead of refetching; lazy-loaded drawer / calendar.
+- Drawer: sticky header with a close button, Esc, outside click, browser Back (`?task=` pushed to history, so it is
+  shareable), swipe on mobile, "discard changes?" for unsaved edits, focus returns to the row, opening another task
+  replaces the content. Playwright covers each close path.
+
+### FR1.3 Convert to tasks with a review step
+- `planWorkflow()` builds an editable plan from the template (no writes); the dialog shows it: add ad-hoc tasks,
+  remove steps, rename, assignee / department / reviewer / priority / dates, reorder, dependencies, with dates
+  re-scheduled live (same scheduler as the server). `convertRequest` creates exactly the confirmed plan, re-validated
+  on the server (cycles, same client, people who can work on the client).
+- After conversion the request page lists its tasks with **Add task** and edit / delete per permission; progress and
+  dates recompute when tasks are added or removed. Ad-hoc tasks: `workflow_step_id is null` on a request's task →
+  shown as "Outside workflow" and reported separately.
+
+### FR1.4 Edit every task field, by permission
+- Editable in the drawer, table (inline + bulk) and the Kanban card menu: assignees, reviewer, watchers, department,
+  status, priority, dates, estimate, tags, title, description, checklist, subtasks, dependencies, client / request.
+- Field rules in one place (`tasks/field-access.ts`) mirrored by a DB guard: Admin / Ops everything; Account Manager
+  and Team Lead everything on their clients / department; Specialist only status, checklist, comments and time on
+  tasks assigned to them. Read-only fields show why. Schema: none new (guard trigger + `app.task_field_access()`).
+- Every change → a `task_events` history row (who, field, from → to) shown in the drawer's activity; new assignees,
+  reviewers and watchers are notified. Schema: `task_events`.
+
+### FR1.5 AI credentials in `/admin/ai`
+- `ai_credentials` (provider `anthropic · voyage`, display name, masked key hint, default model, monthly token
+  limit, active, last test result) with the key in **Supabase Vault** (same pattern as integration tokens, ADR-067) —
+  never returned to the browser. Model dropdown from the provider's models API (manual input fallback). Test
+  connection. `getAIClient(orgId)` resolves the active credential and falls back to env. Audited.
+
+### FR1.6 Social accounts per responsible person
+- `integration_connections.owner_id` + `scope` (`organization · personal`), pasted-token connections (token, app id /
+  secret or refresh token in Vault, expiry, ad account ids) alongside OAuth; providers extended with X and LinkedIn.
+  **My connected accounts** in the profile for `integrations:connect`; admins see all (masked) and reassign.
+  Test connection lists reachable ad accounts to map to clients; status badges; owner notified 7 days before expiry.
+  **Fetch campaigns** (Meta first) stores name, status, objective and dates on `integration_campaign_links` (new
+  columns) and shows them on the client page and the owner's view. Endpoints and scopes documented in
+  `docs/INTEGRATIONS.md`.
+
+### FR1.7 Email change
+- Root-cause the missing email, surface real errors (rate limit, in use, invalid, SMTP), pending state with resend /
+  cancel, dev-only Mailpit link, a completable double confirmation, an admin "change email" in the user drawer
+  (audited), proper success / error landing, `profiles.email` sync + notification, SMTP config via env and the DNS
+  steps in HANDOFF. Playwright: both confirmations via Mailpit → log in with the new address, plus error cases.
