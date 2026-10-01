@@ -741,9 +741,29 @@ email-change flow (FR1.7) and the Vault credential pattern (ADR-067/085).
 - **Tests**: settings RLS (admin only), the secret never readable, connection test against a mock SMTP server (auth
   ok / wrong password), queue retry with backoff and fallback, auth emails through the configured sender in Mailpit.
 
+**Status**
+- [x] `mail_settings` (Vault secret, masked hint, `mail:manage`, audited) and `email_outbox` (metadata-only reads, 90 days)
+- [x] Settings → Mail (`/admin/mail`): presets with Gmail App Password steps and limits, from-address check, test
+  connection with specific errors, send test email, status card (active sender, last success, today vs limit, fallback alert)
+- [x] Email log (`/admin/mail/log`): filters by status / type / recipient, resend (not for sign-in links), pagination
+- [x] Outbox worker: retries with backoff, fallback to the environment sender with one alert, daily limit with an 80%
+  warning, development → Mailpit unless `EMAIL_DEV_REAL_SEND=1`, cron retries + retention
+- [x] Magic link, password reset, email change and invitations sent through the configured sender (ADR-088)
+- [x] Tests: `tests/unit/mail.test.ts` (mock SMTP server: right / wrong app password, blocked port; error codes; form),
+  `tests/db/mail.test.ts` (RLS, write-only secret, log columns, retry / backoff / give up, fallback + alert, daily limit,
+  auth email through the configured sender to Mailpit), `e2e/mail-settings.spec.ts`
+- [ ] Deferred: per-kind templates beyond the shared action email; bounce / complaint webhooks from Resend
+
 ### FR2.2 Email change through the configured sender
 - FR1.7 fixed the flow but GoTrue still sent the two emails with its own SMTP. Now both links are generated
   server-side (current + new address) and sent through the outbox, so they follow Settings → Mail.
 - Pending / resend / cancel, the admin direct change and the landing page stay as built.
 - **Tests**: the e2e test (both emails from Mailpit, both confirmations, sign in with the new address, error cases,
   admin direct change) runs against the new path, with the email log showing both sends.
+
+**Status**
+- [x] Both email-change links generated server-side and sent through the outbox (from the configured sender)
+- [x] Specific errors, pending state with resend / cancel, dev-only Mailpit hint, admin direct change, landing page (FR1.7)
+- [x] `e2e/email-change.spec.ts` checks both emails in Mailpit and in the email log, both confirmations, sign-in with the
+  new address, error cases and the admin path; `e2e/auth.spec.ts` covers magic link and reset on the new path
+

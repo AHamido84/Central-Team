@@ -974,6 +974,13 @@ Email change (ADR-087) adds no table: `app.my_email_change()` / `app.cancel_my_e
 caller's own pending change in `auth.users`; the `auth.users` email trigger also records `user.email_changed` (one row
 per organization of the user) next to the existing `profiles.email` sync.
 
+## 3l. Feedback Round 2 — mail
+
+| Table | Purpose |
+|---|---|
+| `mail_settings` | One per organization (ADR-088): `preset` (gmail · google_workspace · microsoft365 · zoho · resend · smtp), `host`, `port`, `security` (starttls · ssl · none), `username`, `from_name` `{ar,en}`, `from_email`, `reply_to`, `daily_limit`, `is_active`, `secret_id` (Vault, no user column privilege), `secret_hint`, last test, `last_success_at`, `fallback_since`, `limit_warned_on`. RLS: `mail:manage`. Audited. `app.mail_put_secret` (write-only) / `app.mail_get_secret` (service only). |
+| `email_outbox` | Queue and log: `kind` (magic_link · recovery · email_change · invitation · notification · security_notice · report · test · other), `to_email`, `user_id`, `locale`, `subject`, `html` / `text` (no user column privilege; cleared after sending when `sensitive`), `status` (queued · sending · sent · failed), `attempts`, `next_attempt_at`, `error_code` / `error_message`, `provider`, `sender` (configured · environment · fallback · dev), `provider_message_id`, `sent_at`, `resent_from`. RLS: read metadata with `mail:manage`; writes only on the service path. Kept 90 days. |
+
 ## 4. Forward-looking sketch (all phases — not built in Phase 0)
 
 ```mermaid

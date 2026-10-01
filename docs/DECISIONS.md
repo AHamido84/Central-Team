@@ -93,7 +93,7 @@ previews if reachable). Cloudflare (OpenNext) remains a fallback.
 Two proposals in `UI.md §3`; recommendation: A "Najd Indigo" + Sand. Fonts: IBM Plex Sans Arabic + Inter.
 
 ### ADR-017 — Auth emails via GoTrue bilingual templates; app emails via `EmailProvider`
-2026-09-28 · Accepted (supersedes ADR-006)
+2026-09-28 · Accepted (supersedes ADR-006) · Sending part superseded by ADR-088
 The Send Email Hook requires GoTrue (inside Docker) to call back into the Next.js app, which is fragile locally and in
 CI. Auth emails (magic link, recovery, email change) now use GoTrue's own templates (`supabase/templates/*.html`), each
 bilingual and switched on `user_metadata.locale`, and links go to `/auth/confirm?token_hash=…` (no PKCE state). App
@@ -822,8 +822,45 @@ always sends a security notice to the old address. Admins with `users:update` se
 (`changeMemberEmailAction`, GoTrue admin API after an RLS-checked lookup; only a Super Admin changes a Super Admin;
 `user.email_set_by_admin` records who). Production SMTP is configured in Supabase (Dashboard → Auth → SMTP, or
 `[auth.email.smtp]` with `env()` values and `supabase config push`); DNS steps in `docs/HANDOFF.md`.
-*Rejected*: single confirmation of the new address only (weaker against a hijacked session); sending our own
-confirmation emails instead of GoTrue's (a second token system to secure).
+*Rejected*: single confirmation of the new address only (weaker against a hijacked session); a token system of our own
+(still GoTrue's tokens — since ADR-088 only the sending moved to our outbox, the tokens remain GoTrue's).
+
+### ADR-088 — One sender for every email: Settings → Mail, an outbox, and server-generated auth links
+2026-10-01 · Accepted (supersedes the sending part of ADR-017)
+**Mail settings.** Each organization picks its sender in Settings → Mail (`mail_settings`, `mail:manage`):
+- Presets: Gmail and Google Workspace (App Password), Microsoft 365 / Outlook, Zoho, Resend (API key), custom SMTP.
+- The secret is in Vault (write-only, masked hint, decrypted only on the service path) and every change is audited,
+  the same pattern as ADR-067 / ADR-085.
+
+**One path for every email.**
+- Every email — notifications, invitations, security notices, tests, and now auth emails — is rendered with the
+  shared bilingual React Email template and queued in `email_outbox`.
+- The worker runs after the response and from the cron sweep. It sends through the organization's sender and retries
+  with backoff (1, 5, 15, 60 minutes; 5 attempts; permanent errors such as a wrong password stop at once).
+- The environment provider (`EMAIL_PROVIDER`) is the **fallback**, used only when the configured sender fails or has
+  reached its daily limit. Admins get one alert per spell (`mail.fallback_used`) and one warning per day at 80% of
+  the limit (`mail.limit_approaching`). At the limit with no fallback, mail waits for the next Riyadh day.
+- With no sender configured, the environment provider sends.
+
+**Development.** Everything goes to Mailpit unless `EMAIL_DEV_REAL_SEND=1`.
+
+**Auth emails.** Generated server-side with GoTrue's Admin `generateLink`, which creates the one-time token without
+sending anything, then queued like any other email. Links still land on `/auth/confirm?token_hash=…`.
+- Covers magic link, recovery, and the two email-change links (ADR-087). Invitations already used `EmailProvider`.
+- The app never asks GoTrue's mailer to send, so GoTrue's SMTP setting no longer matters for the app's flows (the
+  bilingual GoTrue templates stay as a fallback for anything triggered from the Supabase dashboard).
+- Two GoTrue behaviours we rely on and test:
+  1. `generateLink` creates a user for an unknown address, so we first look the address up among active members and
+     stay silent otherwise.
+  2. For `email_change_new` the returned `hashed_token` is computed from the current address while GoTrue verifies
+     against sha224(new address + OTP), so we build that link ourselves from the returned OTP.
+
+**The log.** Admins read metadata only (column privileges, 90-day retention). Sign-in and invitation bodies are
+cleared once sent, so they can't be read or resent from the log.
+
+*Rejected*: the Send Email Hook (GoTrue has to call back into the app, fragile locally and in CI — the reason behind
+ADR-017 — and it would split delivery between GoTrue's retries and ours); configuring GoTrue's SMTP from our UI (no
+supported API on Supabase Cloud, and app emails would still need their own sender).
 
 ---
 

@@ -1,6 +1,6 @@
 # Handoff — state of the project
 
-Last updated: 2026-09-30 (Feedback Round 1) · Branch: `claude/sharp-euler-zr273f` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
+Last updated: 2026-10-01 (Feedback Round 2) · Branch: `claude/sharp-euler-zr273f` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
 
 ## Where we are
 
@@ -16,6 +16,7 @@ Last updated: 2026-09-30 (Feedback Round 1) · Branch: `claude/sharp-euler-zr273
 | 7 — Integrations & Automation | **Built, not deployed yet.** One `IntegrationProvider` interface with live adapters (Meta Ads + Pages + lead ads, WhatsApp Cloud API, TikTok, Snapchat, Google Ads / GA4) and a deterministic **sandbox** per platform; OAuth with signed state + nonce cookie, tokens only in Supabase Vault; `/admin/integrations` (connect / reconnect / disconnect / test, health with expiry, account → client and platform campaign → channel mapping, sync now, backfill ≤ 90 days, sync log with retries, webhook log, WhatsApp templates and messages); daily idempotent sync into `metrics_daily`; signed webhooks `/api/hooks/[provider]` → lead ads into `ingestLead()`; WhatsApp notifications (opt-in + per-category switch) and template messages from lead / deal pages with delivery status; automation engine (`/admin/automations`: trigger catalog, conditions, 6 action types, dry run, run log, retries, loop guard) |
 | 8 — AI Intelligence | **Built, not deployed yet.** Campaign insights computed by code (robust z-score anomalies on complete days, KPI and budget pacing, delivery stopped) with rule-based recommendations and computed impact → one click to a task; `/insights` + campaign Insights tab + detail with an AI explanation; notifications (`ai_insight`) and an automation trigger; "Draft with AI" for report commentary / next steps in the report's language (and optional auto-drafts for scheduled reports); `/assistant` with private conversations, retrieval through pgvector **inside the user's RLS** (a chunk is visible only if its source row is) and validated citations; `/admin/ai` (switch, sensitivity, budget + usage, provider status, index rebuild). Everything behind `AiProvider` (Claude via the Anthropic SDK + Voyage embeddings) with a deterministic mock |
 | Feedback Round 1 | **Built, not deployed.** Soft delete + Trash + bulk delete + data reset (ADR-080/081); tasks performance (1,000 tasks interactive < 1 s) and a History-API drawer (ADR-082); reviewed conversion plan + ad-hoc tasks (ADR-083); per-field task permissions enforced by the DB (ADR-084); AI keys in Vault from `/admin/ai` (ADR-085); personal connected accounts incl. X / LinkedIn (ADR-086); email change fixed (ADR-087) |
+| Feedback Round 2 | **Built, not deployed.** Settings → Mail (Gmail / Workspace / Outlook / Zoho / Resend / SMTP) with tests, one outbox for app and auth emails (retries, fallback, daily limit, 90-day log at `/admin/mail/log`), email change through the configured sender (ADR-088) |
 
 **Feedback Round 1, verified on a fresh seed**: `pnpm check` (229 unit tests), 231 DB tests, 46 Playwright e2e tests,
 `pnpm build`. Earlier (Phase 8): `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 220 unit tests, 187 DB tests
@@ -178,32 +179,60 @@ How it works:
     names differently and the rows reorder on hydration (team table). Compare code points, or sort on the server only.
 53. **"Today" is the agency's day (`Asia/Riyadh`)**, three hours ahead of UTC: tests comparing with Postgres
     `current_date` fail between 21:00 and 24:00 UTC — use `(now() at time zone 'Asia/Riyadh')::date`.
+54. **Never send auth email through GoTrue** (`signInWithOtp`, `resetPasswordForEmail`, `updateUser({ email })`): use
+    `sendAuthLinkEmail` / `sendEmailChangeEmails` (ADR-088). `generateLink` creates users for unknown addresses (look the
+    member up first) and returns the wrong `hashed_token` for `email_change_new` (we hash new email + OTP ourselves).
+55. **Tables with column-level insert grants need a raw `insert` with explicit columns**: Drizzle lists every column
+    (defaults included) and the insert is denied (`mail_settings`, `ai_credentials`).
+56. **The outbox claim counts the attempt**: `recordFailure` uses the claimed row's `attempts` as is.
 
-## Email delivery (auth emails and app emails)
+## Email delivery (Feedback Round 2, ADR-088)
 
-Two senders: **Supabase Auth** sends magic links, password resets and email-change confirmations; the **app** sends its
-own notifications through `EMAIL_PROVIDER` (Resend in production). Locally both land in Mailpit
-(http://localhost:54324).
+Every email (invitations, sign-in links, password resets, email-change links, notifications, reports, security notices)
+goes through **one queue** (`email_outbox`) and **one sender**: the organization's sender from **Settings → Mail**
+(`/admin/mail`, Super Admin / Admin).
+- The environment provider (`EMAIL_PROVIDER`) is the fallback, and the sender until one is configured.
+- Auth links are generated by GoTrue's Admin API and sent by us, so Supabase's own SMTP setting no longer matters
+  for the app.
+- Locally everything lands in Mailpit (http://localhost:54324) unless `EMAIL_DEV_REAL_SEND=1`.
+- The email log is at `/admin/mail/log`.
 
-For production (Supabase Cloud + Vercel):
-1. **Supabase → Authentication → SMTP Settings**: enable custom SMTP (e.g. Resend: host `smtp.resend.com`, port 465 or
-   587, user `resend`, password = a Resend API key, sender `no-reply@<domain>`). Without it Supabase only emails the
-   project's team members, a few per hour — every other user gets nothing (the FR1.7 bug). Raise the email rate limit
-   under Authentication → Rate Limits afterwards.
-2. **Authentication → URL Configuration**: Site URL = the app URL (custom domain), redirect URLs = `<app>/**`.
-3. **Authentication → Email Templates**: paste `supabase/templates/*.html` (they link to `/auth/confirm?token_hash=…`;
-   the default templates also work through the PKCE `code` path). **Sign In / Providers → Email**: keep "Confirm email"
-   and "Secure email change" on (ADR-087).
-4. **DNS for the sending domain** (at the domain's DNS host; Resend shows the exact values under Domains):
-   - SPF: TXT on the sending (sub)domain, e.g. `send.<domain>` → `v=spf1 include:amazonses.com ~all` (Resend's value);
-     keep **one** SPF record per name — merge includes if one exists.
-   - DKIM: the TXT record `resend._domainkey.<domain>` with the public key Resend gives.
-   - Return-path / bounce: the MX record Resend lists for `send.<domain>`.
-   - DMARC: TXT `_dmarc.<domain>` → `v=DMARC1; p=none; rua=mailto:dmarc@<domain>` to start; move to `p=quarantine` once
-     reports are clean.
-   Wait for "Verified" in Resend, then set `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `EMAIL_FROM` on Vercel for the
-   app's own emails (same domain).
-5. Test: change an account's email to a real inbox from Settings → Profile; both addresses receive a link.
+### Connect a Gmail account
+1. On the Google account that should send: **Google Account → Security → 2-Step Verification → turn on** (App
+   Passwords need it).
+2. Open https://myaccount.google.com/apppasswords → name it `Central` → **Create** → copy the 16-character password
+   (spaces don't matter).
+3. In Central: **Settings → Mail** → **Gmail**:
+   - **Username** = the full Gmail address.
+   - **Password / App password** = the 16 characters.
+   - **From email** = the same Gmail address (or an alias verified in Gmail → Settings → Accounts → "Send mail as").
+   - Add the From names in Arabic and English, an optional reply-to, and a daily limit (500 is the preset).
+4. **Test connection** → "Connected and signed in"; **Save**; **Send test email** to yourself.
+5. Production only sends through it once deployed; locally set `EMAIL_DEV_REAL_SEND=1` in `.env.local` to try it from
+   your machine.
+
+Limits: about 500 messages a day for a personal Gmail account (Workspace: about 2,000). The status card shows today's
+count and admins are warned at 80%. Past the limit, mail goes through the fallback sender or waits until tomorrow.
+Typical errors: "Wrong username or password" = not an App Password; "port blocked" = the host's outbound port 587 is
+closed; "TLS failed" = security doesn't match the port.
+
+### Move to your own domain later (Resend)
+1. Create a Resend account → **Domains → Add domain** (e.g. `mail.<your-domain>`).
+2. At your DNS host add the records Resend shows:
+   - SPF: TXT on the sending subdomain, e.g. `send.mail.<domain>` → `v=spf1 include:amazonses.com ~all`. Keep one SPF
+     record per name.
+   - DKIM: TXT `resend._domainkey.mail.<domain>` with the key Resend shows.
+   - Return path: the MX record Resend lists.
+   - DMARC: TXT `_dmarc.<domain>` → `v=DMARC1; p=none; rua=mailto:dmarc@<domain>`; move to `p=quarantine` once reports
+     are clean.
+3. Wait for **Verified**, create an API key (sending access).
+4. **Settings → Mail → Resend**: paste the key, From = `no-reply@mail.<domain>`. Test, save, send a test email.
+5. Optional but recommended: set the same key as the environment fallback on Vercel (`EMAIL_PROVIDER=resend`,
+   `RESEND_API_KEY`, `EMAIL_FROM="Central <no-reply@mail.<domain>>"`). The fallback is then a real sender rather than
+   the console.
+
+Supabase itself only needs a sender for emails triggered from its dashboard. Its URL settings still matter: Site URL =
+the app URL, redirect URLs = `<app>/**` (the links point to `/auth/confirm`).
 
 ## Open items (need the owner)
 
@@ -319,7 +348,7 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
    branch through the Vercel API (`POST /v13/deployments` with `gitSource` for repo id `1393530120`) and read the
    build log for the `[deploy-db]` / seed lines. Revoke-and-rotate reminders are under "Open items".
 4. Work on branch `claude/stoic-cray-wud1ib` (or the one the owner names); Conventional Commits; plan in ROADMAP +
-   DATA_MODEL before building a phase; decisions in DECISIONS (next ADR: **088**).
+   DATA_MODEL before building a phase; decisions in DECISIONS (next ADR: **089**).
 
 ## After Phase 8
 
