@@ -28,7 +28,7 @@ test('a provider failure shows an inline reason and the page stays usable', asyn
   test.setTimeout(180_000);
   const sql = db();
   const started = new Date();
-  // Sara's profile language decides the UI (gotcha 45): the checks below use test ids or both languages.
+  // The profile language decides the UI (gotcha 45): the checks below use test ids or both languages.
   const context = await browser.newContext({ locale: 'en-US' });
   await context.addInitScript(() => {
     for (const m of ['scrollIntoView', 'scrollTo', 'scrollBy', 'scroll'] as const) {
@@ -48,7 +48,8 @@ test('a provider failure shows an inline reason and the page stays usable', asyn
   page.on('pageerror', (e) => crashes.push(e.message));
   try {
     await sql`update public.ai_settings set enabled = true`;
-    await login(page, 'sara@ofoq.test');
+    // Faisal (Admin, ai:manage): Sara already signs in often across the suite and the login limit is per email (gotcha 20).
+    await login(page, 'faisal@ofoq.test');
 
     // A key Anthropic will reject (through the UI, so the server's cached client is invalidated).
     await page.goto('/admin/ai');
