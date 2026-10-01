@@ -767,3 +767,57 @@ email-change flow (FR1.7) and the Vault credential pattern (ADR-067/085).
 - [x] `e2e/email-change.spec.ts` checks both emails in Mailpit and in the email log, both confirmations, sign-in with the
   new address, error cases and the admin path; `e2e/auth.spec.ts` covers magic link and reset on the new path
 
+
+## Feedback Round 3 (assistant reliability — bug fix)
+
+Focused bug-fix round, no new phase. Owner report: with only an Anthropic key in `/admin/ai` (no Voyage key), asking the
+assistant on production replaces the page with the generic error screen after the conversation is created.
+
+### FR3.1 Root cause from real logs
+- Reproduce locally on a production build (`next build` + `next start`, only an Anthropic credential, no
+  `VOYAGE_API_KEY`), and read the Vercel runtime logs for the assistant action and `/assistant/[conversationId]`
+  (match the digest).
+- Check each suspect and record the verdicts in `docs/DECISIONS.md` (ADR-089): no embedder · Vault decrypt role on
+  the pooler · index / model mismatch · Anthropic call errors (model id, key, credit, network) · function timeout ·
+  an exception outside `answerQuestion`'s try/catch.
+
+### FR3.2 The assistant never takes down the page
+- One error taxonomy for every AI failure (switched off, not configured, key rejected, model unavailable, out of
+  credit, rate limited, budget reached, index building, timed out, provider down, refused) → a stored assistant reply
+  with a specific AR/EN reason; admins also get "Fix in AI settings".
+- Nothing on the page path can throw because of AI (`getAiAvailability`, `getAIClient`); a local error boundary around
+  the chat panel as the last line of defence; `maxDuration` on the routes that call models; the provider timeout below it.
+
+### FR3.3 Works with only an Anthropic key (ADR-090)
+- Retrieval without an embedder: Claude **tool use** with read-only tools (search records, list requests, list tasks,
+  client overview, campaign metrics) executed as the user inside `withRls`; vector search becomes one tool when Voyage is
+  configured. Citations keep the same rules (numbered sources, validated `[n]`). The mock provider plans tool calls
+  deterministically so tests and demos run without keys.
+- `/admin/ai` says "Voyage is optional; it improves search quality".
+
+### FR3.4 Index health
+- Re-index in the background when the embedding provider or model changes; chunks of another model are replaced, never
+  mixed. `/admin/ai` shows chunks, model, last build and progress.
+
+### FR3.5 "Test assistant" in `/admin/ai`
+- Runs the whole chain once — AI switch · budget · key decrypt · Anthropic call with the configured model · embedder (or
+  fallback) · retrieval returns sources for a sample question · final answer — each step pass / fail with its error.
+
+### FR3.6 Model validation on save
+- Saving an Anthropic credential lists the models with that key; a model id that no longer exists falls back to a current
+  one with a warning.
+
+### FR3.7 Tests and production verification
+- Unit: error → message mapping; tool planning and citations. DB: the no-Voyage fallback respects RLS (a restricted user
+  can't retrieve other clients' data). E2E: a provider failure shows an inline reason and the page stays usable.
+- Deploy (owner's go-ahead + token), confirm migrations, run "Test assistant" with the owner's key and ask the three
+  sample questions on production.
+
+**Status**
+- [ ] FR3.1 Root cause from logs, ADR-089
+- [ ] FR3.2 Inline failures, error boundary, `maxDuration`
+- [ ] FR3.3 Tool-use retrieval without an embedder (ADR-090), Voyage optional in `/admin/ai`
+- [ ] FR3.4 Index status and automatic re-index on model change
+- [ ] FR3.5 "Test assistant" diagnostics
+- [ ] FR3.6 Model validation on save
+- [ ] FR3.7 Tests; production deploy and verification
