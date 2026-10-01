@@ -862,6 +862,93 @@ cleared once sent, so they can't be read or resent from the log.
 ADR-017 — and it would split delivery between GoTrue's retries and ours); configuring GoTrue's SMTP from our UI (no
 supported API on Supabase Cloud, and app emails would still need their own sender).
 
+### ADR-089 — Assistant crash: effect bodies return nothing; every AI failure is an inline reason
+2026-10-01 · Accepted (Feedback Round 3)
+
+**What broke.** With an Anthropic key in `/admin/ai` and no Voyage key, asking the assistant on production replaced
+the page with the route error screen. Vercel request logs showed every `/assistant` request answered **200** in under a
+second (`hasFunctionCrashed: false`, `functionMaxDuration: 300`), so nothing failed on the server. The owner's Chrome 154
+console had the real error: `TypeError: i is not a function` in React's `commitHookEffectListUnmount`. The assistant ran
+`useEffect(() => endRef.current?.scrollIntoView({ block: 'end' }), …)`. In current Chrome, scroll methods return a
+**Promise**, so the arrow returned it. React stored it as the effect's cleanup and called it on the next render (the reply
+arriving), and the error went to the route boundary. Older Chromium (the sandbox's 141) returns `undefined`, which is why
+headless runs never reproduced it. It reproduces on a production build when the test browser's scroll methods return a
+Promise.
+
+**Suspects checked.**
+1. *No embedder*: confirmed as a second bug, not the crash. Without Voyage, production had no embedder, and the missing
+   embedder raised `ai_not_configured`, which the thread showed as "AI is switched off". So the assistant could never
+   answer with only an Anthropic key, and said the wrong thing → ADR-090.
+2. *Vault decrypt role*: ruled out. `dbAdmin` connects as the owner role through the pooler, and
+   `app.ai_credential_get_key` refuses only user writes. The page's availability check (which decrypts) rendered fine.
+   `getAIClient` now degrades instead of throwing (`decryptFailed`, reported by "Test assistant").
+3. *Index / model mismatch*: not involved (no embedder in production). Search now uses vectors only when chunks of
+   the current model exist, and keyword search otherwise.
+4. *Anthropic call errors*: never reached in production (the reply came back before any model call). They are now
+   classified (below).
+5. *Function timeout*: ruled out (0.6 s). Model routes still declare `maxDuration = 300`. The provider timeout is
+   90 s with one retry, and the assistant stops starting rounds after 200 s, so a slow call ends as "timed out" in the
+   thread, not as a killed function.
+6. *Exception outside the try/catch*: ruled out by the logs. `answerQuestion` still never throws now: even a failed save
+   returns the reply.
+
+**Decisions.**
+- Effects never return a value by accident: block bodies, and an ESLint rule (`no-restricted-syntax`) rejects an
+  expression-bodied `useEffect` / `useLayoutEffect` / `useInsertionEffect` callback (unless it returns a cleanup
+  function).
+- One failure taxonomy (`src/modules/ai/errors.ts`): `ai_disabled`, `ai_not_configured`, `ai_key_invalid`,
+  `ai_model_unavailable`, `ai_no_credit`, `ai_rate_limited`, `ai_budget_exceeded`, `ai_timeout`, `ai_refused`,
+  `ai_unavailable`. It maps from the SDK's typed errors: timeout and connection first, then 401/403, then credit
+  (402 or a "credit balance" 400), then 404 for the model, then 429.
+- A failed reply is stored with `ai_messages.reason`, and the configured model when the model is the problem. The thread
+  shows the specific AR/EN reason. People with `ai:manage` also get "Fix in AI settings" for reasons settings can fix.
+- A local error boundary wraps the chat panel. The page's availability check never throws.
+- Zod's JIT probe (`new Function`, blocked by our CSP and reported as a console issue) is off in the browser
+  (`z.config({ jitless: true })`).
+- `/admin/ai` → **Test assistant** runs the chain once (switch, budget, key decrypt, a call with the configured model,
+  embedder or fallback, retrieval through the admin's RLS, final answer) and reports each step.
+- Saving an Anthropic key lists its models. A default model the key no longer offers switches to a current one
+  (`claude-opus-5-5`, then `claude-sonnet-5-5`, …) with a warning.
+
+*Rejected*: catching the crash only with an error boundary (it would hide the bug and still break the thread on
+every reply); `unsafe-eval` in the CSP for Zod (a weaker policy for no gain).
+
+### ADR-090 — Assistant retrieval through read-only tools that run as the user; Voyage optional
+2026-10-01 · Accepted (Feedback Round 3)
+
+The assistant now works with only an Anthropic key. Claude gets five read-only tools and the loop runs them:
+- `search_records`: vectors when an embedder and its index exist, otherwise keyword search with Arabic normalization
+  and light stemming. Alef / yaa / taa-marbuta folding and clitic stripping mean "بطلبات العملاء" finds "طلب".
+- `list_requests`, `list_tasks`, `client_overview` and `campaign_metrics`: counts and totals computed in SQL.
+
+**How a question runs.**
+- Each round's tool calls run in **one `withRls` transaction as the asking user**, so the source tables' own policies
+  decide what comes back (ADR-075), soft-deleted rows included (ADR-080).
+- Every record is turned into text by the indexer's `buildChunks`: the same redacted titles, URLs and snippets
+  (ADR-076).
+- The `SourceRegistry` numbers the records, and the final answer's `[n]` markers are validated against them. The
+  citation rules are unchanged.
+- Model and embedding calls never run inside a transaction (ADR-079). Query vectors are computed before the round's
+  transaction opens.
+
+**Loop rules.**
+- At most 4 rounds; the last one sends `tool_choice: none`.
+- `tool_choice` is otherwise `auto`, because forced tool use is rejected by current models.
+- The provider's content blocks (thinking, tool_use) are appended unchanged: history is append-only.
+- A bad tool input or a failed query becomes an `is_error` tool result, in its own savepoint, never an exception.
+
+**Mock and index.**
+- The mock provider plans tool calls with deterministic keyword rules, so demos and tests exercise the same loop,
+  tools and RLS.
+- With Voyage, a provider or model change re-indexes in the background (`after()` → `catchUpIndex`). Chunks of
+  another model count as stale and are replaced by the upsert, never mixed.
+- `/admin/ai` shows the index model, chunks, last build and progress, or "not used" when there is no embedder, and
+  says Voyage is optional.
+
+*Rejected*: a Postgres full-text fallback over a text-only chunk index. The owner's questions ("open requests",
+"overdue tasks today", "summarize a client's month") are lists and aggregates that top-k snippets answer poorly.
+It would also need a second index kept in sync without an embedder.
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

@@ -814,10 +814,22 @@ assistant on production replaces the page with the generic error screen after th
   sample questions on production.
 
 **Status**
-- [ ] FR3.1 Root cause from logs, ADR-089
-- [ ] FR3.2 Inline failures, error boundary, `maxDuration`
-- [ ] FR3.3 Tool-use retrieval without an embedder (ADR-090), Voyage optional in `/admin/ai`
-- [ ] FR3.4 Index status and automatic re-index on model change
-- [ ] FR3.5 "Test assistant" diagnostics
-- [ ] FR3.6 Model validation on save
-- [ ] FR3.7 Tests; production deploy and verification
+- [x] FR3.1 Root cause from real logs (ADR-089): server logs clean (200s, 0.6 s, no crash); the owner's console showed
+  `TypeError: i is not a function` in React's effect cleanup — `useEffect(() => el.scrollIntoView())` returned the
+  Promise that current Chrome's scroll methods return. Reproduced on a production build; every suspect has a verdict
+- [x] FR3.2 Block-bodied effects + lint rule; failure taxonomy (`src/modules/ai/errors.ts`) stored as `ai_messages.reason`
+  and shown inline (AR/EN) with "Fix in AI settings" for admins; chat-panel error boundary; availability and client never
+  throw; `maxDuration = 300` on model routes, 90 s provider timeout (one retry), 200 s assistant deadline; Zod jitless in
+  the browser (CSP)
+- [x] FR3.3 Tool-use retrieval (ADR-090): `search_records` (vectors or keyword with Arabic normalization),
+  `list_requests`, `list_tasks`, `client_overview`, `campaign_metrics`, run as the user in `withRls`, records rendered
+  by `buildChunks` and cited `[n]`; mock plans tools deterministically; `/admin/ai` says Voyage is optional
+- [x] FR3.4 Index health in `/admin/ai` (model, chunks, last build, progress, earlier-model chunks; "not used" without an
+  embedder); background re-index (`after()`) when a Voyage key is added, changed, toggled or removed
+- [x] FR3.5 "Test assistant": seven steps with pass / warn / fail / skip, the translated reason and the provider's words
+- [x] FR3.6 Saving an Anthropic key lists its models; a missing default model switches to a current one with a warning
+- [x] FR3.7 Tests: `tests/unit/ai-assistant.test.ts` (error mapping incl. SDK classes, model fallback, search terms, mock
+  plan, loop), `tests/db/ai-tools.test.ts` (no-Voyage tools under RLS: admin vs Specialist, CRM, client overview),
+  `e2e/assistant-failure.spec.ts` (Promise-returning scroll like Chrome 154 + a rejected key → inline reason, page usable)
+- [ ] FR3.7 Production: deploy, confirm the migration, run "Test assistant" with the owner's key, ask the three questions
+- [ ] Deferred: streaming answers (the reply appears when complete); per-tool result caching across turns

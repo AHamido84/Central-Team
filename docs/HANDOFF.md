@@ -1,6 +1,6 @@
 # Handoff — state of the project
 
-Last updated: 2026-10-01 (Feedback Round 2) · Branch: `claude/sharp-euler-zr273f` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
+Last updated: 2026-10-01 (Feedback Round 3) · Branch: `claude/sharp-euler-zr273f` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
 
 ## Where we are
 
@@ -16,6 +16,7 @@ Last updated: 2026-10-01 (Feedback Round 2) · Branch: `claude/sharp-euler-zr273
 | 7 — Integrations & Automation | **Built, not deployed yet.** One `IntegrationProvider` interface with live adapters (Meta Ads + Pages + lead ads, WhatsApp Cloud API, TikTok, Snapchat, Google Ads / GA4) and a deterministic **sandbox** per platform; OAuth with signed state + nonce cookie, tokens only in Supabase Vault; `/admin/integrations` (connect / reconnect / disconnect / test, health with expiry, account → client and platform campaign → channel mapping, sync now, backfill ≤ 90 days, sync log with retries, webhook log, WhatsApp templates and messages); daily idempotent sync into `metrics_daily`; signed webhooks `/api/hooks/[provider]` → lead ads into `ingestLead()`; WhatsApp notifications (opt-in + per-category switch) and template messages from lead / deal pages with delivery status; automation engine (`/admin/automations`: trigger catalog, conditions, 6 action types, dry run, run log, retries, loop guard) |
 | 8 — AI Intelligence | **Built, not deployed yet.** Campaign insights computed by code (robust z-score anomalies on complete days, KPI and budget pacing, delivery stopped) with rule-based recommendations and computed impact → one click to a task; `/insights` + campaign Insights tab + detail with an AI explanation; notifications (`ai_insight`) and an automation trigger; "Draft with AI" for report commentary / next steps in the report's language (and optional auto-drafts for scheduled reports); `/assistant` with private conversations, retrieval through pgvector **inside the user's RLS** (a chunk is visible only if its source row is) and validated citations; `/admin/ai` (switch, sensitivity, budget + usage, provider status, index rebuild). Everything behind `AiProvider` (Claude via the Anthropic SDK + Voyage embeddings) with a deterministic mock |
 | Feedback Round 1 | **Built and deployed.** Also: people pickers above drawers, done tasks shown by default. Soft delete + Trash + bulk delete + data reset (ADR-080/081); tasks performance (1,000 tasks interactive < 1 s) and a History-API drawer (ADR-082); reviewed conversion plan + ad-hoc tasks (ADR-083); per-field task permissions enforced by the DB (ADR-084); AI keys in Vault from `/admin/ai` (ADR-085); personal connected accounts incl. X / LinkedIn (ADR-086); email change fixed (ADR-087) |
+| Feedback Round 3 | **Built (2026-10-01).** Assistant crash fixed (an effect returned Chrome's scroll Promise — ADR-089), every AI failure is an inline reason with "Fix in AI settings", the assistant answers with only an Anthropic key through read-only tools that run as the user (ADR-090), index health + background re-index, "Test assistant" in `/admin/ai`, model check on key save |
 | Feedback Round 2 | **Built and deployed (2026-10-01).** Settings → Mail (Gmail / Workspace / Outlook / Zoho / Resend / SMTP) with tests, one outbox for app and auth emails (retries, fallback, daily limit, 90-day log at `/admin/mail/log`), email change through the configured sender (ADR-088) |
 
 **Feedback Round 2, verified on a fresh seed**: `pnpm check` (243 unit tests), 239 DB tests, `pnpm build`. Feedback Round 1: 229 unit tests, 231 DB tests, 46 Playwright e2e tests,
@@ -166,8 +167,8 @@ How it works:
   Vercel URL (owner's task) for magic links and password resets.
 - **Cron**: daily at 05:00 UTC (08:00 Riyadh) — reminder sweep, campaign sweep, SLA breach sweep, CRM sweep (follow-ups due, quiet deals), integrations sweep (token expiry, daily sync + retries, stuck webhooks, WhatsApp retry — after Phase 7 deploys), AI detectors + assistant index catch-up (after Phase 8 deploys), dispatcher safety net (ADR-044/055/066/069/074).
 - **Network (cloud sessions)**: `api.vercel.com` must be allowed; Supabase (Postgres and HTTPS) is blocked from the
-  sandbox, so DB changes only happen through the Vercel build. The site answers `curl`, but headless Chromium can't
-  load its scripts through the sandbox proxy (forms submit as plain HTML), so check the logged-in UI from a real browser.
+  sandbox, so DB changes only happen through the Vercel build. Headless Chromium can drive the
+  site through the sandbox proxy when it trusts the proxy CA (gotcha 62).
 
 46. **Guard triggers silently keep server-owned columns**: `integration_connections` updates by users keep only `name`
     (and `owner_id` for managers, ADR-086) — a wrong column doesn't error, it just doesn't change. Check the guard first
@@ -194,6 +195,23 @@ How it works:
 56. **The outbox claim counts the attempt**: `recordFailure` uses the claimed row's `attempts` as is.
 57. **Seeded package periods start in the month two weeks back**: seeding on the 1st used to put every seeded request
     outside the package period (nothing consumed, `rls-requests` red for the first days of each month).
+58. **Effect callbacks need a block body**: React calls whatever an effect returns as its cleanup. Current Chrome's
+    `scrollIntoView` / `scrollTo` return a Promise, so `useEffect(() => el.scrollIntoView())` crashed the assistant
+    (ADR-089). ESLint rejects expression-bodied effect callbacks. The sandbox's Chromium 141 still returns `undefined`:
+    to reproduce, make the scroll methods return a Promise in the test browser (`e2e/assistant-failure.spec.ts`).
+59. **Assistant tools run as the user** (ADR-090): a new tool queries inside the round's `withRls` transaction, renders
+    records through `buildChunks` (redaction, titles, URLs) and numbers them in the `SourceRegistry`. Never run a model
+    or embedding call inside that transaction: compute query vectors first.
+60. **The tool loop is append-only**: assistant turns carry the provider's own content blocks (`raw`, including thinking
+    blocks) and go back unchanged. The last round sends `tool_choice: none`; forced tool use is rejected by current
+    models.
+61. **New AI failure → add it to `aiFailureCodes`**, `actionErrorCodes`, `errors.<code>` and
+    `ai.assistant.reason.<code>` (AR/EN); `tests/unit/ai-assistant.test.ts` checks all four.
+62. **Headless Chromium can reach production through the sandbox proxy** with
+    `proxy: { server: process.env.HTTPS_PROXY }` and `--ignore-certificate-errors-spki-list=<sha256 of the proxy CA key>`
+    (`openssl x509 -in /root/.ccr/agent-proxy-ca.crt -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst
+    -sha256 -binary | base64`), which trusts exactly that CA. Vercel's `vercel.com/api/logs/request-logs?projectId=…&ownerId=…&startDate=…&endDate=…&search=…`
+    (Bearer token) returns the last hour's requests with function events; Hobby keeps about an hour.
 
 ## Email delivery (Feedback Round 2, ADR-088)
 
@@ -348,10 +366,28 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
 5. As `khalid@` → `/admin/mail` shows "no access".
 6. Repeat the screens in AR / EN × light / dark × mobile / desktop.
 
+## Feedback Round 3 — manual test checklist (local; or production after deploy)
+
+1. `/admin/ai` as `sara@` with **only an Anthropic key** (no Voyage): Provider says "Text by …" and "Search: keyword
+   search…"; the Voyage badge says "Not set — optional"; the index card says it isn't used and that Voyage is optional.
+2. **Test assistant** → seven steps: switch, budget, key decrypt, Anthropic call (with time), embedder (warning: keyword
+   fallback), retrieval (sources found), final answer (sources, tools, search mode). Turn AI off → step 1 fails, the
+   rest are "not run".
+3. `/assistant`: "عايز تقرير بطلبات العملاء المفتوحة", "إيه المهام المتأخرة النهارده؟", "Summarize client Najd's month" →
+   answers with numbered citations that open the records.
+4. Edit the key's model to `claude-3-opus-20240229` → save → warning that it was switched to a current model.
+5. Failures inline: a wrong key → "Anthropic rejected the API key" + "Fix in AI settings" (admins only; `khalid@` sees
+   the reason without the link); budget 0 → "used this month's AI budget". The composer and the conversation list keep
+   working.
+6. As `khalid@` (Specialist): ask about Lujain (not his client) or a lead by name → nothing from them is cited.
+7. With a Voyage key added: the index card shows the model, last build and progress, and a re-index starts in the
+   background; Test assistant's embedder step passes.
+8. Repeat the screens in AR / EN × light / dark × mobile / desktop.
+
 ## Starting a new session
 
-1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md` (latest: "Feedback Round 2"), and `docs/DECISIONS.md` (next ADR:
-   **089**). Work on branch `claude/sharp-euler-zr273f` unless the owner names another; Conventional Commits with a
+1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md` (latest: "Feedback Round 3"), and `docs/DECISIONS.md` (next ADR:
+   **091**). Work on branch `claude/sharp-euler-zr273f` unless the owner names another; Conventional Commits with a
    lowercase subject (commitlint); push after each logical step.
 2. Local stack (cloud sandboxes lose it on every container restart):
    - `rm -f /var/run/docker.pid; dockerd > /tmp/dockerd.log 2>&1 &` (wait for `docker info`).
