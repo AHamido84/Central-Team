@@ -15,8 +15,8 @@ Last updated: 2026-10-01 (Feedback Round 2) · Branch: `claude/sharp-euler-zr273
 | 6 — CRM & Capacity | **Built.** Leads (manual, CSV import with mapping, public embeddable form `/f/[token]` with honeypot + signed ticket + rate limits, inbound webhook), Saudi phone normalisation, duplicates + merge, assignment rules with round-robin; configurable pipelines, Kanban with drag & drop (+ keyboard), deal page (stage bar, contacts, activities, files, quotes with AR/EN print), won → client in one step (client, package, portal invitation, onboarding tasks); follow-ups view, due / quiet-deal reminders and sales notifications; sales dashboard (pipeline by stage, conversion, win rate, cycle, sources, per person, forecast vs target); capacity planning (`/capacity`: 8-week department heatmap, over-allocated people, "can we take this client?" simulator, hours / time off / service effort); Sales Manager + Sales Rep roles |
 | 7 — Integrations & Automation | **Built, not deployed yet.** One `IntegrationProvider` interface with live adapters (Meta Ads + Pages + lead ads, WhatsApp Cloud API, TikTok, Snapchat, Google Ads / GA4) and a deterministic **sandbox** per platform; OAuth with signed state + nonce cookie, tokens only in Supabase Vault; `/admin/integrations` (connect / reconnect / disconnect / test, health with expiry, account → client and platform campaign → channel mapping, sync now, backfill ≤ 90 days, sync log with retries, webhook log, WhatsApp templates and messages); daily idempotent sync into `metrics_daily`; signed webhooks `/api/hooks/[provider]` → lead ads into `ingestLead()`; WhatsApp notifications (opt-in + per-category switch) and template messages from lead / deal pages with delivery status; automation engine (`/admin/automations`: trigger catalog, conditions, 6 action types, dry run, run log, retries, loop guard) |
 | 8 — AI Intelligence | **Built, not deployed yet.** Campaign insights computed by code (robust z-score anomalies on complete days, KPI and budget pacing, delivery stopped) with rule-based recommendations and computed impact → one click to a task; `/insights` + campaign Insights tab + detail with an AI explanation; notifications (`ai_insight`) and an automation trigger; "Draft with AI" for report commentary / next steps in the report's language (and optional auto-drafts for scheduled reports); `/assistant` with private conversations, retrieval through pgvector **inside the user's RLS** (a chunk is visible only if its source row is) and validated citations; `/admin/ai` (switch, sensitivity, budget + usage, provider status, index rebuild). Everything behind `AiProvider` (Claude via the Anthropic SDK + Voyage embeddings) with a deterministic mock |
-| Feedback Round 1 | **Built, not deployed.** Soft delete + Trash + bulk delete + data reset (ADR-080/081); tasks performance (1,000 tasks interactive < 1 s) and a History-API drawer (ADR-082); reviewed conversion plan + ad-hoc tasks (ADR-083); per-field task permissions enforced by the DB (ADR-084); AI keys in Vault from `/admin/ai` (ADR-085); personal connected accounts incl. X / LinkedIn (ADR-086); email change fixed (ADR-087) |
-| Feedback Round 2 | **Built, not deployed.** Settings → Mail (Gmail / Workspace / Outlook / Zoho / Resend / SMTP) with tests, one outbox for app and auth emails (retries, fallback, daily limit, 90-day log at `/admin/mail/log`), email change through the configured sender (ADR-088) |
+| Feedback Round 1 | **Built and deployed.** Also: people pickers above drawers, done tasks shown by default. Soft delete + Trash + bulk delete + data reset (ADR-080/081); tasks performance (1,000 tasks interactive < 1 s) and a History-API drawer (ADR-082); reviewed conversion plan + ad-hoc tasks (ADR-083); per-field task permissions enforced by the DB (ADR-084); AI keys in Vault from `/admin/ai` (ADR-085); personal connected accounts incl. X / LinkedIn (ADR-086); email change fixed (ADR-087) |
+| Feedback Round 2 | **Built and deployed (2026-10-01).** Settings → Mail (Gmail / Workspace / Outlook / Zoho / Resend / SMTP) with tests, one outbox for app and auth emails (retries, fallback, daily limit, 90-day log at `/admin/mail/log`), email change through the configured sender (ADR-088) |
 
 **Feedback Round 2, verified on a fresh seed**: `pnpm check` (243 unit tests), 239 DB tests, `pnpm build`. Feedback Round 1: 229 unit tests, 231 DB tests, 46 Playwright e2e tests,
 `pnpm build`. Earlier (Phase 8): `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 220 unit tests, 187 DB tests
@@ -142,18 +142,25 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 |---|---|
 | URL | https://centralteam.vercel.app (Vercel project `centralteam`, Hobby plan) |
 | Database | Supabase project `udqhetkwsqpyyuurajcb` (created through the Vercel ↔ Supabase integration) |
-| Deployed from | branch `claude/sharp-euler-zr273f`, commit `f821e9c` (Phases 0–8 + Feedback Round 1), deployment `dpl_6uMpAtJKGFZAbybnpsaq1jrTCpTv` on 2026-09-30 — all 32 migrations applied (FR1: `20260930175704` … `20260930240100`); demo data already present, seeds skipped |
+| Deployed from | branch `claude/sharp-euler-zr273f`, commit `7e600d4` (Phases 0–8 + Feedback Rounds 1–2 + the task fixes), deployment `dpl_AxtPAkdS7cgjzPiC9bah6mSdL494` on 2026-10-01 — all 34 migrations applied (last: `20261001061700_mail_settings_security`); demo data already present, seeds skipped |
 | Data | the demo seed (agency "Ofoq", 5 clients, 25 users incl. `majed@` / `ruba@ofoq.test`, password `Passw0rd!` for all) + demo campaigns, SLA data and sales pipeline |
 
 How it works:
-- **Deploy** = a Vercel production build of the branch. `vercel.json` runs `pnpm db:deploy && pnpm build`:
+- **Deploy** = a Vercel production build of the branch (`POST /v13/deployments` with `gitSource` {repoId `1393530120`,
+  ref, sha}, project `prj_XODM4coZmkrKhmNgADNZn8uhYN1S`, team `team_ebxCHVmhrJd2Dp3TV0x1IG9D`, `target: production`).
+  The sandbox proxy sometimes drops the POST mid-request: list `/v6/deployments?target=production` before retrying so
+  nothing is created twice. `vercel.json` runs `pnpm db:deploy && pnpm build`:
   `scripts/deploy-db.ts` applies pending `supabase/migrations` (tracked in `supabase_migrations.schema_migrations`,
   CLI-compatible) and, while `SEED_ON_DEPLOY=1`, seeds an empty DB once / adds the demo campaigns once / adds the Phase 5 SLA demo data once (`scripts/seed-sla-standalone.ts`) / adds the Phase 6 sales team, leads, deals and capacity settings once (`scripts/seed-crm-standalone.ts`, creates `majed@` and `ruba@ofoq.test`) (ADR-045).
   Trigger it from the Vercel dashboard (Redeploy) or the Vercel API with a token — tokens are **not** stored in the
   repo or the environment; the owner provides one per session.
-- **Env vars on Vercel** (all set): the integration's `SUPABASE_*`, `NEXT_PUBLIC_SUPABASE_*`, `POSTGRES_URL*` (read via
-  `src/lib/db/url.ts`), plus `NEXT_PUBLIC_APP_URL`, `CRON_SECRET`, `SEED_ON_DEPLOY=1`. Not set yet: `EMAIL_PROVIDER` /
-  `RESEND_API_KEY` / `EMAIL_FROM` (so the app's own emails go to the console; Supabase Auth emails still send).
+- **Env vars on Vercel** (set): the integration's `SUPABASE_*`, `NEXT_PUBLIC_SUPABASE_*`, `POSTGRES_URL*` (read via
+  `src/lib/db/url.ts`), plus `NEXT_PUBLIC_APP_URL`, `CRON_SECRET`, `SEED_ON_DEPLOY=1`. **Not set**: `EMAIL_PROVIDER` /
+  `RESEND_API_KEY` / `EMAIL_FROM`, `INTEGRATIONS_SANDBOX`, `AI_PROVIDER`.
+- **Email in production: nothing is delivered until the owner configures Settings → Mail** (e.g. Gmail App Password,
+  see "Email delivery"). Since FR2 every email, including sign-in and reset links, goes through our outbox; with no
+  sender configured and no `EMAIL_PROVIDER`, the environment sender is the console (rows show as sent in the log, no
+  inbox receives them).
 - **Auth**: the custom access token hook is **not** enabled in the Supabase dashboard; the app works anyway because
   the claims are mirrored into `app_metadata` (ADR-046). Site URL / redirect URLs in Supabase Auth should be set to the
   Vercel URL (owner's task) for magic links and password resets.
@@ -238,33 +245,26 @@ the app URL, redirect URLs = `<app>/**` (the links point to `/auth/confirm`).
 
 ## Open items (need the owner)
 
-- Vercel's **production branch** setting still says `claude/modest-faraday-3u6pzy`; point it at this branch or `main`
-  (a push to that other branch would replace the live deploy).
-- Before real clients: set `SEED_ON_DEPLOY=0`, delete the demo accounts or change their passwords, **rotate the Supabase
-  DB password and the Vercel token** (both were pasted into a chat), enable the auth hook, set Auth URLs.
-- Email: Resend account + verified sending domain, then `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `EMAIL_FROM`.
-- **Phases 7, 8 and Feedback Round 1 are deployed** (2026-09-30). Still missing on Vercel: `INTEGRATIONS_SANDBOX=1` and `AI_PROVIDER=mock` for the demo, and custom SMTP in Supabase for auth emails (see "Email delivery"). The next deploy applies
-  migrations `20260930061507` / `20260930061600` (Phase 7) and `20260930102618` / `20260930102700` (Phase 8 — creates
-  the `vector` extension in `extensions`) and, with `SEED_ON_DEPLOY=1`, loads the sandbox integrations demo once
-  (`scripts/seed-integrations-standalone.ts`) and the AI demo once (`scripts/seed-ai-standalone.ts`). On Vercel set
-  `INTEGRATIONS_SANDBOX=1` to keep the sandbox and `AI_PROVIDER=mock` to keep AI working in the demo without keys.
-- **Live AI needs** (ADR-073): an Anthropic API key (`ANTHROPIC_API_KEY`, console.anthropic.com; model `AI_MODEL`,
-  default `claude-opus-5-5`) and a Voyage AI key (`VOYAGE_API_KEY`, `AI_EMBEDDING_MODEL=voyage-3.5`, 1024 dims);
-  outbound hosts `api.anthropic.com`, `api.voyageai.com`. With both keys set (and `AI_PROVIDER` unset or `anthropic`)
-  the app switches to live; "Rebuild index" in `/admin/ai` re-embeds the mock index with the live model.
-  **Decide data residency first** (open question 6 / ADR-076): both providers process in the US; AI stays off per
-  organization until an admin turns it on (the demo seed turns it on).
-- **Live platforms need the owner's developer apps** (see the report / ADR-068): Meta app (App ID, secret, verify token,
-  app review for `ads_read`, `leads_retrieval`, `pages_*`, `business_management`), a WhatsApp Business system-user token
-  + phone number id + WABA id and approved templates, TikTok for Business app, Snapchat Marketing API app + webhook
-  secret, Google Cloud OAuth client + Google Ads developer token (+ MCC id) + lead form key; all callback / webhook URLs
-  are on the custom domain. Outbound hosts: `graph.facebook.com`, `www.facebook.com`, `business-api.tiktok.com`,
-  `accounts.snapchat.com`, `adsapi.snapchat.com`, `accounts.google.com`, `oauth2.googleapis.com`,
-  `openidconnect.googleapis.com`, `googleads.googleapis.com`, `analyticsadmin.googleapis.com`.
-- Optional: a dedicated `FORM_SIGNING_SECRET` on Vercel for the public lead form tickets (falls back to the Supabase secret key).
-- Custom domain (the owner's network blocks some `*.app` hosts — ADR-015) and a Pro plan for a 5-minute cron.
-- Answers to open questions in `docs/DECISIONS.md` (brand, logo, domain, sending email, data residency/PDPL).
-- Human QA on real devices; deferred items in `docs/ROADMAP.md` (each phase has a "Deferred" list).
+1. **Connect a sender in Settings → Mail** on production (Gmail App Password steps above) — until then no email is
+   delivered. Optionally also `EMAIL_PROVIDER=resend` + `RESEND_API_KEY` + `EMAIL_FROM` on Vercel as the fallback.
+2. **Vercel production branch** still says `claude/modest-faraday-3u6pzy`; point it at `claude/sharp-euler-zr273f` or
+   `main` (a push to that other branch would replace the live deploy).
+3. **Demo env on Vercel**: `INTEGRATIONS_SANDBOX=1` and `AI_PROVIDER=mock` (otherwise integrations / AI show "not
+   configured"), then redeploy.
+4. **Security before real clients**: revoke the Vercel tokens pasted into chats, rotate the Supabase DB password,
+   set `SEED_ON_DEPLOY=0`, remove or re-password the demo accounts (`Passw0rd!`), enable the custom access token hook,
+   set Supabase Auth Site URL / redirect URLs to the app URL.
+5. **Live AI** (ADR-073/085): an Anthropic key + a Voyage key, either on Vercel (`ANTHROPIC_API_KEY`, `VOYAGE_API_KEY`)
+   or in `/admin/ai`. Decide data residency first (open question 6 / ADR-076).
+6. **Live platforms** (ADR-068 / ADR-086): the owner's developer apps — Meta (App ID / secret / verify token, app review
+   for `ads_read`, `leads_retrieval`, `pages_*`, `business_management`), WhatsApp Business (system-user token, phone
+   number id, WABA id, approved templates), TikTok for Business, Snapchat Marketing API (+ webhook secret), Google Cloud
+   OAuth + Google Ads developer token (+ MCC id) + lead form key. People can already paste personal tokens in Settings →
+   Connected accounts (`docs/INTEGRATIONS.md`).
+7. Custom domain (the owner's network blocks some `*.app` hosts — ADR-015), a Pro plan for a 5-minute cron, a dedicated
+   `FORM_SIGNING_SECRET`.
+8. Answers to the open questions in `docs/DECISIONS.md` (brand, logo, domain, sending email, data residency / PDPL) and
+   human QA on real devices.
 
 ## Phase 7 — manual test checklist (sandbox, local or demo with `INTEGRATIONS_SANDBOX=1`)
 
@@ -336,26 +336,40 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
    a member → Sign-in email → Change email.
 9. Repeat the new screens in AR / EN × light / dark × mobile / desktop.
 
+## Feedback Round 2 — manual test checklist (local; Mailpit at http://localhost:54324)
+
+1. `/admin/mail` as `sara@`: each preset fills host / port; Gmail with a different From shows the warning; Test
+   connection with port 1 → "port blocked"; custom SMTP `127.0.0.1:54325`, security none, any password → "Connected";
+   Save → reload → password field empty, only the masked hint.
+2. Send test email → arrives in Mailpit with the branded template; `/admin/mail/log` shows it as Sent; filters work.
+3. Sign out → magic link and forgot password → both arrive (bodies not kept in the log).
+4. Profile → change email (`omar@`) → two emails (old + new) → confirm both → sign in with the new address; errors for
+   your own address and `sara@ofoq.test`; resend / cancel.
+5. As `khalid@` → `/admin/mail` shows "no access".
+6. Repeat the screens in AR / EN × light / dark × mobile / desktop.
+
 ## Starting a new session
 
-1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md`; then `bash scripts/bootstrap.sh` (or `pnpm db:start` +
-   `pnpm db:reset` if the stack exists). In cloud sandboxes Docker may need `dockerd &` first, the Supabase CLI may be
-   missing (install the release binary from github.com/supabase/cli, same version as CI: 2.118.0), Playwright needs
-   `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`, and `pnpm dev` must be started in the background. If `dockerd` won't
-   start after a container restart, remove the stale `/var/run/docker.pid` first. Repeated logins trip the login rate
-   limit locally — `delete from public.rate_limits` via `docker exec supabase_db_central-team psql -U postgres`.
-2. Verify: `pnpm check`, `pnpm test:db`, `pnpm test:e2e` (expect 243 / 239 / 49 green), `pnpm build`. On a cold dev
-   server the first e2e run can time out on a first-compiled route; re-run that spec before treating it as a failure.
-3. Deploys need a Vercel token from the owner each session (never store it); trigger a production deployment of this
-   branch through the Vercel API (`POST /v13/deployments` with `gitSource` for repo id `1393530120`) and read the
-   build log for the `[deploy-db]` / seed lines. Revoke-and-rotate reminders are under "Open items".
-4. Work on branch `claude/stoic-cray-wud1ib` (or the one the owner names); Conventional Commits; plan in ROADMAP +
-   DATA_MODEL before building a phase; decisions in DECISIONS (next ADR: **089**).
+1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md` (latest: "Feedback Round 2"), and `docs/DECISIONS.md` (next ADR:
+   **089**). Work on branch `claude/sharp-euler-zr273f` unless the owner names another; Conventional Commits with a
+   lowercase subject (commitlint); push after each logical step.
+2. Local stack (cloud sandboxes lose it on every container restart):
+   - `rm -f /var/run/docker.pid; dockerd > /tmp/dockerd.log 2>&1 &` (wait for `docker info`).
+   - `npx supabase start` (CLI 2.118.0; config changes need `supabase stop && supabase start`).
+   - `.env.local` from `supabase status -o env` (`bash scripts/bootstrap.sh` does all of this on a fresh machine).
+   - `pnpm db:reset` → `pnpm dev` in the background (first compile of a route can take minutes in the sandbox).
+   - Playwright: `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`. Clear login limits with
+     `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c "delete from public.rate_limits"`.
+3. Verify: `pnpm check` (243 unit), `pnpm test:db` after a fresh `db:reset` (239), `pnpm test:e2e` (49; re-run a spec
+   that timed out on a cold route before calling it a failure), `pnpm build`.
+4. Deploy only when the owner says so and gives a Vercel token in that session (never store it) — see "Production".
+5. Never commit secrets: GitHub push protection rejects even the local Supabase CLI keys; tests read them from the
+   environment / `.env.local`.
 
-## After Phase 8
+## Next steps
 
-All eight roadmap phases are built. Suggested next steps, in order: deploy Phases 7–8 (production branch, env vars
-above, the build log's `[deploy-db]` / seed lines, the two manual checklists); plug in live AI keys once data residency
-is decided and verify the Claude / Voyage adapters (ROADMAP 8.8); verify the Phase 7 live platform adapters with the
-owner's developer apps (7.8); then the human QA pass and the deferred lists in `docs/ROADMAP.md` (§2.9–§8.8) —
-streaming assistant answers and a portal assistant are the most visible AI follow-ups.
+All roadmap phases (0–8) and Feedback Rounds 1–2 are built and deployed. In order:
+1. The owner's open items above (sender in Settings → Mail first).
+2. Plug in live AI keys and the platform developer apps, then verify the live adapters (ROADMAP 7.8, 8.8).
+3. Human QA pass (AR/EN × light/dark × mobile/desktop) and the "Deferred" lists in `docs/ROADMAP.md`.
+4. Wait for the owner's next feedback round — plan it in ROADMAP first, then build.
