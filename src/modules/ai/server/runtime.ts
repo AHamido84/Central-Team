@@ -6,9 +6,23 @@ import { ActionFailure } from '@/lib/actions/errors';
 import { dbAdmin } from '@/lib/db/client';
 import { aiSettings, aiUsage } from '@/lib/db/schema';
 import { getAIClient, type AiClient } from '@/modules/ai/server/client';
-import { AiProviderError, type AiEmbedder, type CompleteInput, type CompleteResult } from '@/modules/ai/providers/types';
+import { AiProviderError, type AiEmbedder, type AiErrorCode, type CompleteInput, type CompleteResult } from '@/modules/ai/providers/types';
 
 export type AiSettingsRow = typeof aiSettings.$inferSelect;
+
+/**
+ * A provider failure as an action failure (translated code for people) that keeps the provider's own words, so
+ * "Test assistant" can show admins exactly what Anthropic or Voyage answered (FR3.5). The detail is never sent to
+ * the thread or to non-admins.
+ */
+export class AiCallFailure extends ActionFailure {
+  constructor(
+    code: AiErrorCode,
+    readonly detail: string,
+  ) {
+    super(code);
+  }
+}
 
 export async function loadAiSettings(organizationId: string): Promise<AiSettingsRow> {
   const [row] = await dbAdmin.select().from(aiSettings).where(eq(aiSettings.organizationId, organizationId));
@@ -84,7 +98,7 @@ export async function generate(ctx: { organizationId: string; userId: string | n
   } catch (error) {
     if (error instanceof AiProviderError) {
       console.error('[ai] completion failed', error.detail);
-      throw new ActionFailure(error.code);
+      throw new AiCallFailure(error.code, error.detail);
     }
     throw error;
   }
@@ -120,7 +134,7 @@ export async function embedTexts(
   } catch (error) {
     if (error instanceof AiProviderError) {
       console.error('[ai] embedding failed', error.detail);
-      throw new ActionFailure(error.code);
+      throw new AiCallFailure(error.code, error.detail);
     }
     throw error;
   }

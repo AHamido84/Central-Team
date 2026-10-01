@@ -13,7 +13,7 @@ import { textKit } from '@/modules/ai/kit';
 import { failureCode, runAssistant } from '@/modules/ai/server/assistant';
 import { runTool, SourceRegistry } from '@/modules/ai/server/assistant-tools';
 import { getAIClient, invalidateAiClient } from '@/modules/ai/server/client';
-import { embedTexts, generate, loadAiSettings, tokensThisMonth } from '@/modules/ai/server/runtime';
+import { AiCallFailure, embedTexts, generate, loadAiSettings, tokensThisMonth } from '@/modules/ai/server/runtime';
 import { AiProviderError } from '@/modules/ai/providers/types';
 import { dayInZone } from '@/modules/tasks/constants';
 
@@ -33,7 +33,7 @@ export type DiagnosticStep = {
 };
 
 const detailOf = (error: unknown) =>
-  error instanceof AiProviderError
+  error instanceof AiProviderError || error instanceof AiCallFailure
     ? error.detail.slice(0, 300)
     : error instanceof ActionFailure
       ? ''
