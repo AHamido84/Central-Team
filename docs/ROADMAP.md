@@ -702,3 +702,48 @@ Focused improvements on Phases 0–8 — no new phase. Each item extends the exi
 - [x] SMTP via env (`config.toml`), Supabase Cloud settings and SPF / DKIM / DMARC steps in HANDOFF
 - [x] Tests: `tests/unit/email-change.test.ts`, `tests/db/email-change.test.ts`, `e2e/email-change.spec.ts`
 - [ ] Deferred: admin email change for client (portal) users — they are changed through their own profile for now
+
+## Feedback Round 2 (email delivery)
+
+Focused round on one sender for every email. No new phase; extends `EmailProvider`, `sendActionEmail()`, the
+email-change flow (FR1.7) and the Vault credential pattern (ADR-067/085).
+
+### FR2.1 Mail settings, queue and log — one sender for app and auth emails
+- **Schema**
+  - `mail_settings`, one row per organization: preset (`gmail · google_workspace · microsoft365 · zoho · resend ·
+    smtp`), host, port, security (`starttls · ssl · none`), username, `from_name` `{ar,en}`, from email, reply-to,
+    daily limit, active, last test result, last success, fallback-since.
+  - The password / app password / API key lives in Vault (`secret_id` with no user column privilege, masked
+    `secret_hint`). Readable and writable by the new **`mail:manage`** permission (Super Admin, Admin); audited.
+  - `email_outbox`: organization, kind (magic link, recovery, email change, invitation, notification, security notice,
+    test…), recipient, locale, subject, body (no user column privilege; auth bodies are cleared once sent), status
+    (`queued · sending · sent · failed`), attempts, next attempt, error code / message, provider, sender (`configured ·
+    fallback · dev`), provider message id, sent at.
+  - RLS: read by `mail:manage`; writes only on the service path. Kept 90 days.
+- **Screens**
+  - **Settings → Mail** (`/admin/mail`): presets fill host / port / security, with Gmail App Password instructions
+    (AR/EN) and limit warnings, plus a from-address check for Gmail / Workspace / Outlook.
+  - **Test connection** does an SMTP handshake + auth, or a Resend API check, with specific errors (wrong app
+    password, port blocked, TLS failed, host not found).
+  - **Send test email** uses the real branded template.
+  - **Status card**: active sender, last success, today's count vs the limit.
+  - **Email log** (`/admin/mail/log`): filters by status / kind / recipient, resend.
+- **Sending**
+  - `sendActionEmail()` enqueues; the queue sends with retries and backoff (1, 5, 15, 60 min; 5 attempts) through the
+    org's configured sender. The env provider is the fallback: it's used when the configured sender fails or has hit
+    its daily limit, and admins get an alert.
+  - Warning at 80% of the daily limit; at the limit with no fallback, mail waits for the next day.
+  - Development always delivers to Mailpit unless `EMAIL_DEV_REAL_SEND=1`.
+- **Auth emails** (magic link, password reset, email change) are generated server-side with GoTrue's Admin
+  `generateLink` and sent through the same queue with bilingual templates (ADR-088). Invitations already used
+  `EmailProvider`.
+- Cron: queue retries and 90-day retention.
+- **Tests**: settings RLS (admin only), the secret never readable, connection test against a mock SMTP server (auth
+  ok / wrong password), queue retry with backoff and fallback, auth emails through the configured sender in Mailpit.
+
+### FR2.2 Email change through the configured sender
+- FR1.7 fixed the flow but GoTrue still sent the two emails with its own SMTP. Now both links are generated
+  server-side (current + new address) and sent through the outbox, so they follow Settings → Mail.
+- Pending / resend / cancel, the admin direct change and the landing page stay as built.
+- **Tests**: the e2e test (both emails from Mailpit, both confirmations, sign in with the new address, error cases,
+  admin direct change) runs against the new path, with the email log showing both sends.
