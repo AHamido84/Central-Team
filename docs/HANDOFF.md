@@ -18,7 +18,7 @@ Last updated: 2026-10-01 (Feedback Round 2) · Branch: `claude/sharp-euler-zr273
 | Feedback Round 1 | **Built, not deployed.** Soft delete + Trash + bulk delete + data reset (ADR-080/081); tasks performance (1,000 tasks interactive < 1 s) and a History-API drawer (ADR-082); reviewed conversion plan + ad-hoc tasks (ADR-083); per-field task permissions enforced by the DB (ADR-084); AI keys in Vault from `/admin/ai` (ADR-085); personal connected accounts incl. X / LinkedIn (ADR-086); email change fixed (ADR-087) |
 | Feedback Round 2 | **Built, not deployed.** Settings → Mail (Gmail / Workspace / Outlook / Zoho / Resend / SMTP) with tests, one outbox for app and auth emails (retries, fallback, daily limit, 90-day log at `/admin/mail/log`), email change through the configured sender (ADR-088) |
 
-**Feedback Round 1, verified on a fresh seed**: `pnpm check` (229 unit tests), 231 DB tests, 46 Playwright e2e tests,
+**Feedback Round 2, verified on a fresh seed**: `pnpm check` (243 unit tests), 239 DB tests, `pnpm build`. Feedback Round 1: 229 unit tests, 231 DB tests, 46 Playwright e2e tests,
 `pnpm build`. Earlier (Phase 8): `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 220 unit tests, 187 DB tests
 (RLS, dispatcher, approval state machine, reminders, campaign sweep, SLA calendar parity, SLA triggers/RLS, SLA sweep,
 CRM triggers/RLS, capacity readers, lead intake, CRM sweep, Vault isolation, integrations/automations RLS, sync
@@ -185,6 +185,8 @@ How it works:
 55. **Tables with column-level insert grants need a raw `insert` with explicit columns**: Drizzle lists every column
     (defaults included) and the insert is denied (`mail_settings`, `ai_credentials`).
 56. **The outbox claim counts the attempt**: `recordFailure` uses the claimed row's `attempts` as is.
+57. **Seeded package periods start in the month two weeks back**: seeding on the 1st used to put every seeded request
+    outside the package period (nothing consumed, `rls-requests` red for the first days of each month).
 
 ## Email delivery (Feedback Round 2, ADR-088)
 
@@ -342,7 +344,7 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
    `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`, and `pnpm dev` must be started in the background. If `dockerd` won't
    start after a container restart, remove the stale `/var/run/docker.pid` first. Repeated logins trip the login rate
    limit locally — `delete from public.rate_limits` via `docker exec supabase_db_central-team psql -U postgres`.
-2. Verify: `pnpm check`, `pnpm test:db`, `pnpm test:e2e` (expect 229 / 231 / 46 green), `pnpm build`. On a cold dev
+2. Verify: `pnpm check`, `pnpm test:db`, `pnpm test:e2e` (expect 243 / 239 / 49 green), `pnpm build`. On a cold dev
    server the first e2e run can time out on a first-compiled route; re-run that spec before treating it as a failure.
 3. Deploys need a Vercel token from the owner each session (never store it); trigger a production deployment of this
    branch through the Vercel API (`POST /v13/deployments` with `gitSource` for repo id `1393530120`) and read the

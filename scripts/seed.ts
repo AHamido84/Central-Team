@@ -514,7 +514,10 @@ async function main() {
   }
 
   const now = new Date();
-  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  // The month two weeks ago through the end of this month: seeded requests were accepted over the last weeks and must
+  // land inside the package period (seeding on the 1st used to leave them in last month — nothing consumed).
+  const twoWeeksAgo = new Date(now.getTime() - 14 * 86_400_000);
+  const periodStart = new Date(twoWeeksAgo.getFullYear(), twoWeeksAgo.getMonth(), 1);
   const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const monthLabel = (locale: 'ar' | 'en') =>
