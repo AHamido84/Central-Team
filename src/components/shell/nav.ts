@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  Mail,
   Blocks,
   Briefcase,
   Building2,
@@ -126,6 +127,7 @@ export const agencyNav: NavSection[] = [
         flag: 'module.integrations',
       },
       { key: 'aiSettings', href: '/admin/ai', icon: BrainCircuit, anyOf: ['ai:manage'], flag: 'module.ai' },
+      { key: 'mailSettings', href: '/admin/mail', icon: Mail, anyOf: ['mail:manage'] },
       { key: 'packages', href: '/admin/packages', icon: Package, anyOf: ['packages:manage'], flag: 'module.clients' },
       { key: 'features', href: '/admin/features', icon: Blocks, anyOf: ['feature_flags:manage'] },
       { key: 'audit', href: '/admin/audit', icon: ScrollText, anyOf: ['audit_log:read'] },

@@ -177,6 +177,14 @@
     "email_changed": {
       "title": "Your email changed",
       "body": "Your sign-in email changed from {from} to {to}."
+    },
+    "mail_fallback": {
+      "title": "Emails went out through the backup sender",
+      "body": "The configured sender failed ({error}); emails are being delivered by the backup sender. Check Settings → Mail."
+    },
+    "mail_limit": {
+      "title": "Close to today's sending limit",
+      "body": "{sent} of {limit} emails sent today through the configured sender."
     }
   }
 }

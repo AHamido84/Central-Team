@@ -10,6 +10,7 @@ import { fileNotifications } from '@/modules/files/server/consumers';
 import { integrationNotifications } from '@/modules/integrations/server/consumers';
 import { invitationNotifications } from '@/modules/invitations/server/consumers';
 import { messageNotifications } from '@/modules/messaging/server/consumers';
+import { mailNotifications } from '@/modules/mail/server/consumers';
 import { emailChangeNotifications } from '@/modules/identity/server/consumers';
 import { roleNotifications } from '@/modules/rbac/server/consumers';
 import { requestNotifications } from '@/modules/requests/server/consumers';
@@ -33,6 +34,7 @@ export const consumers: readonly Consumer[] = [
   slaNotifications,
   crmNotifications,
   integrationNotifications,
+  mailNotifications,
   // Automation rules (Phase 7, ADR-071) react to the same events as the notification consumers above.
   automationEngine,
   // AI (Phase 8): detectors after metrics change, insight alerts, and the assistant's index (ADR-074/075).

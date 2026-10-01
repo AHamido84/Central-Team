@@ -48,6 +48,9 @@ export const emailChangeNotifications = defineConsumer({
     const locale: Locale = isLocale(member.locale) ? member.locale : 'ar';
     const t = await emailTranslator(locale);
     await sendActionEmail({
+      organizationId: event.organizationId,
+      kind: 'security_notice',
+      userId,
       to: from,
       locale,
       brand: { name: org.name, primaryColor: org.brand.primaryColor },

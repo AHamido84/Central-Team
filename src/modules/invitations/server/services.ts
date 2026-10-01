@@ -45,6 +45,11 @@ export async function sendInvitationEmail(invitation: InvitationRow, token: stri
   const inviter = ctx.profile.fullName || ctx.profile.email;
   const heading = clientName ? t('invitePortalHeading', { client: clientName }) : t('inviteTeamHeading', { org: orgName });
   await sendActionEmail({
+    organizationId: ctx.organization.id,
+    kind: 'invitation',
+    // The link signs a new person up: keep it out of the log once delivered.
+    sensitive: true,
+    createdBy: ctx.session.userId,
     to: invitation.email,
     locale,
     brand: { name: ctx.organization.name, primaryColor: ctx.organization.brand.primaryColor },

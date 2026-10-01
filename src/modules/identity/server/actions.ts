@@ -15,7 +15,8 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { PUBLIC_ASSETS_BUCKET, storagePaths } from '@/lib/storage';
 import { localeSchema, optionalPhone, requiredText } from '@/lib/validation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { emailChangeFailure } from '@/modules/identity/server/email-change';
+import { isLocale } from '@/lib/i18n/localized';
+import { sendEmailChangeEmails } from '@/modules/mail/server/auth-emails';
 
 const cookieOptions = { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' as const };
 
@@ -188,14 +189,12 @@ export const updatePreferencesAction = defineAction({
 
 const emailChangeSchema = z.object({ email: z.email({ message: 'invalid_email' }).trim().toLowerCase().max(254) });
 
-const emailRedirect = () => `${process.env.NEXT_PUBLIC_APP_URL}/auth/confirm`;
-
 export type EmailChangeState = { newEmail: string; sentAt: string | null; confirmedOne: boolean } | null;
 
 /**
- * Starts Supabase's secure email change: with double confirmation (ADR-087) GoTrue emails a link to the current and to
- * the new address; the change completes when both are opened. The call runs after the (empty) transaction so a slow
- * mail server never holds it open.
+ * Starts the secure email change (ADR-087): a link to the current and one to the new address, generated server-side
+ * and sent through the organization's sender (ADR-088); the change completes when both are opened. Runs after the
+ * (empty) transaction so a slow call never holds it open.
  */
 export const requestEmailChangeAction = defineAction({
   input: emailChangeSchema,
@@ -206,9 +205,14 @@ export const requestEmailChangeAction = defineAction({
     return input.email;
   },
   async complete({ prepared, ctx }) {
-    const supabase = await createSupabaseServerClient();
-    const { error } = await supabase.auth.updateUser({ email: prepared }, { emailRedirectTo: emailRedirect() });
-    if (error) throw emailChangeFailure(error);
+    await sendEmailChangeEmails({
+      userId: ctx.session.userId,
+      currentEmail: ctx.profile.email,
+      newEmail: prepared,
+      locale: isLocale(ctx.profile.locale) ? ctx.profile.locale : 'ar',
+      organizationId: ctx.organization.id,
+      brand: { name: ctx.organization.name, primaryColor: ctx.organization.brand.primaryColor },
+    });
     await withRls((tx) =>
       emitEvent(tx, {
         type: 'user.email_change_requested',
@@ -232,11 +236,16 @@ export const resendEmailChangeAction = defineAction({
     if (!row?.new_email) throw new ActionFailure('email_change_not_pending');
     return row.new_email;
   },
-  async complete({ prepared }) {
-    const supabase = await createSupabaseServerClient();
-    // Re-requesting the same change issues fresh links to both addresses (resend() only covers the new one).
-    const { error } = await supabase.auth.updateUser({ email: prepared }, { emailRedirectTo: emailRedirect() });
-    if (error) throw emailChangeFailure(error);
+  async complete({ prepared, ctx }) {
+    // Fresh links to both addresses; the earlier ones stop working.
+    await sendEmailChangeEmails({
+      userId: ctx.session.userId,
+      currentEmail: ctx.profile.email,
+      newEmail: prepared,
+      locale: isLocale(ctx.profile.locale) ? ctx.profile.locale : 'ar',
+      organizationId: ctx.organization.id,
+      brand: { name: ctx.organization.name, primaryColor: ctx.organization.brand.primaryColor },
+    });
     return { newEmail: prepared, sentAt: new Date().toISOString(), confirmedOne: false } satisfies EmailChangeState;
   },
 });

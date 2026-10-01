@@ -14,6 +14,12 @@ const serverSchema = z.object({
   EMAIL_FROM: z.string().min(3).default('Central <no-reply@localhost>'),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),
+  /** Environment SMTP sender (fallback / no organization sender configured). Mailpit locally needs none of these. */
+  SMTP_SECURITY: z.enum(['starttls', 'ssl', 'none']).optional(),
+  SMTP_USER: z.string().min(1).optional(),
+  SMTP_PASS: z.string().min(1).optional(),
+  /** `1` lets development send through the organization's configured sender; otherwise everything goes to Mailpit. */
+  EMAIL_DEV_REAL_SEND: z.enum(['0', '1']).optional(),
   RESEND_API_KEY: z.string().optional(),
   /** Bearer secret for /api/cron/* (the event dispatcher safety net). */
   CRON_SECRET: z.string().min(16).optional(),

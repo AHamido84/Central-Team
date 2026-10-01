@@ -12,6 +12,7 @@ import { LOCALE_COOKIE, TIMEZONE_COOKIE } from '@/i18n/request';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { password as passwordSchema } from '@/lib/validation';
+import { sendAuthLinkEmail } from '@/modules/mail/server/auth-emails';
 
 async function clientIp(): Promise<string> {
   const h = await headers();
@@ -73,8 +74,8 @@ export async function sendMagicLinkAction(input: z.input<typeof emailOnly>): Pro
   const parsed = emailOnly.safeParse(input);
   if (!parsed.success) return { ok: false, error: { code: 'validation', fieldErrors: { email: ['invalid_email'] } } };
   if (await limited('magic', parsed.data.email)) return { ok: false, error: { code: 'rate_limited' } };
-  const supabase = await createSupabaseServerClient();
-  await supabase.auth.signInWithOtp({ email: parsed.data.email, options: { shouldCreateUser: false } });
+  // Our sender, not GoTrue's (ADR-088); silent for unknown addresses.
+  await sendAuthLinkEmail('magic_link', parsed.data.email);
   return { ok: true, data: null };
 }
 
@@ -82,8 +83,7 @@ export async function sendPasswordResetAction(input: z.input<typeof emailOnly>):
   const parsed = emailOnly.safeParse(input);
   if (!parsed.success) return { ok: false, error: { code: 'validation', fieldErrors: { email: ['invalid_email'] } } };
   if (await limited('reset', parsed.data.email)) return { ok: false, error: { code: 'rate_limited' } };
-  const supabase = await createSupabaseServerClient();
-  await supabase.auth.resetPasswordForEmail(parsed.data.email);
+  await sendAuthLinkEmail('recovery', parsed.data.email);
   return { ok: true, data: null };
 }
 

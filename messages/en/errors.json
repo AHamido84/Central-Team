@@ -78,5 +78,6 @@
   "email_invalid": "This email address can't receive mail. Check it and try again.",
   "email_same": "That's already your email.",
   "email_send_failed": "The confirmation email couldn't be sent (mail server error). Try again later or contact your administrator.",
-  "email_change_not_pending": "There's no pending email change."
+  "email_change_not_pending": "There's no pending email change.",
+  "email_not_resendable": "Sign-in and invitation links aren't kept, so this email can't be resent. Ask the person to request a new link."
 }

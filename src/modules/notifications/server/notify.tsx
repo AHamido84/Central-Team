@@ -108,6 +108,9 @@ export async function notify(input: NotifyInput): Promise<void> {
       const title = t(`notifications.types.${input.type}.title`, input.params as never);
       const body = t(`notifications.types.${input.type}.body`, input.params as never);
       await sendActionEmail({
+        organizationId: input.organizationId,
+        kind: 'notification',
+        userId: person.id,
         to: person.email,
         locale,
         brand: { name: org.name, primaryColor: org.brand.primaryColor },

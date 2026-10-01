@@ -7,6 +7,7 @@ import { runAiSweep } from '@/modules/ai/server/sweep';
 import { runCampaignSweep } from '@/modules/campaigns/server/sweep';
 import { runCrmSweep } from '@/modules/crm/server/sweep';
 import { runIntegrationSweep } from '@/modules/integrations/server/sweep';
+import { runMailSweep } from '@/modules/mail/server/outbox';
 import { runSlaSweep } from '@/modules/sla/server/sweep';
 import { runReminderSweep } from '@/modules/tasks/server/reminders';
 
@@ -37,5 +38,7 @@ export async function GET(request: NextRequest) {
   // After the sync: fresh numbers → insights; then the assistant index catches up.
   const ai = await runAiSweep();
   const result = await runDispatcher();
-  return NextResponse.json({ ...result, reminders, campaigns, sla, crm, integrations, ai });
+  // Last: notifications queued above go out, retries are due, and the log is trimmed to 90 days.
+  const mail = await runMailSweep();
+  return NextResponse.json({ ...result, reminders, campaigns, sla, crm, integrations, ai, mail });
 }

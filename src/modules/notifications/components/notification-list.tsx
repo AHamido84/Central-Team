@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  MailWarning,
   Mail,
   FileUp,
   MessageSquare,
@@ -84,6 +85,8 @@ const typeIcon: Record<NotificationType, typeof Bell> = {
   deal_won: Trophy,
   integration_expired: PlugZap,
   integration_expiring: PlugZap,
+  mail_fallback: MailWarning,
+  mail_limit: MailWarning,
   integration_sync_failed: RefreshCwOff,
   automation_failed: Workflow,
   whatsapp_failed: MessageCircleX,

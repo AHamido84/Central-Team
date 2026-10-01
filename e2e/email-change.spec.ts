@@ -49,8 +49,18 @@ test('self-service change: pending state, both confirmations, sign in with the n
     await page.reload();
     await expect(page.getByTestId('email-change-pending')).toBeVisible();
 
-    const toOld = await waitForEmail(original, /Confirm your new email/, since);
-    const toNew = await waitForEmail(next, /Confirm your new email/, since);
+    const toOld = await waitForEmail(original, /Confirm your new email|تأكيد بريدك الجديد/, since);
+    const toNew = await waitForEmail(next, /Confirm your new email|تأكيد بريدك الجديد/, since);
+    // Both went through the platform's sender (Settings → Mail), logged and with their sign-in links not kept.
+    {
+      const sql = db();
+      const logged = await sql<{ to_email: string; status: string; html: string | null }[]>`
+        select to_email, status, html from public.email_outbox where kind = 'email_change' and created_at >= ${since}
+          and to_email in (${original}, ${next})`;
+      await sql.end();
+      expect(logged.map((r) => r.to_email).sort()).toEqual([original, next].sort());
+      expect(logged.every((r) => r.status === 'sent' && r.html === null)).toBe(true);
+    }
     await page.goto(linkFrom(toOld.html, /\/auth\/confirm/));
     await expect(page.getByTestId('email-change-landing')).toHaveAttribute('data-status', 'pending');
     await page.goto(linkFrom(toNew.html, /\/auth\/confirm/));
@@ -81,14 +91,14 @@ test('cancel and resend a pending change', async ({ page }) => {
     await page.getByTestId('email-change-input').fill(next);
     await page.getByTestId('email-change-submit').click();
     await expect(page.getByTestId('email-change-pending')).toBeVisible();
-    const first = await waitForEmail(next, /Confirm your new email/);
+    const first = await waitForEmail(next, /Confirm your new email|تأكيد بريدك الجديد/);
 
     // GoTrue refuses a new email within `max_frequency` (1s locally) of the last one.
     await page.waitForTimeout(1_500);
     const since = new Date();
     await page.getByTestId('email-change-resend').click();
     await expect(page.getByText(/أعدنا إرسال|sent the links again/)).toBeVisible();
-    await waitForEmail(next, /Confirm your new email/, since);
+    await waitForEmail(next, /Confirm your new email|تأكيد بريدك الجديد/, since);
 
     await page.getByTestId('email-change-cancel').click();
     await expect(page.getByTestId('email-change-pending')).toHaveCount(0);

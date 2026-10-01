@@ -156,6 +156,10 @@ export type DomainEventPayloads = {
   'integration.disconnected': { connectionId: string; provider: string };
   'integration.updated': { connectionId: string; fields: string[] };
   'integration.connection_expiring': { connectionId: string; provider: string; expiresAt: string };
+  // Mail (Feedback Round 2)
+  'mail.settings_updated': { preset: string; secretChanged: boolean };
+  'mail.fallback_used': { errorCode: string };
+  'mail.limit_approaching': { sent: number; limit: number };
   'integration.reassigned': { connectionId: string; from: string | null; to: string };
   /** The token expired or was revoked: someone with `integrations:manage` has to reconnect. */
   'integration.connection_expired': { connectionId: string; provider: string; errorCode: string };

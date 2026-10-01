@@ -69,6 +69,7 @@ export const agencyPermissions = [
   'whatsapp:send',
   'ai:use',
   'ai:manage',
+  'mail:manage',
   'clients:delete',
   'clients:purge',
   'client_users:delete',

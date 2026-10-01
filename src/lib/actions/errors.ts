@@ -76,6 +76,7 @@ export const actionErrorCodes = [
   'email_same',
   'email_send_failed',
   'email_change_not_pending',
+  'email_not_resendable',
   'ai_key_invalid',
   'invalid_password',
   'confirmation_mismatch',
