@@ -91,7 +91,9 @@ export function ProfileSettings({
   useEffect(() => {
     if (params.get('email_changed')) toast.success(t('settings.emailChanged'));
   }, [params, t]);
-  useEffect(() => setPending(pendingEmail), [pendingEmail]);
+  useEffect(() => {
+    setPending(pendingEmail);
+  }, [pendingEmail]);
 
   const submit = form.handleSubmit(async (v) => {
     const res = await save.run({

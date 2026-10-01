@@ -9,6 +9,9 @@ import nextTs from 'eslint-config-next/typescript';
 const PHYSICAL_CLASS =
   /(?:^|\s|:)-?(?:ml|mr|pl|pr|left|right|border-l|border-r|rounded-l|rounded-r|rounded-tl|rounded-tr|rounded-bl|rounded-br|text-left|text-right|float-left|float-right|scroll-ml|scroll-mr)(?:-|\s|$)/;
 
+/** An expression body that is itself the cleanup function (`() => () => …`) is fine. */
+const effectBodyAllowed = '[body.type!=/^(ArrowFunctionExpression|FunctionExpression)$/]';
+
 /** Local rules kept inside the repo (no extra plugin package). */
 const local = {
   rules: {
@@ -60,6 +63,19 @@ const eslintConfig = defineConfig([
           noStrings: false,
           ignoreProps: true,
           allowedStrings: ['·', '—', '–', '−', '+', '-', '/', '*', ':', '%', '@', '(', ')', '⌘K', '%)', '|', '‹', '›'],
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          // React calls whatever an effect returns as its cleanup. An expression body returns the call's value: since
+          // Chrome's scroll methods return a Promise, `() => el.scrollIntoView()` crashed the assistant page (ADR-089).
+          selector: `CallExpression[callee.name=/^use(Layout|Insertion)?Effect$/] > ArrowFunctionExpression[expression=true]${effectBodyAllowed}`,
+          message: 'Give effect callbacks a block body ({ … }) — an expression body becomes the cleanup React calls.',
+        },
+        {
+          selector: `CallExpression[callee.property.name=/^use(Layout|Insertion)?Effect$/] > ArrowFunctionExpression[expression=true]${effectBodyAllowed}`,
+          message: 'Give effect callbacks a block body ({ … }) — an expression body becomes the cleanup React calls.',
         },
       ],
       'no-restricted-imports': [

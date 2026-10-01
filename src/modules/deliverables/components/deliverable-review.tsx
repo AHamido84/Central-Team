@@ -258,7 +258,9 @@ function Composer({
   const [shared, setShared] = useState(versionSent);
   const [busy, setBusy] = useState(false);
   const area = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => area.current?.focus(), [pending]);
+  useEffect(() => {
+    area.current?.focus();
+  }, [pending]);
   return (
     <form
       className="grid gap-2 rounded-lg border border-primary/40 bg-primary-soft/20 p-3"

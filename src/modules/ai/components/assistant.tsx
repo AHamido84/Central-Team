@@ -228,7 +228,10 @@ export function Assistant({
   const messages = [...(conversation?.messages ?? []), ...(extra.base === serverCount ? extra.items : [])];
   const ask = useAction(askAssistantAction, { refresh: false });
 
-  useEffect(() => endRef.current?.scrollIntoView({ block: 'end' }), [messages.length, pending]);
+  // A block body: Chrome's scrollIntoView returns a Promise, which React would call as the cleanup (ADR-089).
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: 'end' });
+  }, [messages.length, pending]);
 
   const send = async (text: string) => {
     const q = text.trim();
