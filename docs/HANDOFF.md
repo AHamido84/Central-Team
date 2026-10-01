@@ -16,7 +16,7 @@ Last updated: 2026-10-01 (Feedback Round 3) · Branch: `claude/sharp-euler-zr273
 | 7 — Integrations & Automation | **Built, not deployed yet.** One `IntegrationProvider` interface with live adapters (Meta Ads + Pages + lead ads, WhatsApp Cloud API, TikTok, Snapchat, Google Ads / GA4) and a deterministic **sandbox** per platform; OAuth with signed state + nonce cookie, tokens only in Supabase Vault; `/admin/integrations` (connect / reconnect / disconnect / test, health with expiry, account → client and platform campaign → channel mapping, sync now, backfill ≤ 90 days, sync log with retries, webhook log, WhatsApp templates and messages); daily idempotent sync into `metrics_daily`; signed webhooks `/api/hooks/[provider]` → lead ads into `ingestLead()`; WhatsApp notifications (opt-in + per-category switch) and template messages from lead / deal pages with delivery status; automation engine (`/admin/automations`: trigger catalog, conditions, 6 action types, dry run, run log, retries, loop guard) |
 | 8 — AI Intelligence | **Built, not deployed yet.** Campaign insights computed by code (robust z-score anomalies on complete days, KPI and budget pacing, delivery stopped) with rule-based recommendations and computed impact → one click to a task; `/insights` + campaign Insights tab + detail with an AI explanation; notifications (`ai_insight`) and an automation trigger; "Draft with AI" for report commentary / next steps in the report's language (and optional auto-drafts for scheduled reports); `/assistant` with private conversations, retrieval through pgvector **inside the user's RLS** (a chunk is visible only if its source row is) and validated citations; `/admin/ai` (switch, sensitivity, budget + usage, provider status, index rebuild). Everything behind `AiProvider` (Claude via the Anthropic SDK + Voyage embeddings) with a deterministic mock |
 | Feedback Round 1 | **Built and deployed.** Also: people pickers above drawers, done tasks shown by default. Soft delete + Trash + bulk delete + data reset (ADR-080/081); tasks performance (1,000 tasks interactive < 1 s) and a History-API drawer (ADR-082); reviewed conversion plan + ad-hoc tasks (ADR-083); per-field task permissions enforced by the DB (ADR-084); AI keys in Vault from `/admin/ai` (ADR-085); personal connected accounts incl. X / LinkedIn (ADR-086); email change fixed (ADR-087) |
-| Feedback Round 3 | **Built (2026-10-01).** Assistant crash fixed (an effect returned Chrome's scroll Promise — ADR-089), every AI failure is an inline reason with "Fix in AI settings", the assistant answers with only an Anthropic key through read-only tools that run as the user (ADR-090), index health + background re-index, "Test assistant" in `/admin/ai`, model check on key save |
+| Feedback Round 3 | **Built and deployed (2026-10-01).** Assistant crash fixed (an effect returned Chrome's scroll Promise — ADR-089), every AI failure is an inline reason with "Fix in AI settings", the assistant answers with only an Anthropic key through read-only tools that run as the user (ADR-090), index health + background re-index, "Test assistant" in `/admin/ai`, model check on key save |
 | Feedback Round 2 | **Built and deployed (2026-10-01).** Settings → Mail (Gmail / Workspace / Outlook / Zoho / Resend / SMTP) with tests, one outbox for app and auth emails (retries, fallback, daily limit, 90-day log at `/admin/mail/log`), email change through the configured sender (ADR-088) |
 
 **Feedback Round 2, verified on a fresh seed**: `pnpm check` (243 unit tests), 239 DB tests, `pnpm build`. Feedback Round 1: 229 unit tests, 231 DB tests, 46 Playwright e2e tests,
@@ -143,7 +143,7 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 |---|---|
 | URL | https://centralteam.vercel.app (Vercel project `centralteam`, Hobby plan) |
 | Database | Supabase project `udqhetkwsqpyyuurajcb` (created through the Vercel ↔ Supabase integration) |
-| Deployed from | branch `claude/sharp-euler-zr273f`, commit `7e600d4` (Phases 0–8 + Feedback Rounds 1–2 + the task fixes), deployment `dpl_AxtPAkdS7cgjzPiC9bah6mSdL494` on 2026-10-01 — all 34 migrations applied (last: `20261001061700_mail_settings_security`); demo data already present, seeds skipped |
+| Deployed from | branch `claude/sharp-euler-zr273f`, commit `903d7f1` (Phases 0–8 + Feedback Rounds 1–3), deployment `dpl_7sv3yYVW78eNhVwMbH3BqVDQHAE7` on 2026-10-01 — all 35 migrations applied (last: `20261001164811_assistant_reasons`, applied by `dpl_3gXJii5JbRSyWr3cyKTNH8tuajRV`); demo data already present, seeds skipped |
 | Data | the demo seed (agency "Ofoq", 5 clients, 25 users incl. `majed@` / `ruba@ofoq.test`, password `Passw0rd!` for all) + demo campaigns, SLA data and sales pipeline |
 
 How it works:
@@ -263,6 +263,10 @@ the app URL, redirect URLs = `<app>/**` (the links point to `/auth/confirm`).
 
 ## Open items (need the owner)
 
+0. **Anthropic credit**: the organization's key decrypts and is accepted, but Anthropic answers every call with
+   "Your credit balance is too low to access the Anthropic API" (verified on production with "Test assistant" and the
+   three FR3 questions; each shows the reason inline). Add credit at console.anthropic.com → Plans & Billing, then
+   re-run "Test assistant" and the three questions (FR3.7).
 1. **Connect a sender in Settings → Mail** on production (Gmail App Password steps above) — until then no email is
    delivered. Optionally also `EMAIL_PROVIDER=resend` + `RESEND_API_KEY` + `EMAIL_FROM` on Vercel as the fallback.
 2. **Vercel production branch** still says `claude/modest-faraday-3u6pzy`; point it at `claude/sharp-euler-zr273f` or

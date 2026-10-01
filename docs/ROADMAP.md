@@ -831,5 +831,8 @@ assistant on production replaces the page with the generic error screen after th
 - [x] FR3.7 Tests: `tests/unit/ai-assistant.test.ts` (error mapping incl. SDK classes, model fallback, search terms, mock
   plan, loop), `tests/db/ai-tools.test.ts` (no-Voyage tools under RLS: admin vs Specialist, CRM, client overview),
   `e2e/assistant-failure.spec.ts` (Promise-returning scroll like Chrome 154 + a rejected key → inline reason, page usable)
-- [ ] FR3.7 Production: deploy, confirm the migration, run "Test assistant" with the owner's key, ask the three questions
+- [x] FR3.7 Production: deployed (`903d7f1`), migration `20261001164811_assistant_reasons` applied; "Test assistant"
+  passes switch, budget and key decrypt; the Anthropic call fails with the provider's "credit balance is too low",
+  shown inline for all three questions (no crash, no page errors)
+- [ ] FR3.7 Answers with citations on production — waits for Anthropic credit on the owner's account
 - [ ] Deferred: streaming answers (the reply appears when complete); per-tool result caching across turns
