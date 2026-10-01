@@ -12,6 +12,8 @@ import { Badge, Card, NativeSelect, Progress, Switch } from '@/components/ui/pri
 import { useAction } from '@/lib/actions/use-action';
 import { sensitivities, type Sensitivity } from '@/modules/ai/insights-core';
 import { rebuildIndexAction, saveAiSettingsAction } from '@/modules/ai/server/actions';
+import { AiDiagnostics } from '@/modules/ai/components/ai-diagnostics';
+import type { IndexHealth } from '@/modules/ai/server/indexer';
 import type { AiAdminView } from '@/modules/ai/server/queries';
 import { sourceTypes } from '@/modules/ai/types';
 
@@ -45,7 +47,7 @@ function SwitchRow({
   );
 }
 
-export function AiSettings({ view, index }: { view: AiAdminView; index: { byType: Record<string, number>; stale: number } }) {
+export function AiSettings({ view, index }: { view: AiAdminView; index: IndexHealth }) {
   const t = useTranslations('ai.admin');
   const ta = useTranslations('ai.assistant');
   const f = useFormat();
@@ -57,7 +59,7 @@ export function AiSettings({ view, index }: { view: AiAdminView; index: { byType
   const used = view.usage.total;
   const budget = form.monthlyTokenBudget;
   const share = budget > 0 ? Math.min(100, (used / budget) * 100) : 100;
-  const indexed = Object.values(index.byType).reduce((a, b) => a + b, 0);
+  const indexed = index.chunks;
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -132,10 +134,14 @@ export function AiSettings({ view, index }: { view: AiAdminView; index: { byType
             {t(`mode.${view.mode}`)}
           </Badge>
           <p className="text-sm text-muted-foreground">
-            {view.mode === 'live'
-              ? t('modeHint.live', { model: `\u2068${view.model}\u2069`, embedding: `\u2068${view.embeddingModel}\u2069` })
-              : t(`modeHint.${view.mode}`)}
+            {view.mode === 'live' ? t('textBy', { model: `\u2068${view.model}\u2069` }) : t(`modeHint.${view.mode}`)}
           </p>
+          {view.mode !== 'off' ? (
+            <p className="text-sm text-muted-foreground" data-testid="ai-search-mode" data-search={view.embedder ? 'semantic' : 'keyword'}>
+              {view.embedder ? t('search.semantic', { embedding: `\u2068${view.embedder}\u2069` }) : t('search.keyword')}
+            </p>
+          ) : null}
+          <p className="text-xs text-subtle-foreground">{t('indexHealth.voyageOptional')}</p>
           {view.missing.length ? (
             <p className="text-xs text-subtle-foreground">
               {t('missing')}
@@ -181,7 +187,7 @@ export function AiSettings({ view, index }: { view: AiAdminView; index: { byType
           <Button
             variant="outline"
             loading={rebuild.pending}
-            disabled={!view.settings.enabled || view.mode === 'off'}
+            disabled={!view.settings.enabled || view.mode === 'off' || !index.model}
             onClick={async () => {
               const r = await rebuild.run({});
               if (r.ok) setRebuilt(r.data.indexed);
@@ -192,19 +198,40 @@ export function AiSettings({ view, index }: { view: AiAdminView; index: { byType
             {t('rebuild')}
           </Button>
         </div>
-        <p className="text-sm" data-testid="ai-index-status">
-          {t('indexed', { count: indexed })} · {t('stale', { count: index.stale })}
-          {rebuilt !== null ? <span className="text-success"> · {t('rebuilt', { count: rebuilt })}</span> : null}
-        </p>
-        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {sourceTypes.map((s) => (
-            <li key={s} className="rounded-md border border-border px-3 py-2">
-              <p className="text-xs text-subtle-foreground">{ta(`sourceType.${s}`)}</p>
-              <p className="text-lg font-semibold tabular-nums">{f.number(index.byType[s] ?? 0)}</p>
-            </li>
-          ))}
-        </ul>
+        {index.model ? (
+          <>
+            <p className="text-sm" data-testid="ai-index-status">
+              {t('indexed', { count: indexed })} · {t('stale', { count: index.stale })}
+              {rebuilt !== null ? <span className="text-success"> · {t('rebuilt', { count: rebuilt })}</span> : null}
+            </p>
+            <Progress
+              value={index.progress}
+              tone={index.progress >= 100 ? 'brand' : 'warning'}
+              aria-label={t('indexHealth.progress', { progress: index.progress })}
+            />
+            <dl className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-subtle-foreground" data-testid="ai-index-health">
+              <dd>{t('indexHealth.model', { model: `\u2068${index.model}\u2069` })}</dd>
+              <dd>{index.lastBuiltAt ? t('indexHealth.lastBuilt', { at: f.dateTime(index.lastBuiltAt) }) : t('indexHealth.neverBuilt')}</dd>
+              <dd className="tabular-nums">{t('indexHealth.progress', { progress: f.number(index.progress) })}</dd>
+              {index.otherModel > 0 ? <dd>{t('indexHealth.otherModel', { count: index.otherModel })}</dd> : null}
+            </dl>
+            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {sourceTypes.map((s) => (
+                <li key={s} className="rounded-md border border-border px-3 py-2">
+                  <p className="text-xs text-subtle-foreground">{ta(`sourceType.${s}`)}</p>
+                  <p className="text-lg font-semibold tabular-nums">{f.number(index.byType[s] ?? 0)}</p>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground" data-testid="ai-index-status" data-index="unused">
+            {t('indexHealth.unused')}
+          </p>
+        )}
       </Card>
+
+      <AiDiagnostics disabled={!view.settings.enabled} />
 
       <Card className="flex h-fit flex-col gap-2 p-5">
         <h2 className="flex items-center gap-2 text-sm font-semibold">

@@ -85,6 +85,13 @@
       "when": 1790835395916,
       "tag": "20261001061635_mail_settings_outbox",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790873291825,
+      "tag": "20261001164811_assistant_reasons",
+      "breakpoints": true
     }
   ]
 }

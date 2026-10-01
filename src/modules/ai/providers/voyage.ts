@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { classifyProviderFailure } from '@/modules/ai/errors';
 import { AiProviderError, EMBEDDING_DIMENSIONS, type AiEmbedder } from '@/modules/ai/providers/types';
 
 const ENDPOINT = 'https://api.voyageai.com/v1/embeddings';
@@ -29,10 +30,10 @@ export function voyageEmbedder(config: { apiKey: string; model: string }): AiEmb
             signal: AbortSignal.timeout(30_000),
           });
         } catch (error) {
-          throw new AiProviderError('ai_unavailable', error instanceof Error ? error.message : String(error));
+          const timeout = error instanceof Error && error.name === 'TimeoutError';
+          throw new AiProviderError(timeout ? 'ai_timeout' : 'ai_unavailable', error instanceof Error ? error.message : String(error));
         }
-        if (res.status === 401 || res.status === 403) throw new AiProviderError('ai_not_configured', `voyage ${res.status}`);
-        if (!res.ok) throw new AiProviderError('ai_unavailable', `voyage ${res.status}`);
+        if (!res.ok) throw new AiProviderError(classifyProviderFailure({ status: res.status }), `voyage ${res.status}`);
         const body = (await res.json()) as VoyageResponse;
         const ordered = [...body.data].sort((a, b) => a.index - b.index).map((d) => d.embedding);
         if (ordered.length !== batch.length || ordered.some((v) => v.length !== EMBEDDING_DIMENSIONS)) {

@@ -5,10 +5,15 @@ import { ThemeProvider, useTheme } from 'next-themes';
 import { Direction } from 'radix-ui';
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { Toaster } from 'sonner';
+import { z } from 'zod';
 
 import { TooltipProvider } from '@/components/ui/primitives';
 import { createFormatters, type CalendarPreference, type Formatters } from '@/lib/i18n/format';
 import type { Locale } from '@/lib/i18n/localized';
+
+// The CSP has no 'unsafe-eval': Zod's JIT probe (`new Function`) is blocked and reported as a console issue. Its
+// interpreter is just as correct, so skip the probe in the browser (ADR-089).
+z.config({ jitless: true });
 
 const FormatContext = createContext<Formatters | null>(null);
 

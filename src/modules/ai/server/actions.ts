@@ -8,6 +8,7 @@ import { defineAction } from '@/lib/actions/define-action';
 import { ActionFailure } from '@/lib/actions/errors';
 import type { AgencyContext } from '@/lib/auth/context';
 import { dbAdmin, type Tx } from '@/lib/db/client';
+import { withRls } from '@/lib/db/rls';
 import {
   aiConversations,
   aiCredentials,
@@ -23,6 +24,7 @@ import { env } from '@/lib/env';
 import { emitEvent } from '@/lib/events/emit';
 import type { Locale } from '@/lib/i18n/localized';
 import { can } from '@/lib/permissions/can';
+import { pickModel, type AiFailureCode } from '@/modules/ai/errors';
 import { testAiKey } from '@/modules/ai/providers/test-key';
 import { insightTitle, recommendationBody, recommendationTitle } from '@/modules/ai/insight-text';
 import { textKit } from '@/modules/ai/kit';
@@ -39,9 +41,10 @@ import {
   renameConversationSchema,
 } from '@/modules/ai/schemas';
 import { answerQuestion, recordQuestion } from '@/modules/ai/server/assistant';
-import { catchUpIndex } from '@/modules/ai/server/indexer';
+import { catchUpIndex, scheduleReindex } from '@/modules/ai/server/indexer';
 import { prepareReportDraft, writeReportDraft } from '@/modules/ai/server/reports';
 import { decryptAiKey, invalidateAiClient } from '@/modules/ai/server/client';
+import { runDiagnostics } from '@/modules/ai/server/diagnostics';
 import { generate } from '@/modules/ai/server/runtime';
 import { addDays, dayInZone } from '@/modules/tasks/constants';
 
@@ -309,6 +312,53 @@ async function deactivateOthers(tx: Tx, organizationId: string, provider: string
     .where(and(eq(aiCredentials.organizationId, organizationId), eq(aiCredentials.provider, provider), ne(aiCredentials.id, keep)));
 }
 
+export type ModelCheck =
+  | { status: 'ok'; model: string | null }
+  | { status: 'replaced'; from: string; model: string }
+  | { status: 'key_failed'; code: AiFailureCode };
+
+/**
+ * After a credential is saved (FR3.6): an Anthropic key lists its models and a default model it no longer offers is
+ * switched to a current one (the admin sees a warning); a Voyage change re-indexes in the background (FR3.4).
+ */
+async function afterCredentialSaved(ctx: AgencyContext, id: string): Promise<ModelCheck> {
+  invalidateAiClient(ctx.organization.id);
+  // Service path (ADR-085): provider and model are read with the owner connection right after the RLS-checked save.
+  const [row] = await dbAdmin
+    .select({ provider: aiCredentials.provider, defaultModel: aiCredentials.defaultModel, isActive: aiCredentials.isActive })
+    .from(aiCredentials)
+    .where(eq(aiCredentials.id, id));
+  if (!row) return { status: 'ok', model: null };
+  if (row.provider === 'voyage') {
+    scheduleReindex(ctx.organization.id);
+    return { status: 'ok', model: row.defaultModel };
+  }
+  const key = await decryptAiKey(id).catch(() => null);
+  if (!key) return { status: 'key_failed', code: 'ai_not_configured' };
+  const test = await testAiKey('anthropic', key);
+  await recordKeyTest(ctx, id, test.ok, test.ok ? null : test.code);
+  if (!test.ok) {
+    console.error('[ai] key check after save failed', test.detail);
+    return { status: 'key_failed', code: test.code };
+  }
+  const wanted = row.defaultModel || env().AI_MODEL;
+  const pick = pickModel(test.models, wanted);
+  if (!pick.replaced || !pick.model) return { status: 'ok', model: wanted };
+  await withRls(async (tx) => {
+    await tx.update(aiCredentials).set({ defaultModel: pick.model, updatedBy: ctx.session.userId }).where(eq(aiCredentials.id, id));
+  }, ctx.session);
+  invalidateAiClient(ctx.organization.id);
+  return { status: 'replaced', from: wanted, model: pick.model };
+}
+
+/** Service path: the test outcome is bookkeeping on the credential (users can't write these columns). */
+async function recordKeyTest(ctx: AgencyContext, id: string, ok: boolean, code: string | null) {
+  await dbAdmin.transaction(async (tx) => {
+    await tx.execute(sql`select set_config('request.jwt.claims', ${JSON.stringify({ sub: ctx.session.userId })}, true)`);
+    await tx.execute(sql`select app.ai_credential_record_test(${id}::uuid, ${ok}, ${code})`);
+  });
+}
+
 export const createAiCredentialAction = defineAction({
   input: credentialFields.extend({ provider: z.enum(['anthropic', 'voyage']), apiKey }),
   side: 'agency',
@@ -327,8 +377,7 @@ export const createAiCredentialAction = defineAction({
     return { id };
   },
   async complete({ prepared, ctx }) {
-    invalidateAiClient(ctx.organization.id);
-    return prepared;
+    return { id: prepared.id, modelCheck: await afterCredentialSaved(ctx, prepared.id) };
   },
   revalidate: ['/admin/ai'],
 });
@@ -356,8 +405,7 @@ export const updateAiCredentialAction = defineAction({
     return { id: input.id };
   },
   async complete({ prepared, ctx }) {
-    invalidateAiClient(ctx.organization.id);
-    return prepared;
+    return { id: prepared.id, modelCheck: await afterCredentialSaved(ctx, prepared.id) };
   },
   revalidate: ['/admin/ai'],
 });
@@ -370,11 +418,12 @@ export const deleteAiCredentialAction = defineAction({
     const [row] = await tx.delete(aiCredentials).where(eq(aiCredentials.id, input.id)).returning({ provider: aiCredentials.provider });
     if (!row) throw new ActionFailure('not_found');
     await credentialEvent(tx, ctx, input.id, row.provider, 'deleted');
-    return { id: input.id };
+    return { id: input.id, provider: row.provider };
   },
   async complete({ prepared, ctx }) {
     invalidateAiClient(ctx.organization.id);
-    return prepared;
+    if (prepared.provider === 'voyage') scheduleReindex(ctx.organization.id);
+    return { id: prepared.id };
   },
   revalidate: ['/admin/ai'],
 });
@@ -404,13 +453,7 @@ export const testAiCredentialAction = defineAction({
     const key = prepared.id ? await decryptAiKey(prepared.id) : 'apiKey' in input ? input.apiKey : null;
     if (!key) throw new ActionFailure('not_found');
     const result = await testAiKey(prepared.provider, key, prepared.model);
-    if (prepared.id) {
-      // Service path: the test outcome is bookkeeping on the credential (users can't write these columns).
-      await dbAdmin.transaction(async (tx) => {
-        await tx.execute(sql`select set_config('request.jwt.claims', ${JSON.stringify({ sub: ctx.session.userId })}, true)`);
-        await tx.execute(sql`select app.ai_credential_record_test(${prepared.id}::uuid, ${result.ok}, ${result.ok ? null : result.code})`);
-      });
-    }
+    if (prepared.id) await recordKeyTest(ctx, prepared.id, result.ok, result.ok ? null : result.code);
     if (!result.ok) console.error('[ai] key test failed', prepared.provider, result.detail);
     return result.ok ? { ok: true as const, models: result.models } : { ok: false as const, code: result.code };
   },
@@ -435,6 +478,20 @@ export const rebuildIndexAction = defineAction({
     return { indexed: await catchUpIndex(prepared.organizationId, 2000) };
   },
   revalidate: ['/admin/ai'],
+});
+
+/** "Test assistant" (FR3.5): the whole chain once, step by step, as the admin who runs it. */
+export const testAssistantAction = defineAction({
+  input: emptySchema,
+  side: 'agency',
+  permission: 'ai:manage',
+  rateLimit: { key: 'ai_test_assistant', max: 6, windowSeconds: 600 },
+  async handler() {
+    return { locale: await currentLocale() };
+  },
+  async complete({ prepared, ctx }) {
+    return { steps: await runDiagnostics(ctx, prepared.locale), at: new Date().toISOString() };
+  },
 });
 
 // ---------------------------------------------------------------------------

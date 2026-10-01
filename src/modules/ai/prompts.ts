@@ -16,6 +16,7 @@ import {
 } from '@/modules/ai/insight-text';
 import type { AiTurn, CompleteInput, GroundingSource } from '@/modules/ai/providers/types';
 import type { Citation } from '@/modules/ai/types';
+import { toolSpecs } from '@/modules/ai/assistant-tools';
 import type { MetricKey } from '@/modules/campaigns/constants';
 import { metricCatalog } from '@/modules/campaigns/constants';
 import { metricValue } from '@/modules/campaigns/metrics';
@@ -191,6 +192,31 @@ export function assistantPrompt(
     ].join(' '),
     messages: [...history.slice(-ASSISTANT_HISTORY), { role: 'user', content: `Sources:\n${block}\n\nQuestion: ${question}` }],
     grounding: { kind: 'assistant', question, sources: [...sources] },
+  };
+}
+
+/**
+ * The assistant with tools (ADR-090): the model looks records up itself through read-only tools that run as the user,
+ * and cites the numbered records they return. The question is the last user turn; history comes before it.
+ */
+export function assistantToolsPrompt(locale: Locale, question: string, history: readonly AiTurn[], today: string): CompleteInput {
+  return {
+    purpose: 'assistant',
+    locale,
+    system: [
+      'You are the assistant inside Central, the operations platform of a marketing agency in Saudi Arabia.',
+      `Today is ${today} in the agency's time zone.`,
+      'Look things up with the tools before answering; they return only the records this user is allowed to open.',
+      'Use list_requests, list_tasks, client_overview and campaign_metrics for lists, counts and summaries, and search_records to find something by name or topic. Call several tools at once when the question needs them.',
+      'Tool results number their records like [3]. Base the answer only on tool results and cite the number right after the sentence that uses it, like [3]. Only cite numbers that appear in tool results.',
+      'Numbers in tool results are computed by the platform: quote them as given and never invent totals.',
+      'If the tools find nothing relevant, say so in one sentence and suggest what to ask or open instead.',
+      `Answer in ${language(locale)} unless the user writes in another language. Be concise; use short "- " lists for several items.`,
+      guard,
+    ].join(' '),
+    messages: [...history.slice(-ASSISTANT_HISTORY), { role: 'user', content: question }],
+    grounding: { kind: 'assistant', question, sources: [] },
+    tools: toolSpecs,
   };
 }
 

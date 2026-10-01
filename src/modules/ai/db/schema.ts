@@ -231,6 +231,8 @@ export const aiMessages = pgTable(
     content: text('content').notNull(),
     citations: jsonb('citations').$type<Citation[]>().notNull().default([]),
     status: text('status').notNull().default('ok'),
+    /** Why a reply failed (an `ai_*` failure code, FR3.2): shown as a specific, translated reason in the thread. */
+    reason: text('reason'),
     model: text('model'),
     inputTokens: integer('input_tokens').notNull().default(0),
     outputTokens: integer('output_tokens').notNull().default(0),
@@ -241,5 +243,6 @@ export const aiMessages = pgTable(
     check('ai_messages_role_check', sql`${t.role} in ('user','assistant')`),
     check('ai_messages_status_check', sql`${t.status} in ('ok','failed','refused','budget','disabled','no_sources')`),
     check('ai_messages_content_check', sql`char_length(${t.content}) <= 20000`),
+    check('ai_messages_reason_check', sql`${t.reason} is null or ${t.reason} ~ '^ai_[a-z_]{1,40}$'`),
   ],
 );

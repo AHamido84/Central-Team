@@ -9,6 +9,10 @@ import { AiSettings } from '@/modules/ai/components/ai-settings';
 import { getIndexStatus } from '@/modules/ai/server/indexer';
 import { getAiAdmin } from '@/modules/ai/server/queries';
 
+// Server Actions on this page call AI models (ADR-089): the provider timeout (90 s, one retry) and the assistant's
+// 200 s deadline end slow calls inside the function's 300 s limit (the Vercel maximum with fluid compute).
+export const maxDuration = 300;
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('nav');
   return { title: t('aiSettings') };
@@ -27,7 +31,7 @@ export default async function AiSettingsPage() {
     <>
       <PageHeader title={t('title')} description={t('description')} />
       <div className="grid gap-6">
-        <AiCredentials credentials={view.credentials} sources={view.sources} />
+        <AiCredentials credentials={view.credentials} sources={view.sources} envKeys={view.envKeys} />
         <AiSettings view={view} index={index} />
       </div>
     </>

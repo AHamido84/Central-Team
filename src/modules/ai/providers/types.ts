@@ -1,9 +1,26 @@
 import type { Locale } from '@/lib/i18n/localized';
+import type { AiFailureCode } from '@/modules/ai/errors';
 import type { SourceType } from '@/modules/ai/types';
 
 export type AiPurpose = 'assistant' | 'report_draft' | 'insight_explain';
 
-export type AiTurn = { role: 'user' | 'assistant'; content: string };
+/** A tool the model may call (assistant retrieval, ADR-090). The input schema is JSON Schema; inputs are re-validated. */
+export type AiToolSpec = { name: string; description: string; inputSchema: Record<string, unknown> };
+export type AiToolCall = { id: string; name: string; input: unknown };
+export type AiToolResult = { toolUseId: string; content: string; isError?: boolean };
+
+/**
+ * One turn of a conversation. A tool round adds an assistant turn with `toolCalls` (and `raw`: the provider's own
+ * content blocks, echoed back unchanged so thinking blocks stay valid — the loop only appends) and a user turn with
+ * the `toolResults`.
+ */
+export type AiTurn = {
+  role: 'user' | 'assistant';
+  content: string;
+  toolCalls?: AiToolCall[];
+  toolResults?: AiToolResult[];
+  raw?: unknown;
+};
 
 /** A retrieved source as the model sees it: numbered, so the answer can cite `[n]`. */
 export type GroundingSource = { n: number; sourceType: SourceType; title: string; content: string };
@@ -23,14 +40,20 @@ export type CompleteInput = {
   system: string;
   messages: AiTurn[];
   grounding: Grounding;
+  tools?: AiToolSpec[];
+  /** `none` on the loop's last round: the tools stay declared (the history has tool calls) but the model must answer. */
+  toolChoice?: 'auto' | 'none';
 };
 
 export type CompleteResult = {
   text: string;
-  /** `refusal`: the model (and its server-side fallback) declined; `max_tokens`: cut off. */
-  stop: 'end' | 'refusal' | 'max_tokens';
+  /** `refusal`: the model (and its server-side fallback) declined; `max_tokens`: cut off; `tool_use`: wants tools run. */
+  stop: 'end' | 'refusal' | 'max_tokens' | 'tool_use';
   model: string;
   usage: { input: number; output: number };
+  toolCalls?: AiToolCall[];
+  /** Provider content to append unchanged as the assistant turn of the next request. */
+  raw?: unknown;
 };
 
 /** Text generation (ADR-073). */
@@ -49,7 +72,7 @@ export interface AiEmbedder {
   embed(texts: string[], kind: 'document' | 'query'): Promise<{ vectors: number[][]; tokens: number }>;
 }
 
-export type AiErrorCode = 'ai_not_configured' | 'ai_refused' | 'ai_unavailable';
+export type AiErrorCode = AiFailureCode;
 
 /** A classified provider failure (the code is translated; the detail goes to the log). */
 export class AiProviderError extends Error {

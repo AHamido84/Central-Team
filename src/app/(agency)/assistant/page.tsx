@@ -4,9 +4,14 @@ import { getTranslations } from 'next-intl/server';
 
 import { PageHeader } from '@/components/patterns';
 import { requireAgency } from '@/lib/auth/context';
+import { can } from '@/lib/permissions/can';
 import { Assistant } from '@/modules/ai/components/assistant';
 import { listConversations } from '@/modules/ai/server/assistant';
 import { getAiAvailability } from '@/modules/ai/server/queries';
+
+// Server Actions on this page call AI models (ADR-089): the provider timeout (90 s, one retry) and the assistant's
+// 200 s deadline end slow calls inside the function's 300 s limit (the Vercel maximum with fluid compute).
+export const maxDuration = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('nav');
@@ -20,7 +25,7 @@ export default async function AssistantPage() {
   return (
     <>
       <PageHeader title={t('title')} description={t('description')} />
-      <Assistant conversations={conversations} conversation={null} usable={ai.usable} />
+      <Assistant conversations={conversations} conversation={null} usable={ai.usable} canManage={can(ctx.permissions, 'ai:manage')} />
     </>
   );
 }

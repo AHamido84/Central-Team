@@ -7,6 +7,7 @@ import { createTranslator } from 'next-intl';
 import type { Locale } from '@/lib/i18n/localized';
 import arAi from '@messages/ar/ai.json';
 import enAi from '@messages/en/ai.json';
+import { planMockTools } from '@/modules/ai/assistant-tools';
 import { approxTokens } from '@/modules/ai/providers/mock-embedder';
 import type { AiCompleter, CompleteInput } from '@/modules/ai/providers/types';
 
@@ -27,6 +28,7 @@ export function composeMock(input: CompleteInput): string {
   const g = input.grounding;
   switch (g.kind) {
     case 'assistant': {
+      if (g.sources.length === 0) return t('assistantNone');
       const top = g.sources.slice(0, 3);
       // The first content line repeats the title; show the next details instead.
       const detail = (content: string) => firstSentence(content.split('\n').slice(1, 4).join(' · ') || content);
@@ -46,8 +48,14 @@ export const mockCompleter: AiCompleter = {
   key: 'mock',
   model: MOCK_MODEL,
   async complete(input) {
+    const prompt = input.system + input.messages.map((m) => m.content + (m.toolResults ?? []).map((r) => r.content).join('\n')).join('\n');
+    const usage = (text: string) => ({ input: approxTokens(prompt), output: approxTokens(text) });
+    // Tool loop (ADR-090): plan once from the question, then answer from what the tools returned.
+    if (input.tools?.length && input.grounding.kind === 'assistant' && !input.messages.some((m) => m.toolResults?.length)) {
+      const toolCalls = planMockTools(input.grounding.question);
+      return { text: '', stop: 'tool_use', model: MOCK_MODEL, usage: usage(''), toolCalls };
+    }
     const text = composeMock(input);
-    const prompt = input.system + input.messages.map((m) => m.content).join('\n');
-    return { text, stop: 'end', model: MOCK_MODEL, usage: { input: approxTokens(prompt), output: approxTokens(text) } };
+    return { text, stop: 'end', model: MOCK_MODEL, usage: usage(text) };
   },
 };

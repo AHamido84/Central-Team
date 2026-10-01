@@ -10,6 +10,10 @@ import { getAiAvailability, getInsight } from '@/modules/ai/server/queries';
 import { listAgencyPeople } from '@/modules/clients/server/queries';
 import { addDays, dayInZone } from '@/modules/tasks/constants';
 
+// Server Actions on this page call AI models (ADR-089): the provider timeout (90 s, one retry) and the assistant's
+// 200 s deadline end slow calls inside the function's 300 s limit (the Vercel maximum with fluid compute).
+export const maxDuration = 300;
+
 const isUuid = (v: string) => /^[0-9a-f-]{36}$/.test(v);
 
 export async function generateMetadata(): Promise<Metadata> {

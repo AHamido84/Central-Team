@@ -1,6 +1,7 @@
 import 'server-only';
 
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
+import { after } from 'next/server';
 
 import { ActionFailure } from '@/lib/actions/errors';
 import { dbAdmin } from '@/lib/db/client';
@@ -116,7 +117,62 @@ export async function catchUpIndex(organizationId: string, maxSources = 300): Pr
   return done;
 }
 
-export async function getIndexStatus(organizationId: string) {
+export type IndexHealth = {
+  /** The embedding model the index follows; null = no embedder, so the assistant uses keyword search (ADR-090). */
+  model: string | null;
+  byType: Record<string, number>;
+  /** Chunks embedded with the current model, and with another one (replaced as the re-index works through them). */
+  chunks: number;
+  otherModel: number;
+  stale: number;
+  lastBuiltAt: string | null;
+  /** Share of indexable records whose chunk is current (0–100). */
+  progress: number;
+};
+
+/** Index health for `/admin/ai` (FR3.4) — service path: the index covers the whole organization (ADR-075). */
+export async function getIndexStatus(organizationId: string): Promise<IndexHealth> {
   const embedder = await currentEmbedder(organizationId);
-  return dbAdmin.transaction((tx) => indexStatus(tx, organizationId, embedder?.model ?? ''));
+  return dbAdmin.transaction(async (tx) => {
+    const model = embedder?.model ?? null;
+    const base = await indexStatus(tx, organizationId, model ?? '');
+    const [row] = await tx.execute<{ chunks: number; other: number; last: string | null }>(sql`
+      select count(*) filter (where embedding_model = ${model ?? ''})::int as chunks,
+        count(*) filter (where embedding_model <> ${model ?? ''})::int as other,
+        max(indexed_at) filter (where embedding_model = ${model ?? ''}) as last
+      from public.ai_chunks where organization_id = ${organizationId}`);
+    const chunks = Number(row?.chunks ?? 0);
+    const stale = model ? base.stale : 0;
+    const total = chunks + stale;
+    const last = row?.last
+      ? new Date(
+          String(row.last)
+            .replace(' ', 'T')
+            .replace(/([+-]\d\d)$/, '$1:00'),
+        )
+      : null;
+    return {
+      model,
+      byType: model ? base.byType : {},
+      chunks,
+      otherModel: Number(row?.other ?? 0),
+      stale,
+      lastBuiltAt: last && !Number.isNaN(last.getTime()) ? last.toISOString() : null,
+      progress: total === 0 ? 100 : Math.floor((Math.max(0, total - stale) / total) * 100),
+    };
+  });
+}
+
+/**
+ * Re-index in the background after the embedder changes (FR3.4): chunks of another model count as stale, so the
+ * catch-up re-embeds them — the upsert replaces each chunk, models are never mixed. Runs after the response.
+ */
+export function scheduleReindex(organizationId: string): void {
+  after(async () => {
+    try {
+      await catchUpIndex(organizationId, 2000);
+    } catch (error) {
+      console.error('[ai] background re-index failed', error);
+    }
+  });
 }

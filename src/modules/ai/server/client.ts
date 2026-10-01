@@ -18,7 +18,19 @@ export type AiClient = {
   embedder: AiEmbedder | null;
   /** Where each side comes from: an organization credential (with its monthly limit) or the environment (null). */
   sources: { anthropic: AiCredentialSource; voyage: AiCredentialSource };
+  /** Stored keys that exist but could not be decrypted (shown by "Test assistant"; the client falls back meanwhile). */
+  decryptFailed: ('anthropic' | 'voyage')[];
 };
+
+/** Decrypts without throwing: a Vault problem degrades to "no key" and is reported, never crashes a page (ADR-089). */
+async function tryDecrypt(credentialId: string): Promise<{ key: string | null; failed: boolean }> {
+  try {
+    return { key: await decryptAiKey(credentialId), failed: false };
+  } catch (error) {
+    console.error('[ai] decrypting a provider key failed', error);
+    return { key: null, failed: true };
+  }
+}
 
 const TTL_MS = 60_000;
 const cache = new Map<string, { at: number; client: AiClient }>();
@@ -54,13 +66,18 @@ export async function getAIClient(organizationId: string): Promise<AiClient> {
   const voyage = rows.find((r) => r.provider === 'voyage');
   const e = env();
 
+  const decryptFailed: AiClient['decryptFailed'] = [];
   let completer: AiCompleter | null = null;
-  const anthropicKey = anthropic ? await decryptAiKey(anthropic.id) : null;
+  const a = anthropic ? await tryDecrypt(anthropic.id) : { key: null, failed: false };
+  if (a.failed || (anthropic && !a.key)) decryptFailed.push('anthropic');
+  const anthropicKey = a.key;
   if (anthropic && anthropicKey) completer = anthropicCompleter({ apiKey: anthropicKey, model: anthropic.defaultModel || e.AI_MODEL });
   else completer = getCompleter();
 
   let embedder: AiEmbedder | null = null;
-  const voyageKey = voyage ? await decryptAiKey(voyage.id) : null;
+  const v = voyage ? await tryDecrypt(voyage.id) : { key: null, failed: false };
+  if (v.failed || (voyage && !v.key)) decryptFailed.push('voyage');
+  const voyageKey = v.key;
   if (voyage && voyageKey) embedder = voyageEmbedder({ apiKey: voyageKey, model: voyage.defaultModel || e.AI_EMBEDDING_MODEL });
   else embedder = getEmbedder();
 
@@ -82,6 +99,7 @@ export async function getAIClient(organizationId: string): Promise<AiClient> {
       anthropic: anthropic && anthropicKey ? { id: anthropic.id, monthlyTokenLimit: anthropic.monthlyTokenLimit } : null,
       voyage: voyage && voyageKey ? { id: voyage.id, monthlyTokenLimit: voyage.monthlyTokenLimit } : null,
     },
+    decryptFailed,
   };
   cache.set(organizationId, { at: Date.now(), client });
   return client;

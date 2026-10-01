@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/overlays';
 import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle, NativeSelect, Switch } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
+import type { ModelCheck } from '@/modules/ai/server/actions';
 import {
   createAiCredentialAction,
   deleteAiCredentialAction,
@@ -37,7 +38,16 @@ const providers: Provider[] = ['anthropic', 'voyage'];
  * Provider keys for this organization (FR1.5 / ADR-085): add, rotate, limit, switch on/off, test. Keys are sent once
  * and stored in Vault; the page only ever shows the masked hint.
  */
-export function AiCredentials({ credentials, sources }: { credentials: AiCredentialView[]; sources: Record<Provider, boolean> }) {
+export function AiCredentials({
+  credentials,
+  sources,
+  envKeys,
+}: {
+  credentials: AiCredentialView[];
+  sources: Record<Provider, boolean>;
+  /** Keys set in the server environment (the fallback when no organization key is active). */
+  envKeys: Record<Provider, boolean>;
+}) {
   const t = useTranslations('ai.admin.credentials');
   const te = useTranslations('errors');
   const f = useFormat();
@@ -66,7 +76,8 @@ export function AiCredentials({ credentials, sources }: { credentials: AiCredent
         <div className="flex flex-wrap gap-2">
           {providers.map((p) => (
             <Badge key={p} tone={sources[p] ? 'success' : 'neutral'} data-testid={`ai-source-${p}`}>
-              {t(`providers.${p}`)} · {sources[p] ? t('orgKey') : t('envFallback')}
+              {t(`providers.${p}`)} ·{' '}
+              {sources[p] ? t('orgKey') : envKeys[p] ? t('envFallback') : p === 'voyage' ? t('notSetOptional') : t('notSet')}
             </Badge>
           ))}
         </div>
@@ -204,8 +215,15 @@ function CredentialForm({ credential, onDone }: { credential: AiCredentialView |
   const [models, setModels] = useState<string[] | null>(null);
   const [limit, setLimit] = useState(credential?.monthlyTokenLimit != null ? String(credential.monthlyTokenLimit) : '');
   const [active, setActive] = useState(credential?.isActive ?? true);
-  const create = useAction(createAiCredentialAction, { successMessage: t('saved') });
-  const update = useAction(updateAiCredentialAction, { successMessage: t('saved') });
+  const ta = useTranslations('ai.admin.keyCheck');
+  // FR3.6: the save checks the key and its model; a replaced model or a failed check is a warning, not an error.
+  const warn = (data: { modelCheck: ModelCheck }) => {
+    const c = data.modelCheck;
+    if (c.status === 'replaced') toast.warning(ta('replaced', { from: `\u2068${c.from}\u2069`, to: `\u2068${c.model}\u2069` }));
+    if (c.status === 'key_failed') toast.warning(ta('keyFailed', { reason: te(c.code) }));
+  };
+  const create = useAction(createAiCredentialAction, { successMessage: t('saved'), onSuccess: warn });
+  const update = useAction(updateAiCredentialAction, { successMessage: t('saved'), onSuccess: warn });
   const test = useAction(testAiCredentialAction, { refresh: false });
   const keyValid = credential ? key.trim() === '' || key.trim().length >= 8 : key.trim().length >= 8;
 

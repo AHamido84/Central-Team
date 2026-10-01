@@ -197,7 +197,15 @@ export type AiAvailability = {
 };
 
 export async function getAiAvailability(ctx: AgencyContext): Promise<AiAvailability> {
-  const mode = (await getAIClient(ctx.organization.id)).mode;
+  // Never throws (FR3.2): a provider-side problem (e.g. a key that can't be decrypted) must not take the page down —
+  // the composer stays available and the reply explains what is wrong.
+  let mode: AiMode = 'off';
+  try {
+    mode = (await getAIClient(ctx.organization.id)).mode;
+  } catch (error) {
+    console.error('[ai] availability check failed', error);
+    mode = 'live';
+  }
   if (!can(ctx.permissions, 'ai:use') && !can(ctx.permissions, 'ai:manage')) return { enabled: false, mode, usable: false };
   const [row] = await withRls((tx) => tx.select({ enabled: aiSettings.enabled }).from(aiSettings).limit(1));
   const enabled = Boolean(row?.enabled);
@@ -210,11 +218,14 @@ export type AiAdminView = {
   missing: string[];
   model: string;
   embeddingModel: string;
+  /** The embedder in use; null = none, so the assistant searches by keyword through its tools (Voyage is optional). */
+  embedder: string | null;
   usage: { total: number; byPurpose: Record<string, number> };
   /** Provider keys stored for the organization — masked; the key never leaves the server (ADR-085). */
   credentials: AiCredentialView[];
   /** Per provider: an active organization credential is in use (otherwise the environment keys, if any). */
   sources: { anthropic: boolean; voyage: boolean };
+  envKeys: { anthropic: boolean; voyage: boolean };
 };
 
 export type AiCredentialView = {
@@ -269,12 +280,11 @@ export async function getAiAdmin(organizationId: string): Promise<AiAdminView> {
         monthlyTokenBudget: s?.monthlyTokenBudget ?? 0,
       },
       mode,
-      missing:
-        mode === 'live'
-          ? []
-          : missingAiEnv().filter((k) => !(k === 'ANTHROPIC_API_KEY' ? client.sources.anthropic : client.sources.voyage)),
+      // Only the writer is required: without Voyage the assistant uses keyword search (ADR-090).
+      missing: mode === 'off' ? missingAiEnv().filter((k) => k === 'ANTHROPIC_API_KEY' && !client.sources.anthropic) : [],
       model: client.completer?.model ?? env().AI_MODEL,
       embeddingModel: client.embedder?.model ?? env().AI_EMBEDDING_MODEL,
+      embedder: client.embedder?.model ?? null,
       usage: { total: Object.values(byPurpose).reduce((a, b) => a + b, 0), byPurpose },
       credentials: creds.map((c) => ({
         id: c.id,
@@ -290,6 +300,7 @@ export async function getAiAdmin(organizationId: string): Promise<AiAdminView> {
         usedThisMonth: byProvider.find((p) => p.provider === c.provider)?.n ?? 0,
       })),
       sources: { anthropic: Boolean(client.sources.anthropic), voyage: Boolean(client.sources.voyage) },
+      envKeys: { anthropic: Boolean(env().ANTHROPIC_API_KEY), voyage: Boolean(env().VOYAGE_API_KEY) },
     };
   });
 }

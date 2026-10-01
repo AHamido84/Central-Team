@@ -4,7 +4,7 @@ import { MoreHorizontal, Pencil, Plus, Send, Sparkles, Trash2, TriangleAlert } f
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Component, Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { DirIcon, EmptyState } from '@/components/patterns';
 import { useFormat } from '@/components/providers';
@@ -29,6 +29,7 @@ import { useAction } from '@/lib/actions/use-action';
 import { cn } from '@/lib/utils/cn';
 import { askAssistantAction, deleteConversationAction, renameConversationAction } from '@/modules/ai/server/actions';
 import type { AssistantMessage, ConversationSummary } from '@/modules/ai/server/assistant';
+import { fixableInSettings } from '@/modules/ai/errors';
 import type { Citation } from '@/modules/ai/types';
 
 /** Answer text with `[n]` markers as links to the cited records; "- " lines become a list. */
@@ -104,8 +105,41 @@ function Sources({ citations }: { citations: Citation[] }) {
   );
 }
 
-function Bubble({ message }: { message: AssistantMessage }) {
+/** The specific reason of a failed reply (FR3.2); older rows without a reason fall back to their status text. */
+function FailureText({ message, canManage }: { message: AssistantMessage; canManage: boolean }) {
   const t = useTranslations('ai.assistant');
+  const reason = message.reason;
+  return (
+    <div className="flex items-start gap-2 text-sm" data-testid="assistant-failure" data-reason={reason ?? message.status}>
+      <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <p>
+          {reason
+            ? t.rich(`reason.${reason}`, {
+                model: message.model ?? '—',
+                code: (chunks) => (
+                  <bdi dir="ltr" className="font-mono text-xs">
+                    {chunks}
+                  </bdi>
+                ),
+              })
+            : t(`status.${message.status}` as 'status.failed')}
+        </p>
+        {canManage && reason && fixableInSettings(reason) ? (
+          <Link
+            href="/admin/ai"
+            className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline"
+            data-testid="assistant-fix-settings"
+          >
+            {t('fixInSettings')}
+          </Link>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function Bubble({ message, canManage }: { message: AssistantMessage; canManage: boolean }) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end" data-testid="message-user">
@@ -126,10 +160,7 @@ function Bubble({ message }: { message: AssistantMessage }) {
       </span>
       <Card className={cn('min-w-0 flex-1 px-4 py-3', problem && 'border-warning/40 bg-warning-soft/40')}>
         {problem ? (
-          <p className="flex items-start gap-2 text-sm">
-            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
-            {t(`status.${message.status}` as 'status.failed')}
-          </p>
+          <FailureText message={message} canManage={canManage} />
         ) : (
           <>
             <AnswerText text={message.content} citations={message.citations} messageId={message.id} />
@@ -207,15 +238,56 @@ function ConversationMenu({ id, title }: { id: string; title: string }) {
   );
 }
 
-export function Assistant({
-  conversations,
-  conversation,
-  usable,
-}: {
+type AssistantProps = {
   conversations: ConversationSummary[];
   conversation: { id: string; title: string; messages: AssistantMessage[] } | null;
   usable: boolean;
-}) {
+  /** `ai:manage`: failures that settings can fix link to `/admin/ai`. */
+  canManage: boolean;
+};
+
+/**
+ * Last line of defence (FR3.2): if anything in the chat panel throws while rendering, only the panel shows a notice
+ * with "Try again"; the page header, navigation and the rest of the app stay usable.
+ */
+class ChatBoundary extends Component<{ fallback: (reset: () => void) => ReactNode; children: ReactNode }, { failed: boolean }> {
+  override state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  override componentDidCatch(error: unknown) {
+    console.error('[ai] assistant panel failed', error);
+  }
+  override render() {
+    return this.state.failed ? this.props.fallback(() => this.setState({ failed: false })) : this.props.children;
+  }
+}
+
+function PanelError({ reset }: { reset: () => void }) {
+  const t = useTranslations('ai.assistant');
+  return (
+    <Card className="p-4" role="alert" data-testid="assistant-panel-error">
+      <p className="flex items-center gap-2 text-sm font-medium">
+        <TriangleAlert className="size-4 shrink-0 text-warning" aria-hidden />
+        {t('panelErrorTitle')}
+      </p>
+      <p className="mt-1 text-sm text-muted-foreground">{t('panelErrorBody')}</p>
+      <Button size="sm" variant="outline" className="mt-3" onClick={reset}>
+        {t('panelRetry')}
+      </Button>
+    </Card>
+  );
+}
+
+export function Assistant(props: AssistantProps) {
+  return (
+    <ChatBoundary fallback={(reset) => <PanelError reset={reset} />}>
+      <AssistantPanel {...props} />
+    </ChatBoundary>
+  );
+}
+
+function AssistantPanel({ conversations, conversation, usable, canManage }: AssistantProps) {
   const t = useTranslations('ai.assistant');
   const f = useFormat();
   const router = useRouter();
@@ -254,7 +326,7 @@ export function Assistant({
       base: serverCount,
       items: [
         ...(e.base === serverCount ? e.items : []),
-        { id: `q-${res.data.message.id}`, role: 'user', content: q, citations: [], status: 'ok', createdAt: at },
+        { id: `q-${res.data.message.id}`, role: 'user', content: q, citations: [], status: 'ok', reason: null, model: null, createdAt: at },
         res.data.message,
       ],
     }));
@@ -338,11 +410,23 @@ export function Assistant({
             </Card>
           ) : null}
           {messages.map((m) => (
-            <Bubble key={m.id} message={m} />
+            <Bubble key={m.id} message={m} canManage={canManage} />
           ))}
           {pending ? (
             <>
-              <Bubble message={{ id: 'pending', role: 'user', content: pending, citations: [], status: 'ok', createdAt: '' }} />
+              <Bubble
+                message={{
+                  id: 'pending',
+                  role: 'user',
+                  content: pending,
+                  citations: [],
+                  status: 'ok',
+                  reason: null,
+                  model: null,
+                  createdAt: '',
+                }}
+                canManage={canManage}
+              />
               <div className="flex items-center gap-3 text-sm text-muted-foreground" data-testid="assistant-thinking">
                 <span className="flex size-7 items-center justify-center rounded-full bg-primary-soft text-primary-soft-foreground">
                   <Sparkles className="size-4 animate-pulse motion-reduce:animate-none" aria-hidden />

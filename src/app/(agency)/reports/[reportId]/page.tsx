@@ -8,6 +8,10 @@ import { getAiAvailability } from '@/modules/ai/server/queries';
 import { ReportBuilder } from '@/modules/campaigns/components/report-builder';
 import { getReport } from '@/modules/campaigns/server/queries';
 
+// Server Actions on this page call AI models (ADR-089): the provider timeout (90 s, one retry) and the assistant's
+// 200 s deadline end slow calls inside the function's 300 s limit (the Vercel maximum with fluid compute).
+export const maxDuration = 300;
+
 const isUuid = (v: string) => /^[0-9a-f-]{36}$/.test(v);
 
 export async function generateMetadata({ params }: { params: Promise<{ reportId: string }> }): Promise<Metadata> {

@@ -4,7 +4,8 @@
     "assistantOutro": "Open a source for the full details.",
     "commentaryIntro": "Summary of the period:",
     "nextStepsIntro": "Suggested next steps:",
-    "insightIntro": "What the numbers say:"
+    "insightIntro": "What the numbers say:",
+    "assistantNone": "I couldn't find records you can open about this."
   },
   "kind": {
     "spike": "Unusual jump",
@@ -178,7 +179,23 @@
       "lead": "Lead",
       "deal": "Deal",
       "insight": "Insight"
-    }
+    },
+    "reason": {
+      "ai_disabled": "AI is switched off for your agency. An admin can turn it on in AI settings.",
+      "ai_not_configured": "The AI provider isn't set up yet: there's no working Anthropic key.",
+      "ai_key_invalid": "Anthropic rejected the API key. Check the key in AI settings.",
+      "ai_model_unavailable": "The model <code>{model}</code> isn't available for this key. Pick another model in AI settings.",
+      "ai_no_credit": "The Anthropic account doesn't have enough credit for this request. Add credit, then try again.",
+      "ai_rate_limited": "Anthropic is rate-limiting requests for now. Try again in a minute.",
+      "ai_budget_exceeded": "Your agency has used this month's AI budget.",
+      "ai_timeout": "The request took too long. Try again.",
+      "ai_refused": "The AI model declined to answer this. Try rephrasing.",
+      "ai_unavailable": "The AI service didn't respond. Try again in a moment."
+    },
+    "fixInSettings": "Fix in AI settings",
+    "panelErrorTitle": "The conversation couldn't be shown",
+    "panelErrorBody": "Something went wrong in the assistant panel. The rest of the page works; try again.",
+    "panelRetry": "Try again"
   },
   "admin": {
     "title": "AI settings",
@@ -266,7 +283,70 @@
       "deleted": "Key deleted",
       "save": "Save",
       "cancel": "Cancel",
-      "masked": "Key"
+      "masked": "Key",
+      "notSet": "Not set",
+      "notSetOptional": "Not set — optional"
+    },
+    "test": {
+      "title": "Test assistant",
+      "hint": "Runs the whole chain once as you and shows each step. Uses a few thousand tokens.",
+      "run": "Test assistant",
+      "running": "Testing… this can take a minute.",
+      "ranAt": "Last test: {at}",
+      "ms": "{ms} ms",
+      "sampleQuestion": "Which requests are open right now?",
+      "step": {
+        "switch": "AI switch",
+        "budget": "Monthly budget",
+        "key": "Key decrypt",
+        "model": "Anthropic call with the configured model",
+        "embedder": "Embedder (or fallback)",
+        "retrieval": "Record retrieval",
+        "answer": "Final answer"
+      },
+      "status": {
+        "pass": "passed",
+        "warn": "warning",
+        "fail": "failed",
+        "skip": "not run"
+      },
+      "note": {
+        "switchOn": "AI is switched on.",
+        "budgetLeft": "{used} of {budget} tokens used this month.",
+        "decryptFailed": "A key is saved but could not be decrypted. Delete it and add it again.",
+        "noKey": "No active Anthropic key on this page or in the server settings.",
+        "keyMock": "The demo (mock) provider runs without keys.",
+        "keyOrg": "This organization's key {hint} was decrypted.",
+        "keyEnv": "The server-settings key is used.",
+        "modelOk": "{model} answered.",
+        "embedderNone": "No Voyage key: the assistant searches by keyword through its tools. Voyage is optional; it improves search quality.",
+        "embedderOk": "{model} works; the index holds {chunks, plural, one {# record} other {# records}}.",
+        "indexBuilding": "{model} works but the index is still building; keyword search is used until it is ready.",
+        "embedderFailed": "Voyage couldn't be reached; keyword search will be used.",
+        "sources": "{count, plural, one {# record} other {# records}} you can open were found for a sample question.",
+        "noSources": "No records were found for a sample question (there may be no open requests).",
+        "answerOk": "An answer with {citations, plural, one {# source} other {# sources}}. Tools: {tools}. Search: {retrieval, select, semantic {semantic} other {keyword}}.",
+        "answerNoCitations": "An answer arrived without sources. Tools: {tools}. Search: {retrieval, select, semantic {semantic} other {keyword}}."
+      },
+      "stepLabel": "{n}. {label}"
+    },
+    "search": {
+      "semantic": "Search: semantic, by {embedding}.",
+      "keyword": "Search: keyword search through the assistant's tools (no Voyage)."
+    },
+    "textBy": "Text by {model}.",
+    "keyCheck": {
+      "replaced": "{from} is no longer available for this key; we picked {to}.",
+      "keyFailed": "The key was saved but its check failed: {reason}"
+    },
+    "indexHealth": {
+      "model": "Index model: {model}",
+      "lastBuilt": "Last build: {at}",
+      "neverBuilt": "Not built yet",
+      "progress": "{progress}% complete",
+      "otherModel": "{count, plural, =0 {} one {# record from an earlier model being replaced} other {# records from an earlier model being replaced}}",
+      "unused": "The index is not used: without a Voyage key the assistant reads records directly through its tools and searches by keyword.",
+      "voyageOptional": "Voyage is optional; it improves search quality. Adding it or changing its model re-indexes automatically in the background."
     }
   },
   "index": {
