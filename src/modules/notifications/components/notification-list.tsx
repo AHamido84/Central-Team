@@ -38,12 +38,14 @@ import {
   MessageCircleX,
   Zap,
   Sparkles,
+  Building2,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { useFormat } from '@/components/providers';
-import { Avatar } from '@/components/ui/primitives';
+import { Avatar, Badge } from '@/components/ui/primitives';
+import { localized, type Locale } from '@/lib/i18n/localized';
 import { publicAssetUrl } from '@/lib/storage';
 import { cn } from '@/lib/utils/cn';
 import type { NotificationItem, NotificationType } from '@/modules/notifications/types';
@@ -52,6 +54,7 @@ const typeIcon: Record<NotificationType, typeof Bell> = {
   invitation_accepted: UserCheck,
   roles_changed: ShieldCheck,
   email_changed: Mail,
+  portal_access_granted: Building2,
   message_new: MessageSquare,
   mention: AtSign,
   file_shared: FileUp,
@@ -104,6 +107,7 @@ export function NotificationRow({
   compact?: boolean;
 }) {
   const t = useTranslations('notifications');
+  const locale = useLocale() as Locale;
   const f = useFormat();
   const Icon = typeIcon[item.type] ?? Bell;
   const title = t.has(`types.${item.type}.title`) ? t(`types.${item.type}.title`, item.params as never) : item.type;
@@ -127,20 +131,30 @@ export function NotificationRow({
       <div className="min-w-0 flex-1">
         <p className={cn('text-sm', item.readAt ? 'text-muted-foreground' : 'font-medium text-foreground')}>{title}</p>
         {body ? <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{body}</p> : null}
-        <p className="mt-1 text-xs text-subtle-foreground">{f.relative(item.createdAt)}</p>
+        <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-subtle-foreground">
+          {item.client ? (
+            <Badge tone="outline" data-testid="notification-client">
+              <bdi>{localized(item.client, locale)}</bdi>
+            </Badge>
+          ) : null}
+          {f.relative(item.createdAt)}
+        </p>
       </div>
       {!item.readAt ? <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" aria-label={t('unread')} /> : null}
     </div>
   );
+  // A link that opens another client (FR4.3) goes through the switch route: a full navigation, so the new client's
+  // cookie is set before the page renders.
+  const Anchor = item.link?.startsWith('/portal/switch') ? 'a' : Link;
   return item.link ? (
-    <Link
+    <Anchor
       href={item.link}
       onClick={() => onOpen?.(item)}
       className="block transition-colors hover:bg-surface-muted focus-visible:bg-surface-muted focus-visible:outline-none"
       data-testid="notification-item"
     >
       {content}
-    </Link>
+    </Anchor>
   ) : (
     <button
       type="button"

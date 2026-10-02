@@ -388,6 +388,75 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
    background; Test assistant's embedder step passes.
 8. Repeat the screens in AR / EN × light / dark × mobile / desktop.
 
+## Feedback Round 4 — IN PROGRESS (resume here)
+
+Plan: `docs/ROADMAP.md` → "Feedback Round 4". Branch: `claude/blissful-hawking-7crr14`. Nothing deployed yet.
+The owner's rules still hold: deploy only when they say so in the session, never store the Vercel token, end with a report and wait.
+
+**Done (backend + portal switching; lint, typecheck and i18n are green):**
+- Migrations `20261002142836_portal_multi_client.sql` (tables `portal_client_visits`, `portal_email_changes`,
+  `notification_client_preferences`, `notifications.client_id`) and `20261002142900_portal_multi_client_security.sql`
+  (permission `client_users:update_email` for super_admin/admin/account_manager, `app.active_client()`, which now
+  narrows `is_client_member` / `member_client_ids` / `visible_profile_ids`; also `app.my_portal_clients()`,
+  `app.touch_portal_client()`, `app.can_update_portal_email()` and the RLS for the new tables).
+- Active client (planned ADR-091): `withRls` sets `app.active_client` from `getPortalScope` (`src/lib/db/rls.ts`), which
+  picks cookie → last used → first. `requirePortal()` sends users to `/portal/choose` when they must choose.
+  `/portal/switch?client&next` sets the cookie. The switcher in `portal-shell.tsx` shows logos, the current client and
+  pending-approval badges. Switch links must be plain `<a>` (layouts persist across `<Link>`).
+- Server functions:
+  - `src/modules/clients/server/portal-users.ts` (list/search/lookup).
+  - `portal-email.ts` (direct change via the GoTrue admin API, ending sessions, audit row, `user.email_set_by_admin`;
+    confirm token, 48h).
+  - `portal-user-actions.ts`: search, lookup, add existing, change invitation email, change email (direct/confirm),
+    cancel, confirm.
+  - `createClientInvitation` returns `existing_portal_user` / `email_used_by_team_member`.
+- Notifications:
+  - `notify()` takes `clientId`, applies per-client overrides, adds the "[Client]" email prefix for multi-client
+    recipients and rewrites portal links through `/portal/switch`.
+  - The list shows a client badge.
+  - The `client_user.added` consumer sends "You now have access to <Client>".
+- Seed: `hala@group.test` / `Passw0rd!`. Owner in Darb Coffee, Member in Future Smile, Viewer in Najd Heritage
+  (`scripts/seed-multi-client.ts`; `deploy-db.ts` runs the standalone version).
+- Verified in the browser as Hala: choose screen → scoped data; the switcher switches.
+
+**Left to build:**
+1. FR4.1 UI:
+   - A "Change email" row action on client page → Portal users (active users and pending invitations) and in
+     Admin → Users for portal users.
+   - The dialog: direct (default) / confirm toggle, error messages, an "add the existing user instead" offer, a
+     pending-email indicator and cancel.
+   - A public page `src/app/(auth)/email-change/confirm/page.tsx` calling `confirmPortalEmailChangeAction`. Check that
+     the proxy allows this public path.
+2. FR4.2 UI:
+   - `InviteClientUserDialog` becomes autocomplete (`searchPortalUsersAction`, plus `lookupPortalEmailAction` on blur).
+     For an existing user, ask "Add them?", then call `addExistingPortalUserAction`.
+   - A portal user drawer with a Clients section: add, change role/approval, remove per client, and deactivate the
+     account separately. An Owner sees only their own client.
+   - A "Portal users" tab in Admin → Users (`listPortalUsers`).
+3. FR4.3:
+   - Per-client notification preferences in portal settings (table `notification_client_preferences`).
+   - The switcher in the mobile menu.
+4. Tests:
+   - DB:
+     - data of A only while A is selected;
+     - no approval in B;
+     - removal is immediate;
+     - an Owner of A can't see the membership in B;
+     - email-change rules.
+   - Unit: `safePortalPath`, `clientLink`.
+   - e2e:
+     - pending-invite email change (Mailpit);
+     - direct change, then login with the new address;
+     - add an existing user to a second client, then switch;
+     - a notification click switches client.
+   - Then `pnpm check`, `pnpm db:reset && pnpm test:db`, `pnpm test:e2e`, `pnpm build`.
+5. Docs:
+   - ADR-091 (active client in RLS; note that browser realtime has no active client, so it sees all of the user's
+     own memberships), ADR-092 (portal email change), ADR-093 (multi-client memberships, per-client notifications).
+   - The CLAUDE.md FR4 row and the service-role list.
+   - ROADMAP checkboxes and a manual checklist here.
+6. Deploy only when the owner says so, verify on https://centralteam.vercel.app, then report and wait.
+
 ## Starting a new session
 
 1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md` (latest: "Feedback Round 3"), and `docs/DECISIONS.md` (next ADR:

@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { defineAction } from '@/lib/actions/define-action';
 import type { ActionResult } from '@/lib/actions/errors';
 import { getSession } from '@/lib/auth/session';
-import { withRls } from '@/lib/db/rls';
+import { getPortalScope, withRls } from '@/lib/db/rls';
 import { notificationPreferences, notifications, profiles } from '@/lib/db/schema';
 import { notificationCategories, type NotificationItem, type NotificationType } from '@/modules/notifications/types';
 
@@ -24,6 +24,7 @@ export async function listNotificationsAction(input: {
         type: notifications.type,
         params: notifications.params,
         link: notifications.link,
+        clientId: notifications.clientId,
         readAt: notifications.readAt,
         createdAt: notifications.createdAt,
         actorName: profiles.fullName,
@@ -38,6 +39,10 @@ export async function listNotificationsAction(input: {
       .select({ n: sql<number>`count(*)::int` })
       .from(notifications)
       .where(and(eq(notifications.userId, session.userId), isNull(notifications.readAt)));
+    // Multi-client portal users see which client each item is about (FR4.3); names come from their own client list,
+    // because the request is scoped to the selected client.
+    const scope = await getPortalScope(session);
+    const clientName = (id: string | null) => (scope.clients.length > 1 ? (scope.clients.find((c) => c.id === id)?.name ?? null) : null);
     return {
       items: rows.map((r) => ({
         id: r.id,
@@ -47,6 +52,7 @@ export async function listNotificationsAction(input: {
         readAt: r.readAt?.toISOString() ?? null,
         createdAt: r.createdAt.toISOString(),
         actor: r.actorName ? { name: r.actorName, avatarPath: r.actorAvatar } : null,
+        client: clientName(r.clientId),
       })),
       unread: count?.n ?? 0,
     };

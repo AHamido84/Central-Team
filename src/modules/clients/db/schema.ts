@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { boolean, check, date, index, integer, jsonb, pgTable, primaryKey, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { boolean, check, date, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { createdAt, id, isDemo, localized, softDelete, updatedAt } from '@/lib/db/columns';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
@@ -197,4 +197,56 @@ export const packageUsageEntries = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index('package_usage_entries_package_idx').on(t.clientPackageId, t.itemType)],
+);
+
+/**
+ * When a portal user last opened each of their clients (FR4.3): the next sign-in starts in the latest one. Kept apart
+ * from `client_users`, which is audited — a client switch is not an access change. Written by `app.touch_portal_client`.
+ */
+export const portalClientVisits = pgTable(
+  'portal_client_visits',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => profiles.id, { onDelete: 'cascade' }),
+    clientId: uuid('client_id')
+      .notNull()
+      .references(() => clients.id, { onDelete: 'cascade' }),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.clientId] })],
+);
+
+/**
+ * An admin's "ask the user to confirm" email change for a portal user (FR4.1, ADR-092): a single-use token sent to the
+ * new address, stored hashed, expiring. Opening the link applies the change; written and read by the service path only.
+ */
+export const portalEmailChanges = pgTable(
+  'portal_email_changes',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => profiles.id, { onDelete: 'cascade' }),
+    clientId: uuid('client_id').references(() => clients.id, { onDelete: 'set null' }),
+    fromEmail: text('from_email').notNull(),
+    toEmail: text('to_email').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    requestedBy: uuid('requested_by').references(() => profiles.id, { onDelete: 'set null' }),
+    status: text('status').notNull().default('pending'),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('portal_email_changes_token_key').on(t.tokenHash),
+    index('portal_email_changes_user_idx').on(t.userId, t.status),
+    check('portal_email_changes_status_check', sql`${t.status} in ('pending','completed','cancelled','expired')`),
+  ],
 );

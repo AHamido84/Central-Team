@@ -97,6 +97,8 @@ export const notifications = pgTable(
     link: text('link'),
     actorId: uuid('actor_id').references(() => profiles.id, { onDelete: 'set null' }),
     eventId: uuid('event_id').references(() => domainEvents.id, { onDelete: 'set null' }),
+    /** The client the notification is about (FR4.3): labelled and opened in that client for multi-client portal users. FK in SQL. */
+    clientId: uuid('client_id'),
     readAt: timestamp('read_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
@@ -119,6 +121,27 @@ export const notificationPreferences = pgTable(
     whatsapp: boolean('whatsapp').notNull().default(false),
   },
   (t) => [primaryKey({ columns: [t.userId, t.organizationId, t.category] })],
+);
+
+/**
+ * Per-client overrides of a portal user's notification preferences (FR4.3): the organization-wide row in
+ * `notification_preferences` is the default; a row here wins for that client. FK to clients in SQL.
+ */
+export const notificationClientPreferences = pgTable(
+  'notification_client_preferences',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => profiles.id, { onDelete: 'cascade' }),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    clientId: uuid('client_id').notNull(),
+    category: text('category').notNull(),
+    inApp: boolean('in_app').notNull().default(true),
+    email: boolean('email').notNull().default(true),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.clientId, t.category] })],
 );
 
 export const rateLimits = pgTable('rate_limits', {

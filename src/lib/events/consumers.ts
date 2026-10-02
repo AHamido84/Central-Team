@@ -4,6 +4,7 @@ import type { Consumer } from '@/lib/events/dispatcher';
 import { aiAnalysis, aiIndexer, aiNotifications, aiReportDrafts } from '@/modules/ai/server/consumers';
 import { automationEngine } from '@/modules/automations/server/engine';
 import { campaignNotifications } from '@/modules/campaigns/server/consumers';
+import { portalAccessNotifications } from '@/modules/clients/server/consumers';
 import { crmNotifications } from '@/modules/crm/server/consumers';
 import { deliverableNotifications } from '@/modules/deliverables/server/consumers';
 import { fileNotifications } from '@/modules/files/server/consumers';
@@ -28,6 +29,7 @@ export const consumers: readonly Consumer[] = [
   invitationNotifications,
   roleNotifications,
   emailChangeNotifications,
+  portalAccessNotifications,
   taskNotifications,
   deliverableNotifications,
   campaignNotifications,

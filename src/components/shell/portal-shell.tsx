@@ -16,50 +16,89 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   Sheet,
   SheetContent,
   SheetTitle,
 } from '@/components/ui/overlays';
-import { Avatar } from '@/components/ui/primitives';
+import { Avatar, Badge } from '@/components/ui/primitives';
+import { useAction } from '@/lib/actions/use-action';
 import { cn } from '@/lib/utils/cn';
 import { NotificationBell } from '@/modules/notifications/components/notification-bell';
 import { switchClientAction } from '@/modules/clients/server/portal-actions';
 
 function ClientSwitcher({ data }: { data: ShellData }) {
   const t = useTranslations('nav');
+  const tp = useTranslations('portal.accounts');
   const router = useRouter();
+  const switchTo = useAction(switchClientAction, { refresh: false });
   if (!data.client) return null;
   const label = (
     <span className="flex min-w-0 items-center gap-2">
       <Avatar name={data.client.name} src={data.client.logoUrl} size="xs" square />
-      <span className="truncate text-sm font-medium">{data.client.name}</span>
+      <span className="max-w-[9rem] truncate text-sm font-medium sm:max-w-[14rem]">{data.client.name}</span>
     </span>
   );
   if (data.clients.length <= 1) return <div className="hidden min-w-0 sm:block">{label}</div>;
+  // Approvals waiting in the *other* clients: a dot on the trigger so they aren't missed.
+  const elsewhere = data.clients.filter((c) => c.id !== data.client?.id).reduce((n, c) => n + c.pendingApprovals, 0);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="flex min-w-0 items-center gap-1 rounded-md px-2 py-1 hover:bg-surface-muted"
+        className="relative flex min-w-0 items-center gap-1 rounded-md px-2 py-1 hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         aria-label={t('switchClient')}
+        data-testid="client-switcher"
       >
         {label}
-        <ChevronsUpDown className="size-3.5 text-subtle-foreground" aria-hidden />
+        <ChevronsUpDown className="size-3.5 shrink-0 text-subtle-foreground" aria-hidden />
+        {elsewhere > 0 ? (
+          <span
+            className="absolute end-0 -top-0.5 size-2 rounded-full bg-warning"
+            aria-label={tp('pendingElsewhere', { count: elsewhere })}
+          />
+        ) : null}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent align="start" className="w-72">
         <DropdownMenuLabel>{t('switchClient')}</DropdownMenuLabel>
-        {data.clients.map((c) => (
-          <DropdownMenuItem
-            key={c.id}
-            onSelect={async () => {
-              await switchClientAction({ clientId: c.id });
-              router.refresh();
-            }}
-          >
-            <span className="flex-1">{c.name}</span>
-            {c.id === data.client?.id ? <Check className="text-primary!" /> : null}
-          </DropdownMenuItem>
-        ))}
+        {data.clients.map((c) => {
+          const current = c.id === data.client?.id;
+          return (
+            <DropdownMenuItem
+              key={c.id}
+              aria-current={current ? 'true' : undefined}
+              data-testid="client-switcher-item"
+              data-client-id={c.id}
+              className={cn(current && 'bg-primary-soft text-primary-soft-foreground')}
+              onSelect={async () => {
+                if (current) return;
+                const res = await switchTo.run({ clientId: c.id });
+                if (res.ok) {
+                  router.push('/portal');
+                  router.refresh();
+                }
+              }}
+            >
+              <Avatar name={c.name} src={c.logoUrl} size="xs" square />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate">{c.name}</span>
+                <span className="truncate text-xs text-subtle-foreground">{c.roleName}</span>
+              </span>
+              {c.pendingApprovals > 0 ? (
+                <Badge tone="warning" aria-label={tp('pendingApprovals', { count: c.pendingApprovals })}>
+                  {c.pendingApprovals}
+                </Badge>
+              ) : null}
+              {current ? <Check className="text-primary!" aria-hidden /> : null}
+            </DropdownMenuItem>
+          );
+        })}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/portal/choose" data-testid="client-switcher-all">
+            {tp('allAccounts')}
+          </Link>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

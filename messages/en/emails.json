@@ -33,5 +33,15 @@
   "testSubject": "Test email from {brand}",
   "testHeading": "Your mail settings work",
   "testBody": "This test was sent through {sender} at {time}. Platform emails will look like this.",
-  "testCta": "Open Central"
+  "testCta": "Open Central",
+  "portalEmailConfirmSubject": "Confirm your new sign-in email",
+  "portalEmailConfirmHeading": "Confirm your new email",
+  "portalEmailConfirmBody": "{admin} at {org} asked to make {email} the sign-in email of your portal account. Nothing changes until you confirm.",
+  "portalEmailConfirmCta": "Confirm the new email",
+  "portalEmailConfirmNote": "The link expires in {hours} hours. If you didn't expect this, ignore this email.",
+  "emailChangedByAdminBody": "{admin} changed the sign-in email of your account from {from} to {to}. Emails go to the new address from now on, and you were signed out of other devices.",
+  "accessGrantedSubject": "You now have access to {client}",
+  "accessGrantedHeading": "New access in the portal",
+  "accessGrantedBody": "{actor} added you to {client} as {role}. Sign in with your existing account and pick {client} from your accounts.",
+  "accessGrantedCta": "Open {client}"
 }

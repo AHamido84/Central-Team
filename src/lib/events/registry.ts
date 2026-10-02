@@ -35,6 +35,10 @@ export type DomainEventPayloads = {
   'client.created': { clientId: string };
   'client.updated': { clientId: string; fields: string[] };
   'client_user.updated': { clientId: string; userId: string; fields: string[] };
+  // Feedback Round 4: an existing portal user added to another client; an admin asked a portal user to confirm a new email.
+  'client_user.added': { clientId: string; userId: string; roleKey: string };
+  'client_user.email_change_requested': { userId: string; from: string; to: string };
+  'invitation.email_changed': { from: string; to: string; previousInvitationId: string };
   'client_package.assigned': { clientId: string; clientPackageId: string; packageId: string };
   'package.created': { packageId: string };
   'package.updated': { packageId: string };

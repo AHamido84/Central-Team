@@ -86,6 +86,12 @@ async function main() {
           env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
         });
         if (ai.status !== 0) throw new Error(`AI seed failed with exit code ${ai.status}`);
+        // And Feedback Round 4: one portal user in three clients (hala@group.test), once.
+        const multi = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-multi-client-standalone.ts'], {
+          stdio: 'inherit',
+          env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
+        });
+        if (multi.status !== 0) throw new Error(`multi-client seed failed with exit code ${multi.status}`);
       } else {
         const [org] = await sql<{ count: number }[]>`select count(*)::int as count from public.organizations`;
         if ((org?.count ?? 0) === 0) {

@@ -9,6 +9,7 @@ import { clients, invitations, organizationMembers, profiles, roles } from '@/li
 import { emailTranslator, sendActionEmail } from '@/lib/email/send';
 import { emitEvent } from '@/lib/events/emit';
 import { localized, type Locale } from '@/lib/i18n/localized';
+import { lookupPortalEmail } from '@/modules/clients/server/portal-users';
 import { generateInvitationToken, invitationExpiry } from '@/modules/invitations/server/tokens';
 
 type InvitationRow = typeof invitations.$inferSelect;
@@ -79,8 +80,10 @@ export type ClientInvitationInput = {
  * won-deal conversion). The email goes out after commit with `sendInvitationEmail`.
  */
 export async function createClientInvitation(tx: Tx, ctx: AppContext, input: ClientInvitationInput) {
-  if (await isExistingActiveMember(ctx.organization.id, input.email)) throw new ActionFailure('already_member');
-  if (await isExistingActiveMember(ctx.organization.id, input.email)) throw new ActionFailure('already_member');
+  // FR4.2: an existing portal user is added to the client (no invitation); a team member can't be a portal user.
+  const existing = await lookupPortalEmail(ctx.organization.id, input.email, input.clientId);
+  if (existing.kind === 'agency_member') throw new ActionFailure('email_used_by_team_member');
+  if (existing.kind === 'portal_user') throw new ActionFailure(existing.inClient ? 'already_member' : 'existing_portal_user');
   const [role] = await tx
     .select({ id: roles.id })
     .from(roles)

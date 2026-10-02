@@ -42,5 +42,15 @@
       "body": "You'll see the publishing schedule and delivery dates for each campaign here."
     }
   },
-  "reviewAwaiting": "{count, plural, one {Review # item awaiting your approval} other {Review # items awaiting your approval}}"
+  "reviewAwaiting": "{count, plural, one {Review # item awaiting your approval} other {Review # items awaiting your approval}}",
+  "accounts": {
+    "chooseTitle": "Choose an account",
+    "chooseDescription": "You have access to more than one company. Pick the one to work on now; you can switch any time from the top of the page.",
+    "current": "Current",
+    "canApprove": "Approves deliverables",
+    "pendingApprovals": "{count, plural, one {# approval waiting} other {# approvals waiting}}",
+    "pendingElsewhere": "{count, plural, one {# approval waiting in another account} other {# approvals waiting in other accounts}}",
+    "allAccounts": "All accounts",
+    "switchHint": "{count} accounts — each one shows only its own data."
+  }
 }

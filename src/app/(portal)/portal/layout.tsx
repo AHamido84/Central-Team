@@ -3,11 +3,12 @@ import type { ReactNode } from 'react';
 
 import { PortalShell } from '@/components/shell/portal-shell';
 import { toShellData } from '@/components/shell/shell-data';
-import { requirePortal } from '@/lib/auth/context';
+import { requirePortalChooser } from '@/lib/auth/context';
 
 /** Layer 2 of side separation: re-validates an active client membership against the database. */
 export default async function PortalLayout({ children }: { children: ReactNode }) {
-  const ctx = await requirePortal();
+  // Pages that show a client's data call requirePortal() (which asks to choose an account first when needed).
+  const ctx = await requirePortalChooser();
   const locale = await getLocale();
   const data = toShellData(ctx, locale);
   const brand = data.organization.brandColor;

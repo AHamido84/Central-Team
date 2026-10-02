@@ -14,7 +14,7 @@ export type ShellData = {
   superAdmin: boolean;
   flags: Record<string, boolean>;
   client: { id: string; name: string; logoUrl: string | null; roleName: string } | null;
-  clients: { id: string; name: string }[];
+  clients: { id: string; name: string; logoUrl: string | null; roleName: string; pendingApprovals: number }[];
 };
 
 export function toShellData(ctx: AppContext, locale: Locale): ShellData {
@@ -43,7 +43,16 @@ export function toShellData(ctx: AppContext, locale: Locale): ShellData {
             roleName: localized(ctx.client.roleName, locale),
           }
         : null,
-    clients: ctx.side === 'client' ? ctx.clients.map((c) => ({ id: c.id, name: localized(c.name, locale) })) : [],
+    clients:
+      ctx.side === 'client'
+        ? ctx.clients.map((c) => ({
+            id: c.id,
+            name: localized(c.name, locale),
+            logoUrl: publicAssetUrl(c.logoPath),
+            roleName: localized(c.roleName, locale),
+            pendingApprovals: c.pendingApprovals,
+          }))
+        : [],
   };
 }
 

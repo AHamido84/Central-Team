@@ -1,3 +1,5 @@
+import type { LocalizedText } from '@/lib/i18n/localized';
+
 /** Notification catalog. Each type has `notifications.types.<type>.title|body` translations. */
 export const notificationCategories = [
   'account',
@@ -19,6 +21,7 @@ export const notificationTypes = {
   invitation_accepted: 'account',
   roles_changed: 'account',
   email_changed: 'account',
+  portal_access_granted: 'account',
   message_new: 'messages',
   mention: 'messages',
   file_shared: 'files',
@@ -71,4 +74,6 @@ export type NotificationItem = {
   readAt: string | null;
   createdAt: string;
   actor: { name: string; avatarPath: string | null } | null;
+  /** The client it's about, for portal users with several clients (FR4.3). */
+  client?: LocalizedText | null;
 };

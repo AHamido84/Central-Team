@@ -28,6 +28,7 @@ export const agencyPermissions = [
   'clients:create',
   'clients:update',
   'client_users:manage',
+  'client_users:update_email',
   'packages:manage',
   'packages:assign',
   'files:upload',

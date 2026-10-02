@@ -185,6 +185,10 @@
     "mail_limit": {
       "title": "اقتربت من حد الإرسال اليومي",
       "body": "أُرسلت {sent} من {limit} رسالة اليوم عبر المرسل المضبوط."
+    },
+    "portal_access_granted": {
+      "title": "أصبح لديك وصول إلى {client}",
+      "body": "أضافك {actor} إلى {client} بدور {role}. اختر {client} من قائمة الحسابات للتبديل."
     }
   }
 }

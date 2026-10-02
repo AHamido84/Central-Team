@@ -33,5 +33,15 @@
   "testSubject": "رسالة تجريبية من {brand}",
   "testHeading": "إعدادات البريد تعمل",
   "testBody": "أُرسلت هذه الرسالة التجريبية عبر {sender} في {time}. ستبدو رسائل المنصة بهذا الشكل.",
-  "testCta": "فتح سنترال"
+  "testCta": "فتح سنترال",
+  "portalEmailConfirmSubject": "أكّد بريد الدخول الجديد",
+  "portalEmailConfirmHeading": "أكّد بريدك الجديد",
+  "portalEmailConfirmBody": "طلب {admin} من {org} أن يصبح {email} بريد الدخول لحسابك في البوابة. لن يتغيّر شيء حتى تؤكّد.",
+  "portalEmailConfirmCta": "تأكيد البريد الجديد",
+  "portalEmailConfirmNote": "ينتهي الرابط خلال {hours} ساعة. إن لم تتوقّع هذا الطلب فتجاهل الرسالة.",
+  "emailChangedByAdminBody": "غيّر {admin} بريد الدخول لحسابك من {from} إلى {to}. ستصل الرسائل إلى العنوان الجديد من الآن، وسُجّل خروجك من الأجهزة الأخرى.",
+  "accessGrantedSubject": "أصبح لديك وصول إلى {client}",
+  "accessGrantedHeading": "وصول جديد في البوابة",
+  "accessGrantedBody": "أضافك {actor} إلى {client} بدور {role}. سجّل الدخول بحسابك الحالي واختر {client} من قائمة الحسابات.",
+  "accessGrantedCta": "فتح {client}"
 }

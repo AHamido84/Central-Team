@@ -185,6 +185,10 @@
     "mail_limit": {
       "title": "Close to today's sending limit",
       "body": "{sent} of {limit} emails sent today through the configured sender."
+    },
+    "portal_access_granted": {
+      "title": "You now have access to {client}",
+      "body": "{actor} added you to {client} as {role}. Pick {client} from your accounts to switch."
     }
   }
 }

@@ -24,6 +24,7 @@ import { seedIntegrationsData } from './seed-integrations';
 import { seedSlaData } from './seed-sla';
 import { seedRequestsData } from './seed-requests';
 import { seedTasksData } from './seed-tasks';
+import { seedMultiClientUser } from './seed-multi-client';
 
 config({ path: '.env.local' });
 
@@ -948,6 +949,9 @@ async function main() {
       createdAt: daysAgo(5),
     },
   ]);
+
+  // Feedback Round 4: one portal user in three clients with a different role in each.
+  await seedMultiClientUser(db, supabase, ORG_ID, SEED_PASSWORD);
 
   // Everything above is demo data: Settings → Data management can remove it in one go (ADR-081).
   await db.execute(sql`select app.mark_demo_data(${ORG_ID}::uuid)`);
