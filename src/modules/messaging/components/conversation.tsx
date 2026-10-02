@@ -2,7 +2,7 @@
 
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CheckCheck, Lock, MessagesSquare } from 'lucide-react';
+import { ArrowLeft, CheckCheck, Lock, MessagesSquare, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -11,17 +11,58 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { DirIcon, EmptyState, FileTypeIcon } from '@/components/patterns';
 import { useFormat } from '@/components/providers';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/input';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/overlays';
 import { Avatar, AvatarGroup, Badge, Tooltip } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
 import { publicAssetUrl } from '@/lib/storage';
 import { ensureRealtimeAuth, getSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { cn } from '@/lib/utils/cn';
+import { DeleteDialog } from '@/modules/data/components/delete-dialog';
 import { FilePreviewDialog } from '@/modules/files/components/file-preview';
 import type { FileItem } from '@/modules/files/server/queries';
 import { parseBody } from '@/modules/messaging/mentions';
 import { Composer } from '@/modules/messaging/components/composer';
-import { loadThreadAction, markThreadReadAction, postCommentAction } from '@/modules/messaging/server/actions';
+import { editCommentAction, loadThreadAction, markThreadReadAction, postCommentAction } from '@/modules/messaging/server/actions';
 import type { CommentView, ThreadDetail } from '@/modules/messaging/server/queries';
+
+function EditMessage({ initial, onCancel, onSave }: { initial: string; onCancel: () => void; onSave: (body: string) => Promise<void> }) {
+  const t = useTranslations('messaging.own');
+  const [body, setBody] = useState(initial);
+  const [pending, setPending] = useState(false);
+  return (
+    <form
+      className="grid min-w-56 gap-2"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setPending(true);
+        await onSave(body.trim());
+        setPending(false);
+      }}
+    >
+      <Textarea
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        aria-label={t('editLabel')}
+        dir="auto"
+        rows={3}
+        maxLength={10000}
+        className="bg-surface text-foreground"
+        autoFocus
+        onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), onCancel())}
+        data-testid="message-edit-input"
+      />
+      <span className="flex justify-end gap-2">
+        <Button type="button" size="sm" variant="outline" onClick={onCancel}>
+          {t('cancel')}
+        </Button>
+        <Button type="submit" size="sm" disabled={!body.trim()} loading={pending} data-testid="message-edit-save">
+          {t('save')}
+        </Button>
+      </span>
+    </form>
+  );
+}
 
 function Body({ body, mine }: { body: string; mine: boolean }) {
   return (
@@ -70,12 +111,19 @@ export function Conversation({
   side,
   canWrite,
   backHref,
+  refreshOnRead = true,
 }: {
   initial: ThreadDetail;
   me: { userId: string };
   side: 'agency' | 'client';
   canWrite: boolean;
-  backHref: string;
+  /**
+   * Refresh server data (thread list unread counts) after the read receipt. Off where no unread counts are on screen
+   * (the task drawer): a refresh there re-rendered the whole Tasks page on the server each time a task opened.
+   */
+  refreshOnRead?: boolean;
+  /** Mobile "back to list" link; omitted when the conversation is embedded (e.g. on a request page). */
+  backHref?: string;
 }) {
   const t = useTranslations('messaging');
   const f = useFormat();
@@ -93,7 +141,7 @@ export function Conversation({
     },
   });
   const [preview, setPreview] = useState<FileItem | null>(null);
-  const bottom = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
   const post = useAction(postCommentAction, { refresh: false });
 
   // Realtime: new comments / read receipts in this thread (RLS filters what each user receives).
@@ -104,7 +152,7 @@ export function Conversation({
       if (cancelled) return;
       channel = supabase
         .channel(`thread:${threadId}:${crypto.randomUUID()}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments', filter: `thread_id=eq.${threadId}` }, () => {
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'comments', filter: `thread_id=eq.${threadId}` }, () => {
           void queryClient.invalidateQueries({ queryKey: key });
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'thread_reads', filter: `thread_id=eq.${threadId}` }, () => {
@@ -122,9 +170,17 @@ export function Conversation({
   const lastId = data.comments.at(-1)?.id;
   useEffect(() => {
     // Refresh server data (thread list unread counts) after recording the read receipt.
-    void markThreadReadAction({ threadId }).then(() => router.refresh());
-    bottom.current?.scrollIntoView({ block: 'end' });
-  }, [threadId, lastId, router]);
+    void markThreadReadAction({ threadId }).then(() => {
+      if (refreshOnRead) router.refresh();
+    });
+    // Scroll the message list only — never the page (the conversation can be embedded, e.g. on a request page).
+    const el = scroller.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [threadId, lastId, router, refreshOnRead]);
+
+  const [editing, setEditing] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const edit = useAction(editCommentAction, { refresh: false });
 
   const send = async (payload: { body: string; internal: boolean; attachmentIds: string[] }) => {
     const res = await post.run({ threadId, ...payload });
@@ -150,11 +206,13 @@ export function Conversation({
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="conversation">
       <header className="flex items-center gap-3 border-b border-border px-4 py-3">
-        <Button asChild variant="ghost" size="icon-sm" className="md:hidden" aria-label={t('backToList')}>
-          <Link href={backHref}>
-            <DirIcon icon={ArrowLeft} />
-          </Link>
-        </Button>
+        {backHref ? (
+          <Button asChild variant="ghost" size="icon-sm" className="md:hidden" aria-label={t('backToList')}>
+            <Link href={backHref}>
+              <DirIcon icon={ArrowLeft} />
+            </Link>
+          </Button>
+        ) : null}
         <div className="min-w-0 flex-1">
           <h2 className="flex items-center gap-2 truncate font-semibold">
             {data.thread.title}
@@ -170,7 +228,7 @@ export function Conversation({
         <AvatarGroup size="xs" max={5} people={others.map((p) => ({ id: p.userId, name: p.name, src: publicAssetUrl(p.avatarPath) }))} />
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4" aria-live="polite">
+      <div ref={scroller} className="flex-1 overflow-y-auto px-4 py-4" aria-live="polite">
         {data.comments.length === 0 ? (
           <EmptyState icon={MessagesSquare} title={t('emptyThread')} description={t('emptyThreadBody')} />
         ) : (
@@ -217,13 +275,53 @@ export function Conversation({
                               {t('internalNote')}
                             </p>
                           ) : null}
-                          <Body body={c.body} mine={mine && !internal} />
+                          {editing === c.id ? (
+                            <EditMessage
+                              initial={c.body}
+                              onCancel={() => setEditing(null)}
+                              onSave={async (body) => {
+                                const res = await edit.run({ commentId: c.id, body });
+                                if (res.ok) {
+                                  setEditing(null);
+                                  await queryClient.invalidateQueries({ queryKey: key });
+                                }
+                              }}
+                            />
+                          ) : (
+                            <Body body={c.body} mine={mine && !internal} />
+                          )}
                           <Attachments files={c.attachments} onOpen={setPreview} />
                         </div>
-                        <p className="mt-1 text-[0.6875rem] text-subtle-foreground">
+                        <p className={cn('mt-1 flex items-center gap-1 text-[0.6875rem] text-subtle-foreground', mine && 'justify-end')}>
                           <Tooltip content={f.dateTime(c.createdAt)}>
                             <time dateTime={c.createdAt}>{f.time(c.createdAt)}</time>
                           </Tooltip>
+                          {c.editedAt ? <span>· {t('own.edited')}</span> : null}
+                          {mine && canWrite ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="size-6"
+                                  aria-label={t('own.actions')}
+                                  data-testid="message-actions"
+                                >
+                                  <MoreHorizontal className="size-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => setEditing(c.id)} data-testid="message-edit">
+                                  <Pencil />
+                                  {t('own.edit')}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem destructive onSelect={() => setDeleting(c.id)} data-testid="message-delete">
+                                  <Trash2 />
+                                  {t('own.delete')}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          ) : null}
                         </p>
                       </div>
                     </li>
@@ -239,9 +337,17 @@ export function Conversation({
             {t('seenBy', { names: f.list(seenBy.map((s) => s.name)) })}
           </p>
         ) : null}
-        <div ref={bottom} />
       </div>
 
+      {deleting ? (
+        <DeleteDialog
+          type="comment"
+          id={deleting}
+          open
+          onOpenChange={(o) => !o && setDeleting(null)}
+          onDeleted={() => void queryClient.invalidateQueries({ queryKey: key })}
+        />
+      ) : null}
       <div className="border-t border-border p-3">
         {canWrite ? (
           <Composer

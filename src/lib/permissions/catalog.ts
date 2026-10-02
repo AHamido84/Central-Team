@@ -1,6 +1,6 @@
 /**
- * Permission keys (resource:action). Must match `public.permissions` (seeded by migration
- * 20260928183500_reference_data.sql); a unit test checks the two stay in sync.
+ * Permission keys (resource:action). Must match `public.permissions` (seeded by the migrations in
+ * supabase/migrations); a unit test checks the two stay in sync.
  */
 export const agencyPermissions = [
   'organization:read',
@@ -33,6 +33,64 @@ export const agencyPermissions = [
   'files:upload',
   'files:manage',
   'messages:send',
+  'requests:read',
+  'requests:update',
+  'requests:triage',
+  'request_types:manage',
+  'tasks:read',
+  'tasks:create',
+  'tasks:update',
+  'tasks:delete',
+  'tasks:edit_all',
+  'tasks:edit_managed',
+  'workflows:manage',
+  'deliverables:manage',
+  'deliverables:review',
+  'time:read_all',
+  'campaigns:read',
+  'campaigns:manage',
+  'metrics:manage',
+  'reports:manage',
+  'operations:read',
+  'sla:manage',
+  'leads:read',
+  'leads:manage',
+  'deals:read',
+  'deals:manage',
+  'crm:manage_all',
+  'crm:admin',
+  'capacity:read',
+  'capacity:manage',
+  'integrations:read',
+  'integrations:manage',
+  'integrations:connect',
+  'automations:read',
+  'automations:manage',
+  'whatsapp:send',
+  'ai:use',
+  'ai:manage',
+  'mail:manage',
+  'clients:delete',
+  'clients:purge',
+  'client_users:delete',
+  'client_users:purge',
+  'users:delete',
+  'users:purge',
+  'packages:delete',
+  'packages:purge',
+  'request_types:delete',
+  'request_types:purge',
+  'workflows:delete',
+  'workflows:purge',
+  'requests:delete',
+  'requests:purge',
+  'tasks:purge',
+  'files:delete',
+  'files:purge',
+  'deliverables:delete',
+  'deliverables:purge',
+  'messages:delete',
+  'messages:purge',
 ] as const;
 
 export const clientPermissions = [
@@ -42,6 +100,7 @@ export const clientPermissions = [
   'portal_users:read',
   'portal_users:manage',
   'portal_company:update',
+  'portal_requests:create',
 ] as const;
 
 export type AgencyPermission = (typeof agencyPermissions)[number];

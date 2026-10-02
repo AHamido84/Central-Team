@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { BadgeCheck, MailPlus, MoreHorizontal, RotateCw, UserPlus, Users, XCircle } from 'lucide-react';
+import { BadgeCheck, MailPlus, MoreHorizontal, RotateCw, Trash2, UserPlus, Users, XCircle } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -24,6 +24,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/overlays';
 import { Avatar, Badge, Card, NativeSelect, Switch } from '@/components/ui/primitives';
@@ -32,6 +33,7 @@ import { languageNames, localized, type Locale, type LocalizedText } from '@/lib
 import { publicAssetUrl } from '@/lib/storage';
 import { clientRoleKeys, type ClientRoleKey } from '@/modules/clients/constants';
 import { updateClientUserAction } from '@/modules/clients/server/actions';
+import { DeleteDialog } from '@/modules/data/components/delete-dialog';
 import type { ClientInvitation, ClientPortalUser } from '@/modules/clients/server/queries';
 import { inviteClientUserAction, resendInvitationAction, revokeInvitationAction } from '@/modules/invitations/server/actions';
 
@@ -167,8 +169,11 @@ export function ClientUsersManager({
   invitations,
   roles,
   canManage,
+  canDelete = false,
   meUserId,
 }: {
+  /** Agency side only: portal users go to the Trash (ADR-080). */
+  canDelete?: boolean;
   clientId: string;
   clientName: string;
   users: ClientPortalUser[];
@@ -184,6 +189,7 @@ export function ClientUsersManager({
   const resend = useAction(resendInvitationAction, { successMessage: t('admin.users.inviteResent') });
   const revoke = useAction(revokeInvitationAction, { successMessage: t('admin.users.inviteRevoked') });
   const [confirm, setConfirm] = useState<ClientPortalUser | null>(null);
+  const [deleting, setDeleting] = useState<ClientPortalUser | null>(null);
   const roleName = (key: string) => localized(roles.find((r) => r.key === key)?.name, locale);
 
   const change = (u: ClientPortalUser, patch: Partial<{ roleKey: ClientRoleKey; canApprove: boolean; status: 'active' | 'deactivated' }>) =>
@@ -197,6 +203,7 @@ export function ClientUsersManager({
 
   return (
     <div className="space-y-6" data-testid="client-users">
+      {deleting ? <DeleteDialog type="client_user" id={deleting.clientUserId} open onOpenChange={(o) => !o && setDeleting(null)} /> : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-semibold">{t('clients.users.title')}</h2>
@@ -266,7 +273,7 @@ export function ClientUsersManager({
                       {t('clients.users.approver')}
                     </Badge>
                   ) : null}
-                  {canManage && !self ? (
+                  {(canManage || canDelete) && !self ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon-sm" aria-label={t('common.moreActions')}>
@@ -285,6 +292,15 @@ export function ClientUsersManager({
                             {t('admin.users.reactivate')}
                           </DropdownMenuItem>
                         )}
+                        {canDelete ? (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem destructive onSelect={() => setDeleting(u)} data-testid="client-user-delete">
+                              <Trash2 />
+                              {t('common.delete')}
+                            </DropdownMenuItem>
+                          </>
+                        ) : null}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   ) : null}

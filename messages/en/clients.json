@@ -36,7 +36,9 @@
     "users": "Portal users",
     "package": "Package",
     "files": "Files",
-    "messages": "Messages"
+    "messages": "Messages",
+    "requests": "Requests",
+    "campaigns": "Campaigns"
   },
   "statuses": {
     "onboarding": "Onboarding",

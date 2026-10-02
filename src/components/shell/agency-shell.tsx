@@ -29,7 +29,7 @@ function SidebarNav({ data, collapsed, onNavigate }: { data: ShellData; collapse
   return (
     <nav className="flex-1 overflow-y-auto px-3 py-2" aria-label={t('agencyWorkspace')}>
       {agencyNav.map((section) => {
-        const items = section.items.filter((i) => isNavItemVisible(i, data.permissions, data.flags));
+        const items = section.items.filter((i) => isNavItemVisible(i, data.permissions, data.flags, data.superAdmin));
         if (items.length === 0) return null;
         return (
           <div key={section.key} className="mb-5">
@@ -110,7 +110,9 @@ export function AgencyShell({ data, initialCollapsed, children }: { data: ShellD
     });
   };
 
-  const paletteItems: NavItem[] = agencyNav.flatMap((s) => s.items.filter((i) => isNavItemVisible(i, data.permissions, data.flags)));
+  const paletteItems: NavItem[] = agencyNav.flatMap((s) =>
+    s.items.filter((i) => isNavItemVisible(i, data.permissions, data.flags, data.superAdmin)),
+  );
 
   return (
     <BreadcrumbProvider>

@@ -1,0 +1,91 @@
+import { z } from 'zod';
+
+import { localizedText } from '@/lib/validation';
+import { statusCategories, statusColors, taskPriorities } from '@/modules/tasks/constants';
+import { assigneeModes, deliverableTypes, MAX_STEPS, orderSteps } from '@/modules/workflows/constants';
+import { planSchema } from '@/modules/workflows/plan';
+
+const bilingual = (max: number) =>
+  z.object({ ar: z.string().trim().max(max, { message: 'too_long' }), en: z.string().trim().max(max, { message: 'too_long' }) });
+
+export const templateSettingsSchema = z.object({
+  name: localizedText(80),
+  description: bilingual(300),
+  requestTypeId: z.uuid().nullable(),
+  isActive: z.boolean(),
+  isDefault: z.boolean(),
+});
+export type TemplateSettingsInput = z.infer<typeof templateSettingsSchema>;
+
+export const templateStepSchema = z
+  .object({
+    id: z.uuid(),
+    name: localizedText(80),
+    description: bilingual(500),
+    departmentId: z.uuid().nullable(),
+    assigneeMode: z.enum(assigneeModes),
+    assigneeRoleId: z.uuid().nullable(),
+    assigneeUserId: z.uuid().nullable(),
+    slaDays: z.number().int().min(0, { message: 'number_min' }).max(60, { message: 'number_max' }),
+    dependsOn: z.array(z.uuid()).max(MAX_STEPS),
+    requiresInternalReview: z.boolean(),
+    requiresClientApproval: z.boolean(),
+    deliverableType: z.enum(deliverableTypes).nullable(),
+  })
+  .superRefine((s, ctx) => {
+    if (s.assigneeMode === 'role' && !s.assigneeRoleId) ctx.addIssue({ code: 'custom', message: 'required', path: ['assigneeRoleId'] });
+    if (s.assigneeMode === 'user' && !s.assigneeUserId) ctx.addIssue({ code: 'custom', message: 'required', path: ['assigneeUserId'] });
+    if ((s.requiresInternalReview || s.requiresClientApproval) && !s.deliverableType) {
+      ctx.addIssue({ code: 'custom', message: 'review_needs_deliverable', path: ['deliverableType'] });
+    }
+  });
+export type TemplateStepInput = z.infer<typeof templateStepSchema>;
+
+export const saveStepsSchema = z
+  .object({ templateId: z.uuid(), steps: z.array(templateStepSchema).min(1, { message: 'steps_min' }).max(MAX_STEPS) })
+  .superRefine((v, ctx) => {
+    const ids = new Set<string>();
+    v.steps.forEach((s, i) => {
+      if (ids.has(s.id)) ctx.addIssue({ code: 'custom', message: 'duplicate', path: ['steps', i, 'id'] });
+      ids.add(s.id);
+    });
+    const ordered = orderSteps(v.steps.map((s, i) => ({ ...s, sortOrder: i })));
+    if (!ordered) ctx.addIssue({ code: 'custom', message: 'dependency_cycle', path: ['steps'] });
+  });
+
+export const taskStatusSchema = z.object({
+  id: z.uuid().nullable(),
+  name: localizedText(40),
+  category: z.enum(statusCategories),
+  color: z.enum(statusColors),
+  isDefault: z.boolean(),
+});
+
+export const saveStatusesSchema = z.object({ statuses: z.array(taskStatusSchema).min(2).max(15) }).superRefine((v, ctx) => {
+  if (!v.statuses.some((s) => s.category === 'done')) ctx.addIssue({ code: 'custom', message: 'status_done_required', path: ['statuses'] });
+  if (v.statuses.filter((s) => s.isDefault).length !== 1)
+    ctx.addIssue({ code: 'custom', message: 'status_default_required', path: ['statuses'] });
+});
+
+export const convertSchema = z.object({
+  requestId: z.uuid(),
+  templateId: z.uuid(),
+  /** First working day of the workflow (defaults to today in the organization's time zone). */
+  startDate: z.iso.date({ message: 'invalid_date' }).optional(),
+  /** The reviewed plan (FR1.3). Without it the template's own plan is used as proposed. */
+  plan: planSchema.optional(),
+});
+
+/** A task added to a converted request (FR1.3): dates follow the tasks it waits for unless set by hand. */
+export const addRequestTaskSchema = z.object({
+  requestId: z.uuid(),
+  title: z.string().trim().min(1, { message: 'required' }).max(200, { message: 'too_long' }),
+  departmentId: z.uuid().nullable(),
+  assigneeId: z.uuid().nullable(),
+  reviewerId: z.uuid().nullable(),
+  priority: z.enum(taskPriorities),
+  durationDays: z.number().int().min(0).max(365),
+  dependsOn: z.array(z.uuid()).max(20),
+  startDate: z.iso.date({ message: 'invalid_date' }).nullable(),
+  dueDate: z.iso.date({ message: 'invalid_date' }).nullable(),
+});

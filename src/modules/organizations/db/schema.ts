@@ -1,8 +1,8 @@
 import { sql } from 'drizzle-orm';
-import { boolean, check, index, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { boolean, check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { authUsers } from 'drizzle-orm/supabase';
 
-import { createdAt, id, localized, updatedAt } from '@/lib/db/columns';
+import { createdAt, id, isDemo, localized, softDelete, updatedAt } from '@/lib/db/columns';
 
 export type OrganizationBrand = { primaryColor?: string };
 
@@ -17,6 +17,13 @@ export const organizations = pgTable('organizations', {
   brand: jsonb('brand').$type<OrganizationBrand>().notNull().default({}),
   supportEmail: text('support_email'),
   supportWhatsapp: text('support_whatsapp'),
+  /** Days a deliverable may wait for client approval before the client is reminded. */
+  approvalReminderDays: integer('approval_reminder_days').notNull().default(2),
+  /** Business hours for SLA response targets, minutes after midnight in the org time zone (Sunday–Thursday). */
+  businessHoursStart: integer('business_hours_start').notNull().default(540),
+  businessHoursEnd: integer('business_hours_end').notNull().default(1020),
+  /** Set after go-live: the data reset screen refuses to run until a Super Admin unlocks it with their password. */
+  dataResetLockedAt: timestamp('data_reset_locked_at', { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -37,6 +44,7 @@ export const profiles = pgTable(
     timezone: text('timezone').notNull().default('Asia/Riyadh'),
     calendar: text('calendar').notNull().default('gregory'),
     onboardedAt: timestamp('onboarded_at', { withTimezone: true }),
+    isDemo: isDemo(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -62,6 +70,7 @@ export const organizationMembers = pgTable(
     status: text('status').notNull().default('active'),
     invitedBy: uuid('invited_by').references(() => profiles.id, { onDelete: 'set null' }),
     joinedAt: timestamp('joined_at', { withTimezone: true }).notNull().defaultNow(),
+    ...softDelete(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

@@ -16,6 +16,7 @@ import { computeEffectivePermissions } from '@/lib/permissions/can';
 import { publicAssetUrl } from '@/lib/storage';
 import { cn } from '@/lib/utils/cn';
 import {
+  changeMemberEmailAction,
   setMemberRolesAction,
   setMemberStatusAction,
   setPermissionOverrideAction,
@@ -48,15 +49,21 @@ export function MemberSheet({
   const [roleIds, setRoleIds] = useState<string[]>(member?.roleIds ?? []);
   const [jobTitle, setJobTitle] = useState(member?.jobTitle ?? '');
   const [confirmStatus, setConfirmStatus] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [confirmEmail, setConfirmEmail] = useState(false);
 
   const saveRoles = useAction(setMemberRolesAction, { successMessage: t('admin.users.rolesSaved') });
   const saveMember = useAction(updateMemberAction, { successMessage: t('common.saved') });
   const setStatus = useAction(setMemberStatusAction);
   const setOverride = useAction(setPermissionOverrideAction, { successMessage: t('common.saved') });
+  const changeEmail = useAction(changeMemberEmailAction, { successMessage: t('admin.users.emailChanged') });
 
   if (!member) return <Sheet open={false} onOpenChange={onOpenChange} />;
 
   const isSelf = member.userId === me.userId;
+  const protectedTarget = roles.some((r) => r.isLocked && member.roleIds.includes(r.id));
+  const canChangeEmail = can('users:update') && !isSelf && (!protectedTarget || me.isSuperAdmin);
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim()) && newEmail.trim().toLowerCase() !== member.email.toLowerCase();
   const rolesDirty = [...roleIds].sort().join() !== [...member.roleIds].sort().join();
   const effective = computeEffectivePermissions(
     roles.filter((r) => member.roleIds.includes(r.id)).map((r) => ({ permissionKeys: r.permissionKeys, isLocked: r.isLocked })),
@@ -116,6 +123,29 @@ export function MemberSheet({
               {f.list(member.departmentIds.map((id) => localized(departments.find((d) => d.id === id)?.name, locale))) || '—'}
             </p>
           </section>
+
+          {canChangeEmail ? (
+            <section className="grid gap-2" data-testid="member-email">
+              <Label htmlFor="member-email">{t('admin.users.changeEmail')}</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="member-email"
+                  type="email"
+                  dir="ltr"
+                  autoComplete="off"
+                  placeholder={member.email}
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  data-testid="member-email-input"
+                />
+                <Button variant="outline" disabled={!emailValid} onClick={() => setConfirmEmail(true)} data-testid="member-email-change">
+                  <Mail />
+                  {t('admin.users.changeEmailButton')}
+                </Button>
+              </div>
+              <p className="text-xs text-subtle-foreground">{t('admin.users.changeEmailHint')}</p>
+            </section>
+          ) : null}
 
           <Separator />
 
@@ -265,6 +295,19 @@ export function MemberSheet({
             </>
           ) : null}
         </div>
+        <ConfirmDialog
+          open={confirmEmail}
+          onOpenChange={setConfirmEmail}
+          title={t('admin.users.changeEmailTitle')}
+          description={t('admin.users.changeEmailBody', { name: member.name, from: member.email, to: newEmail.trim().toLowerCase() })}
+          confirmLabel={t('admin.users.changeEmailButton')}
+          cancelLabel={t('common.cancel')}
+          onConfirm={async () => {
+            const res = await changeEmail.run({ userId: member.userId, email: newEmail.trim() });
+            setConfirmEmail(false);
+            if (res.ok) setNewEmail('');
+          }}
+        />
       </SheetContent>
     </Sheet>
   );

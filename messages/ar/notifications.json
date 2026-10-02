@@ -37,6 +37,154 @@
     "file_uploaded_by_client": {
       "title": "رفع {client} ملفًا",
       "body": "رفع {actor} الملف «⁨{file}⁩»."
+    },
+    "request_submitted": {
+      "title": "طلب جديد من ⁨{client}⁩",
+      "body": "قدّم {actor} الطلب {reference}: «⁨{title}⁩»."
+    },
+    "request_assigned": {
+      "title": "أُسند إليك الطلب {reference}",
+      "body": "أسند {actor} إليك «⁨{title}⁩» لـ ⁨{client}⁩."
+    },
+    "request_status_changed": {
+      "title": "تحديث على الطلب {reference}",
+      "body": "أصبحت حالة «⁨{title}⁩»: {status, select, submitted {مُقدَّم} under_review {قيد المراجعة} needs_info {بحاجة لمعلومات} accepted {مقبول} in_progress {قيد التنفيذ} in_review {قيد المراجعة الداخلية} delivered {مُسلَّم} closed {مغلق} rejected {مرفوض} cancelled {ملغى} other {محدَّث}}."
+    },
+    "request_needs_info": {
+      "title": "نحتاج معلومات إضافية للطلب {reference}",
+      "body": "يحتاج {actor} بعض التفاصيل حول «⁨{title}⁩» قبل البدء."
+    },
+    "task_assigned": {
+      "title": "أُسندت إليك مهمة",
+      "body": "تم إسناد «⁨{task}⁩» إليك من {actor} لـ ⁨{client}⁩."
+    },
+    "task_due_soon": {
+      "title": "موعد مهمة يقترب",
+      "body": "تستحق «⁨{task}⁩» بتاريخ {due}."
+    },
+    "task_overdue": {
+      "title": "مهمة متأخرة",
+      "body": "تجاوزت «⁨{task}⁩» موعدها ({due})."
+    },
+    "task_unblocked": {
+      "title": "يمكنك البدء الآن",
+      "body": "اكتملت «⁨{blocker}⁩»، و«⁨{task}⁩» جاهزة لك."
+    },
+    "task_review_requested": {
+      "title": "مهمة بانتظار مراجعتك",
+      "body": "نقل {actor} «⁨{task}⁩» إلى المراجعة."
+    },
+    "review_requested": {
+      "title": "تسليم جاهز للمراجعة الداخلية",
+      "body": "رفع {actor} نسخة جديدة من «⁨{title}⁩» لـ ⁨{client}⁩."
+    },
+    "deliverable_approved": {
+      "title": "اعتُمد «⁨{title}⁩»",
+      "body": "{stage, select, client {اعتمده العميل ⁨{client}⁩.} other {اعتمده {actor} داخليًا.}}"
+    },
+    "deliverable_changes_requested": {
+      "title": "مطلوب تعديلات على «⁨{title}⁩»",
+      "body": "{stage, select, client {طلب العميل ⁨{client}⁩ تعديلات.} other {طلب {actor} تعديلات.}}"
+    },
+    "approval_requested": {
+      "title": "بانتظار اعتمادك",
+      "body": "«⁨{title}⁩» جاهز لمراجعتك واعتمادك."
+    },
+    "approval_reminder": {
+      "title": "تذكير: بانتظار اعتمادك",
+      "body": "«⁨{title}⁩» ينتظر مراجعتك منذ {days} أيام."
+    },
+    "campaign_started": {
+      "title": "انطلقت حملتك",
+      "body": "بدأت حملة “⁨{campaign}⁩” اليوم. تابع أرقامها أولًا بأول من البوابة."
+    },
+    "campaign_at_risk": {
+      "title": "حملة “⁨{campaign}⁩” تحتاج انتباهك",
+      "body": "{health, select, off_track {الحملة خارج المسار} other {الحملة معرّضة للتأخر}} لدى {client}. راجع مؤشراتها وتوزيع الميزانية."
+    },
+    "campaign_metrics_stale": {
+      "title": "لا أرقام جديدة لحملة “⁨{campaign}⁩”",
+      "body": "لم تُدخَل أرقام لحملة {client} منذ {days} أيام."
+    },
+    "report_published": {
+      "title": "تقرير جديد جاهز",
+      "body": "تقرير “⁨{report}⁩” جاهز للاطلاع."
+    },
+    "report_ready": {
+      "title": "تقرير مجدول بانتظار المراجعة",
+      "body": "أُعدّ تقرير “⁨{report}⁩” لـ{client} وينتظر مراجعتك قبل النشر."
+    },
+    "sla_at_risk": {
+      "title": "{reference} يقترب من موعد مستوى الخدمة",
+      "body": "{kind, select, response {الرد الأول} other {التسليم}} على «⁨{title}⁩» ({client}) مستحق قريبًا."
+    },
+    "sla_breached": {
+      "title": "تجاوز مستوى الخدمة في {reference}",
+      "body": "{kind, select, response {الرد الأول} other {التسليم}} على «⁨{title}⁩» ({client}) تجاوز الموعد المستهدف."
+    },
+    "lead_assigned": {
+      "title": "عميل محتمل جديد: {name}",
+      "body": "تم إسناد {reference} إليك."
+    },
+    "crm_followup_due": {
+      "title": "متابعة مستحقة: {subject}",
+      "body": "مجدولة على “⁨{parent}⁩”."
+    },
+    "deal_stale": {
+      "title": "لا نشاط على {reference}",
+      "body": "لا يوجد نشاط على “⁨{title}⁩” منذ {days, plural, one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}."
+    },
+    "deal_won": {
+      "title": "صفقة مكسوبة: {title}",
+      "body": "أُغلقت {reference} بقيمة {valueSar} ريال."
+    },
+    "integration_expired": {
+      "title": "انتهت صلاحية ربط {provider}",
+      "body": "أعد ربط “⁨{name}⁩” لتستمر المزامنة واستقبال العملاء المحتملين."
+    },
+    "integration_sync_failed": {
+      "title": "فشلت مزامنة {provider}",
+      "body": "لم تكتمل مزامنة “⁨{name}⁩” بعد عدة محاولات: {error}."
+    },
+    "automation_failed": {
+      "title": "فشلت قاعدة أتمتة",
+      "body": "لم تكتمل “⁨{name}⁩” بعد إعادة المحاولة."
+    },
+    "automation_message": {
+      "title": "{title}",
+      "body": "{body}"
+    },
+    "whatsapp_failed": {
+      "title": "تعذّر إرسال رسالة واتساب",
+      "body": "لم تصل الرسالة إلى ⁨{phone}⁩: {error}."
+    },
+    "ai_insight": {
+      "title": "{severity, select, critical {رؤية حرجة} other {رؤية جديدة}} في «⁨{campaign}⁩»",
+      "body": "{kind, select, spike {ارتفاع غير معتاد في الأرقام} drop {انخفاض غير معتاد في الأرقام} kpi_off_track {مؤشر أداء خارج المسار} kpi_at_risk {مؤشر أداء معرّض للخطر} budget_overspent {تجاوز الإنفاق الميزانية} budget_overpace {الإنفاق أسرع من الخطة} budget_underpace {الإنفاق أبطأ من الخطة} delivery_stopped {قناة توقّف عرضها} other {تغيّر ما}} لدى {client}. افتحها لترى الأرقام والخطوة التالية المقترحة."
+    },
+    "task_reviewer_assigned": {
+      "title": "أصبحت مراجعًا لمهمة",
+      "body": "عيّنك {actor} مراجعًا لـ «⁨{task}⁩» لـ ⁨{client}⁩."
+    },
+    "task_watching": {
+      "title": "أصبحت متابعًا لمهمة",
+      "body": "أضافك {actor} متابعًا لـ «⁨{task}⁩» لـ ⁨{client}⁩."
+    },
+    "integration_expiring": {
+      "title": "ينتهي حساب مربوط قريبًا",
+      "body": "ينتهي ربط {provider} «⁨{name}⁩» في {date}. الصق رمزًا جديدًا في حساباتي المربوطة."
+    },
+    "email_changed": {
+      "title": "تغيّر بريدك",
+      "body": "تغيّر بريد تسجيل الدخول من {from} إلى {to}."
+    },
+    "mail_fallback": {
+      "title": "أُرسلت الرسائل عبر المرسل الاحتياطي",
+      "body": "تعذّر الإرسال عبر المرسل المضبوط ({error})، وتُرسل الرسائل الآن عبر المرسل الاحتياطي. راجع الإعدادات ← البريد."
+    },
+    "mail_limit": {
+      "title": "اقتربت من حد الإرسال اليومي",
+      "body": "أُرسلت {sent} من {limit} رسالة اليوم عبر المرسل المضبوط."
     }
   }
 }

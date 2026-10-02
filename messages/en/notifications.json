@@ -37,6 +37,154 @@
     "file_uploaded_by_client": {
       "title": "{client} uploaded a file",
       "body": "{actor} uploaded “⁨{file}⁩”."
+    },
+    "request_submitted": {
+      "title": "New request from {client}",
+      "body": "{actor} submitted {reference}: “⁨{title}⁩”."
+    },
+    "request_assigned": {
+      "title": "{reference} was assigned to you",
+      "body": "{actor} assigned you “⁨{title}⁩” for {client}."
+    },
+    "request_status_changed": {
+      "title": "Update on {reference}",
+      "body": "“⁨{title}⁩” {status, select, submitted {was submitted} under_review {is under review} needs_info {needs information} accepted {was accepted} in_progress {is in progress} in_review {is in internal review} delivered {was delivered} closed {was closed} rejected {was rejected} cancelled {was cancelled} other {was updated}}."
+    },
+    "request_needs_info": {
+      "title": "We need more information on {reference}",
+      "body": "{actor} needs a few details about “⁨{title}⁩” before starting."
+    },
+    "task_assigned": {
+      "title": "A task was assigned to you",
+      "body": "{actor} assigned you “⁨{task}⁩” for {client}."
+    },
+    "task_due_soon": {
+      "title": "A task is due soon",
+      "body": "“⁨{task}⁩” is due on {due}."
+    },
+    "task_overdue": {
+      "title": "A task is overdue",
+      "body": "“⁨{task}⁩” was due on {due}."
+    },
+    "task_unblocked": {
+      "title": "You can start now",
+      "body": "“⁨{blocker}⁩” is done, so “⁨{task}⁩” is ready for you."
+    },
+    "task_review_requested": {
+      "title": "A task is waiting for your review",
+      "body": "{actor} moved “⁨{task}⁩” to review."
+    },
+    "review_requested": {
+      "title": "A deliverable is ready for internal review",
+      "body": "{actor} uploaded a new version of “⁨{title}⁩” for {client}."
+    },
+    "deliverable_approved": {
+      "title": "“⁨{title}⁩” was approved",
+      "body": "{stage, select, client {The client ⁨{client}⁩ approved it.} other {{actor} approved it internally.}}"
+    },
+    "deliverable_changes_requested": {
+      "title": "Changes requested on “⁨{title}⁩”",
+      "body": "{stage, select, client {The client ⁨{client}⁩ asked for changes.} other {{actor} asked for changes.}}"
+    },
+    "approval_requested": {
+      "title": "Waiting for your approval",
+      "body": "“⁨{title}⁩” is ready for you to review and approve."
+    },
+    "approval_reminder": {
+      "title": "Reminder: waiting for your approval",
+      "body": "“⁨{title}⁩” has been waiting for your review for {days} days."
+    },
+    "campaign_started": {
+      "title": "Your campaign is live",
+      "body": "“⁨{campaign}⁩” started today. Follow its numbers in the portal."
+    },
+    "campaign_at_risk": {
+      "title": "“⁨{campaign}⁩” needs attention",
+      "body": "{health, select, off_track {It is off track} other {It is at risk}} for {client}. Check its KPIs and budget pacing."
+    },
+    "campaign_metrics_stale": {
+      "title": "No new numbers for “⁨{campaign}⁩”",
+      "body": "No metrics have been entered for {client} in {days} days."
+    },
+    "report_published": {
+      "title": "A new report is ready",
+      "body": "“⁨{report}⁩” is ready for you to read."
+    },
+    "report_ready": {
+      "title": "A scheduled report is ready for review",
+      "body": "“⁨{report}⁩” for {client} was generated and waits for your review before publishing."
+    },
+    "sla_at_risk": {
+      "title": "{reference} is close to its SLA",
+      "body": "{kind, select, response {The first reply} other {Delivery}} for “⁨{title}⁩” ({client}) is due soon."
+    },
+    "sla_breached": {
+      "title": "SLA breached on {reference}",
+      "body": "{kind, select, response {The first reply} other {Delivery}} for “⁨{title}⁩” ({client}) is past its target."
+    },
+    "lead_assigned": {
+      "title": "New lead: {name}",
+      "body": "{reference} was assigned to you."
+    },
+    "crm_followup_due": {
+      "title": "Follow-up due: {subject}",
+      "body": "Scheduled on “⁨{parent}⁩”."
+    },
+    "deal_stale": {
+      "title": "{reference} has gone quiet",
+      "body": "No activity on “⁨{title}⁩” for {days, plural, one {# day} other {# days}}."
+    },
+    "deal_won": {
+      "title": "Deal won: {title}",
+      "body": "{reference} closed for {valueSar} SAR."
+    },
+    "integration_expired": {
+      "title": "{provider} connection expired",
+      "body": "Reconnect “{name}” to keep syncing and receiving leads."
+    },
+    "integration_sync_failed": {
+      "title": "{provider} sync failed",
+      "body": "Syncing “{name}” didn't complete after several attempts: {error}."
+    },
+    "automation_failed": {
+      "title": "An automation failed",
+      "body": "“{name}” didn't complete after retrying."
+    },
+    "automation_message": {
+      "title": "{title}",
+      "body": "{body}"
+    },
+    "whatsapp_failed": {
+      "title": "A WhatsApp message could not be sent",
+      "body": "The message to {phone} was not delivered: {error}."
+    },
+    "ai_insight": {
+      "title": "{severity, select, critical {Critical insight} other {New insight}} on “⁨{campaign}⁩”",
+      "body": "{kind, select, spike {An unusual jump in the numbers} drop {An unusual drop in the numbers} kpi_off_track {A KPI is off track} kpi_at_risk {A KPI is at risk} budget_overspent {The budget is overspent} budget_overpace {Spend is ahead of plan} budget_underpace {Spend is behind plan} delivery_stopped {A channel stopped delivering} other {Something changed}} for {client}. Open it to see the numbers and the recommended next step."
+    },
+    "task_reviewer_assigned": {
+      "title": "You're the reviewer of a task",
+      "body": "{actor} made you the reviewer of “⁨{task}⁩” for ⁨{client}⁩."
+    },
+    "task_watching": {
+      "title": "You're following a task",
+      "body": "{actor} added you as a watcher of “⁨{task}⁩” for ⁨{client}⁩."
+    },
+    "integration_expiring": {
+      "title": "A connected account expires soon",
+      "body": "Your {provider} connection “⁨{name}⁩” expires on {date}. Paste a new token in My connected accounts."
+    },
+    "email_changed": {
+      "title": "Your email changed",
+      "body": "Your sign-in email changed from {from} to {to}."
+    },
+    "mail_fallback": {
+      "title": "Emails went out through the backup sender",
+      "body": "The configured sender failed ({error}); emails are being delivered by the backup sender. Check Settings → Mail."
+    },
+    "mail_limit": {
+      "title": "Close to today's sending limit",
+      "body": "{sent} of {limit} emails sent today through the configured sender."
     }
   }
 }

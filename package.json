@@ -19,6 +19,8 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset && tsx scripts/seed.ts",
     "db:seed": "tsx scripts/seed.ts",
+    "db:seed:perf": "tsx scripts/seed-perf.ts",
+    "db:deploy": "tsx scripts/deploy-db.ts",
     "db:generate": "drizzle-kit generate",
     "db:types": "supabase gen types typescript --local > src/lib/db/supabase-types.ts",
     "email:dev": "email dev --dir emails --port 3001",
@@ -26,6 +28,10 @@
     "setup": "bash scripts/bootstrap.sh"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.129.0",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.9.1",
     "@react-email/components": "^1.0.12",
     "@supabase/ssr": "^0.12.7",
@@ -37,6 +43,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.4.0",
     "drizzle-orm": "^0.45.3",
+    "fflate": "^0.8.3",
     "framer-motion": "^13.4.4",
     "lucide-react": "^1.48.0",
     "next": "16.3.6",
@@ -53,6 +60,7 @@
     "server-only": "^0.0.1",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
+    "tus-js-client": "^4.3.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {

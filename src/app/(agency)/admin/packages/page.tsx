@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { PageHeader } from '@/components/patterns';
 import { requireAgency } from '@/lib/auth/context';
+import { can } from '@/lib/permissions/can';
 import { PackagesAdmin } from '@/modules/clients/components/packages-admin';
 import { listPackages } from '@/modules/clients/server/queries';
 
@@ -18,7 +19,7 @@ export default async function PackagesPage() {
   return (
     <>
       <PageHeader title={t('title')} description={t('description')} />
-      <PackagesAdmin packages={packages} />
+      <PackagesAdmin packages={packages} canDelete={can(ctx.permissions, 'packages:delete')} />
     </>
   );
 }

@@ -19,6 +19,8 @@ import {
 import type { LocalizedText } from '@/lib/i18n/localized';
 
 export type TeamMember = {
+  /** organization_members.id — what the Trash deletes (ADR-080). */
+  membershipId: string;
   userId: string;
   name: string;
   email: string;
@@ -103,6 +105,7 @@ export async function listTeam(ctx: AgencyContext): Promise<TeamMember[]> {
   return withRls(async (tx) => {
     const rows = await tx
       .select({
+        membershipId: organizationMembers.id,
         userId: profiles.id,
         name: profiles.fullName,
         email: profiles.email,
@@ -127,6 +130,7 @@ export async function listTeam(ctx: AgencyContext): Promise<TeamMember[]> {
       .where(eq(departmentMembers.organizationId, ctx.organization.id));
     const ov = await tx.select().from(userPermissionOverrides).where(eq(userPermissionOverrides.organizationId, ctx.organization.id));
     return rows.map((r) => ({
+      membershipId: r.membershipId,
       userId: r.userId,
       name: r.name || r.email,
       email: r.email,

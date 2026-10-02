@@ -3,7 +3,26 @@
 import { languageNames } from '@/lib/i18n/localized';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Bell, FileUp, KeyRound, Mail, MessageSquare, UserRound } from 'lucide-react';
+import {
+  Bell,
+  CheckCheck,
+  ClipboardList,
+  FileUp,
+  KeyRound,
+  ListTodo,
+  Mail,
+  MailWarning,
+  Megaphone,
+  MessageSquare,
+  Handshake,
+  PlugZap,
+  RefreshCw,
+  Sparkles,
+  Timer,
+  UserRound,
+  Workflow,
+  X,
+} from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
@@ -21,9 +40,12 @@ import { password } from '@/lib/validation';
 import { AvatarUploader } from '@/modules/identity/components/avatar-uploader';
 import {
   changePasswordAction,
+  cancelEmailChangeAction,
   requestEmailChangeAction,
+  resendEmailChangeAction,
   updatePreferencesAction,
   updateProfileAction,
+  type EmailChangeState,
 } from '@/modules/identity/server/actions';
 import { updateNotificationPreferencesAction } from '@/modules/notifications/server/actions';
 import type { NotificationCategory } from '@/modules/notifications/types';
@@ -42,19 +64,36 @@ const profileSchema = z.object({
   avatarPath: z.string().nullable(),
 });
 
-export function ProfileSettings({ defaults, email }: { defaults: z.infer<typeof profileSchema>; email: string }) {
+export function ProfileSettings({
+  defaults,
+  email,
+  pendingEmail,
+  devMailbox,
+}: {
+  defaults: z.infer<typeof profileSchema>;
+  email: string;
+  pendingEmail: EmailChangeState;
+  devMailbox: string | null;
+}) {
   const t = useTranslations();
   const params = useSearchParams();
   const form = useForm<z.infer<typeof profileSchema>>({ resolver: zodResolver(profileSchema), defaultValues: defaults });
   const save = useAction(updateProfileAction, { successMessage: t('common.saved') });
   const [newEmail, setNewEmail] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [pending, setPending] = useState<EmailChangeState>(pendingEmail);
   const emailChange = useAction(requestEmailChangeAction, { successMessage: t('settings.emailChangeSent'), refresh: false });
+  const resend = useAction(resendEmailChangeAction, { successMessage: t('settings.emailChangeResent'), refresh: false });
+  const cancel = useAction(cancelEmailChangeAction, { successMessage: t('settings.emailChangeCancelled') });
   const pwForm = useForm<{ password: string }>({ resolver: zodResolver(z.object({ password })), defaultValues: { password: '' } });
   const pw = useAction(changePasswordAction, { successMessage: t('auth.passwordUpdated'), refresh: false });
 
   useEffect(() => {
     if (params.get('email_changed')) toast.success(t('settings.emailChanged'));
   }, [params, t]);
+  useEffect(() => {
+    setPending(pendingEmail);
+  }, [pendingEmail]);
 
   const submit = form.handleSubmit(async (v) => {
     const res = await save.run({
@@ -99,8 +138,82 @@ export function ProfileSettings({ defaults, email }: { defaults: z.infer<typeof 
 
       <Card className="px-5">
         <FormSection title={t('settings.emailSection')} description={t('settings.emailSectionHint', { email })}>
-          <Field label={t('settings.newEmail')}>
-            {(p) => <Input {...p} type="email" dir="ltr" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />}
+          {pending ? (
+            <div
+              className="grid gap-3 rounded-lg border border-warning/40 bg-warning/5 p-4"
+              role="status"
+              data-testid="email-change-pending"
+            >
+              <p className="flex items-center gap-2 text-sm font-medium">
+                <MailWarning className="size-4 text-warning" aria-hidden />
+                {t('settings.emailPendingTitle')}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {t.rich(pending.confirmedOne ? 'settings.emailPendingOne' : 'settings.emailPendingBoth', {
+                  current: () => <bdi dir="ltr">{email}</bdi>,
+                  next: () => (
+                    <bdi dir="ltr" className="font-medium text-foreground" data-testid="email-change-pending-address">
+                      {pending.newEmail}
+                    </bdi>
+                  ),
+                })}
+              </p>
+              {devMailbox ? (
+                <p className="text-xs text-muted-foreground" data-testid="email-change-dev-hint">
+                  {t.rich('settings.emailDevHint', {
+                    link: (chunks) => (
+                      <a href={devMailbox} target="_blank" rel="noreferrer" className="font-medium text-primary underline">
+                        {chunks}
+                      </a>
+                    ),
+                  })}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  loading={cancel.pending}
+                  onClick={async () => {
+                    const res = await cancel.run({});
+                    if (res.ok) setPending(null);
+                  }}
+                  data-testid="email-change-cancel"
+                >
+                  <X />
+                  {t('settings.emailChangeCancel')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  loading={resend.pending}
+                  onClick={async () => {
+                    const res = await resend.run({});
+                    if (res.ok) setPending(res.data);
+                  }}
+                  data-testid="email-change-resend"
+                >
+                  <RefreshCw />
+                  {t('settings.emailChangeResend')}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+          <Field label={t('settings.newEmail')} error={emailError ?? undefined}>
+            {(p) => (
+              <Input
+                {...p}
+                type="email"
+                dir="ltr"
+                autoComplete="email"
+                value={newEmail}
+                onChange={(e) => {
+                  setNewEmail(e.target.value);
+                  setEmailError(null);
+                }}
+                data-testid="email-change-input"
+              />
+            )}
           </Field>
           <div className="flex justify-end">
             <Button
@@ -110,8 +223,17 @@ export function ProfileSettings({ defaults, email }: { defaults: z.infer<typeof 
               disabled={!newEmail}
               onClick={async () => {
                 const res = await emailChange.run({ email: newEmail });
-                if (res.ok) setNewEmail('');
+                if (res.ok) {
+                  setNewEmail('');
+                  setPending(res.data);
+                } else
+                  setEmailError(
+                    res.error.fieldErrors?.email?.[0]
+                      ? t(`validation.${res.error.fieldErrors.email[0] as 'invalid_email'}`)
+                      : t(`errors.${res.error.code}`),
+                  );
               }}
+              data-testid="email-change-submit"
             >
               <Mail />
               {t('settings.sendConfirmation')}
@@ -219,53 +341,91 @@ export function PreferencesSettings({ defaults, timezones }: { defaults: z.infer
   );
 }
 
-const categoryIcon: Record<NotificationCategory, typeof Bell> = { account: Bell, messages: MessageSquare, files: FileUp };
+const categoryIcon: Record<NotificationCategory, typeof Bell> = {
+  account: Bell,
+  messages: MessageSquare,
+  files: FileUp,
+  requests: ClipboardList,
+  tasks: ListTodo,
+  approvals: CheckCheck,
+  campaigns: Megaphone,
+  sla: Timer,
+  sales: Handshake,
+  integrations: PlugZap,
+  automations: Workflow,
+  ai: Sparkles,
+};
 
-export function NotificationSettings({ defaults }: { defaults: { category: NotificationCategory; inApp: boolean; email: boolean }[] }) {
+type Pref = { category: NotificationCategory; inApp: boolean; email: boolean; whatsapp: boolean };
+type Channel = 'inApp' | 'email' | 'whatsapp';
+
+export function NotificationSettings({
+  defaults,
+  whatsapp,
+}: {
+  defaults: Pref[];
+  /** Null on the portal (WhatsApp is an agency channel). */
+  whatsapp: { available: boolean; optedIn: boolean } | null;
+}) {
   const t = useTranslations();
   const [prefs, setPrefs] = useState(defaults);
   const save = useAction(updateNotificationPreferencesAction, { successMessage: t('common.saved'), refresh: false });
-  const update = (category: NotificationCategory, key: 'inApp' | 'email', value: boolean) => {
+  const update = (category: NotificationCategory, key: Channel, value: boolean) => {
     const next = prefs.map((p) => (p.category === category ? { ...p, [key]: value } : p));
     setPrefs(next);
     void save.run({ preferences: next });
   };
+  const channels: { key: Channel; label: string; disabled: boolean }[] = [
+    { key: 'inApp', label: t('settings.inApp'), disabled: false },
+    { key: 'email', label: t('settings.emailChannel'), disabled: false },
+    ...(whatsapp
+      ? [{ key: 'whatsapp' as const, label: t('settings.whatsappChannel'), disabled: !whatsapp.available || !whatsapp.optedIn }]
+      : []),
+  ];
+  const cols = whatsapp ? 'sm:grid-cols-[1fr_6rem_6rem_6rem]' : 'sm:grid-cols-[1fr_6rem_6rem]';
   return (
     <Card className="divide-y divide-border">
-      <div className="hidden grid-cols-[1fr_6rem_6rem] items-center gap-4 px-5 py-3 text-xs font-medium text-muted-foreground sm:grid">
+      {whatsapp && (!whatsapp.available || !whatsapp.optedIn) ? (
+        <p className="px-5 py-3 text-xs text-subtle-foreground">
+          {whatsapp.available ? t('settings.whatsappNeedsOptIn') : t('settings.whatsappUnavailable')}
+        </p>
+      ) : null}
+      <div className={`hidden items-center gap-4 px-5 py-3 text-xs font-medium text-muted-foreground sm:grid ${cols}`}>
         <span>{t('settings.category')}</span>
-        <span className="text-center">{t('settings.inApp')}</span>
-        <span className="text-center">{t('settings.emailChannel')}</span>
+        {channels.map((c) => (
+          <span key={c.key} className="text-center">
+            {c.label}
+          </span>
+        ))}
       </div>
       {prefs.map((p) => {
         const Icon = categoryIcon[p.category];
         return (
-          <div key={p.category} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-5 py-4 sm:grid-cols-[1fr_6rem_6rem]">
-            <div className="flex items-start gap-3">
+          <div
+            key={p.category}
+            className={`grid items-center gap-4 px-5 py-4 ${whatsapp ? 'grid-cols-[1fr_auto_auto_auto]' : 'grid-cols-[1fr_auto_auto]'} ${cols}`}
+          >
+            <div className="flex min-w-0 items-start gap-3">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-muted text-muted-foreground">
                 <Icon className="size-4" aria-hidden />
               </span>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-medium">{t(`settings.categories.${p.category}.title`)}</p>
                 <p className="text-xs text-subtle-foreground">{t(`settings.categories.${p.category}.body`)}</p>
               </div>
             </div>
-            <div className="flex flex-col items-center gap-1">
-              <Switch
-                checked={p.inApp}
-                onCheckedChange={(v) => update(p.category, 'inApp', v)}
-                aria-label={`${t(`settings.categories.${p.category}.title`)} · ${t('settings.inApp')}`}
-              />
-              <span className="text-[0.6875rem] text-subtle-foreground sm:hidden">{t('settings.inApp')}</span>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <Switch
-                checked={p.email}
-                onCheckedChange={(v) => update(p.category, 'email', v)}
-                aria-label={`${t(`settings.categories.${p.category}.title`)} · ${t('settings.emailChannel')}`}
-              />
-              <span className="text-[0.6875rem] text-subtle-foreground sm:hidden">{t('settings.emailChannel')}</span>
-            </div>
+            {channels.map((c) => (
+              <div key={c.key} className="flex flex-col items-center gap-1">
+                <Switch
+                  checked={p[c.key] && !c.disabled}
+                  disabled={c.disabled}
+                  onCheckedChange={(v) => update(p.category, c.key, v)}
+                  aria-label={`${t(`settings.categories.${p.category}.title`)} · ${c.label}`}
+                  data-testid={`pref-${p.category}-${c.key}`}
+                />
+                <span className="text-[0.6875rem] text-subtle-foreground sm:hidden">{c.label}</span>
+              </div>
+            ))}
           </div>
         );
       })}

@@ -14,10 +14,28 @@ import { Button } from '@/components/ui/button';
 import { Avatar, Badge } from '@/components/ui/primitives';
 import { localized, type Locale } from '@/lib/i18n/localized';
 import { publicAssetUrl } from '@/lib/storage';
+import { BulkDeleteButton } from '@/modules/data/components/bulk-delete';
+import { RowActions } from '@/modules/data/components/row-actions';
 import { clientStatuses, clientStatusTone, industries, type ClientStatus } from '@/modules/clients/constants';
 import type { ClientListItem } from '@/modules/clients/server/queries';
+import { ClientHealthBadge } from '@/modules/operations/components/health';
+import type { ClientHealth, HealthReason } from '@/modules/operations/health';
 
-export function ClientsTable({ clients, canCreate }: { clients: ClientListItem[]; canCreate: boolean }) {
+type HealthMap = Record<string, { health: ClientHealth; score: number; reasons: HealthReason[] }>;
+
+export function ClientsTable({
+  clients,
+  canCreate,
+  canEdit = false,
+  canDelete = false,
+  health,
+}: {
+  clients: ClientListItem[];
+  canCreate: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  health?: HealthMap;
+}) {
   const t = useTranslations();
   const locale = useLocale() as Locale;
   const f = useFormat();
@@ -53,6 +71,19 @@ export function ClientsTable({ clients, canCreate }: { clients: ClientListItem[]
           </Badge>
         ),
       },
+      ...(health
+        ? [
+            {
+              id: 'health',
+              header: t('operations.health.title'),
+              accessorFn: (c: ClientListItem) => health[c.id]?.score ?? 101,
+              cell: ({ row }: { row: { original: ClientListItem } }) => {
+                const h = health[row.original.id];
+                return h ? <ClientHealthBadge health={h.health} score={h.score} reasons={h.reasons} /> : '—';
+              },
+            } satisfies ColumnDef<ClientListItem, unknown>,
+          ]
+        : []),
       {
         id: 'am',
         header: t('clients.accountManager'),
@@ -87,9 +118,25 @@ export function ClientsTable({ clients, canCreate }: { clients: ClientListItem[]
           <span className="text-muted-foreground">{row.original.lastMessageAt ? f.relative(row.original.lastMessageAt) : '—'}</span>
         ),
       },
+      ...(canEdit || canDelete
+        ? [
+            {
+              id: 'actions',
+              header: () => <span className="sr-only">{t('data.actions.column')}</span>,
+              enableSorting: false,
+              cell: ({ row }: { row: { original: ClientListItem } }) => (
+                <RowActions
+                  label={localized(row.original.name, locale)}
+                  onEdit={canEdit ? () => router.push(`/clients/${row.original.id}/edit`) : undefined}
+                  del={canDelete ? { type: 'client', id: row.original.id } : undefined}
+                />
+              ),
+            } satisfies ColumnDef<ClientListItem, unknown>,
+          ]
+        : []),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [locale],
+    [locale, health, canEdit, canDelete],
   );
 
   return (
@@ -98,6 +145,13 @@ export function ClientsTable({ clients, canCreate }: { clients: ClientListItem[]
       data={clients}
       columns={columns}
       getRowId={(c) => c.id}
+      bulkActions={
+        canDelete
+          ? (rows, clear) => (
+              <BulkDeleteButton type="client" items={rows.map((c) => ({ id: c.id, name: localized(c.name, locale) }))} onDone={clear} />
+            )
+          : undefined
+      }
       onRowClick={(c) => router.push(`/clients/${c.id}`)}
       searchFn={(c, q) => (c.name.ar ?? '').toLowerCase().includes(q) || (c.name.en ?? '').toLowerCase().includes(q) || c.slug.includes(q)}
       searchPlaceholder={t('clients.searchPlaceholder')}
@@ -129,7 +183,11 @@ export function ClientsTable({ clients, canCreate }: { clients: ClientListItem[]
             <p className="truncate font-medium">{localized(c.name, locale)}</p>
             <p className="truncate text-xs text-subtle-foreground">{c.accountManager?.name ?? '—'}</p>
           </div>
-          <Badge tone={clientStatusTone[c.status as ClientStatus]}>{t(`clients.statuses.${c.status as ClientStatus}`)}</Badge>
+          {health?.[c.id] ? (
+            <ClientHealthBadge health={health[c.id]!.health} score={health[c.id]!.score} reasons={health[c.id]!.reasons} />
+          ) : (
+            <Badge tone={clientStatusTone[c.status as ClientStatus]}>{t(`clients.statuses.${c.status as ClientStatus}`)}</Badge>
+          )}
         </div>
       )}
     />

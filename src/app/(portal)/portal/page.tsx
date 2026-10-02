@@ -1,4 +1,4 @@
-import { ArrowUpRight, CheckCheck, ClipboardList, FileUp, MessageSquare, MessagesSquare, Sparkles, Upload } from 'lucide-react';
+import { ArrowUpRight, CheckCheck, ClipboardList, FileUp, MessageSquare, MessagesSquare, Plus, Sparkles, Upload } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
@@ -11,12 +11,22 @@ import { localized } from '@/lib/i18n/localized';
 import { getFormatters } from '@/lib/i18n/server-format';
 import { can } from '@/lib/permissions/can';
 import { publicAssetUrl } from '@/lib/storage';
+import { PortalCampaignsSummary } from '@/modules/campaigns/components/portal-campaigns';
+import { listCampaigns, listReports } from '@/modules/campaigns/server/queries';
 import { AccountManagerCard } from '@/modules/clients/components/client-overview';
+import { DeliverableCard } from '@/modules/deliverables/components/deliverables-list';
+import { listDeliverables } from '@/modules/deliverables/server/queries';
 import { PackageUsageCard } from '@/modules/clients/components/package-usage-card';
 import { listRecentFiles } from '@/modules/files/server/queries';
 import { RecentFilesGrid } from '@/modules/portal/components/recent-files';
 import { preview } from '@/modules/messaging/mentions';
 import { getPortalHome } from '@/modules/portal/server/queries';
+import { RequestRow } from '@/modules/requests/components/portal-requests';
+import { openStatuses } from '@/modules/requests/constants';
+import { listRequestActivity, listRequests } from '@/modules/requests/server/queries';
+import { ClientRequestStatsRow, PackageUsageChart } from '@/modules/requests/components/client-dashboard';
+import { RequestStatusBadge } from '@/modules/requests/components/badges';
+import { clientRequestStats } from '@/modules/requests/stats';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('nav');
@@ -33,14 +43,31 @@ export default async function PortalHomePage() {
   const ctx = await requirePortal();
   const t = await getTranslations();
   const f = await getFormatters();
-  const [home, recentFiles] = await Promise.all([getPortalHome(ctx), listRecentFiles(ctx.client.id, 4)]);
+  const requestsLive = Boolean(ctx.flags['module.requests']);
+  const approvalsLive = Boolean(ctx.flags['module.approvals']);
+  const campaignsLive = Boolean(ctx.flags['module.campaigns']);
+  const [home, recentFiles, requests, requestActivity, deliverables, campaigns, reports] = await Promise.all([
+    getPortalHome(ctx),
+    listRecentFiles(ctx.client.id, 4),
+    requestsLive ? listRequests({ clientId: ctx.client.id }) : Promise.resolve([]),
+    requestsLive ? listRequestActivity(ctx.client.id, 6) : Promise.resolve([]),
+    approvalsLive ? listDeliverables({ clientId: ctx.client.id, clientVisibleOnly: true }) : Promise.resolve([]),
+    campaignsLive ? listCampaigns({ clientId: ctx.client.id, status: ['active', 'paused'] }) : Promise.resolve([]),
+    campaignsLive ? listReports({ clientId: ctx.client.id, status: 'published' }) : Promise.resolve([]),
+  ]);
+  const awaiting = deliverables.filter((d) => d.status === 'client_review');
+  const activeRequests = requests
+    .filter((r) => openStatuses.includes(r.status))
+    .sort(
+      (a, b) => Number(b.status === 'needs_info') - Number(a.status === 'needs_info') || b.lastActivityAt.localeCompare(a.lastActivityAt),
+    );
+  const stats = clientRequestStats(requests, ctx.profile.timezone);
+  const canRequest = requestsLive && can(ctx.permissions, 'portal_requests:create');
   const hour = Number(
     new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: ctx.profile.timezone }).format(new Date()),
   );
   const firstName = ctx.profile.fullName.split(' ')[0] ?? '';
   const clientName = localized(home.client.name, f.locale);
-  const requestsLive = Boolean(ctx.flags['module.requests']);
-  const approvalsLive = Boolean(ctx.flags['module.approvals']);
 
   return (
     <div className="space-y-8">
@@ -67,8 +94,20 @@ export default async function PortalHomePage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {awaiting.length ? (
+              <Button asChild variant="secondary" className="bg-white text-primary shadow-md hover:bg-white/90" data-testid="approvals-cta">
+                <Link href={awaiting.length === 1 ? `/portal/approvals/${awaiting[0]!.id}` : '/portal/approvals'}>
+                  <CheckCheck />
+                  {t('portal.reviewAwaiting', { count: awaiting.length })}
+                </Link>
+              </Button>
+            ) : null}
             {can(ctx.permissions, 'portal_messages:send') ? (
-              <Button asChild variant="secondary" className="bg-white text-primary hover:bg-white/90">
+              <Button
+                asChild
+                variant={awaiting.length ? 'ghost' : 'secondary'}
+                className={awaiting.length ? 'text-primary-foreground hover:bg-white/15' : 'bg-white text-primary hover:bg-white/90'}
+              >
                 <Link href="/portal/messages">
                   <MessageSquare />
                   {t('portal.sendMessage')}
@@ -88,12 +127,14 @@ export default async function PortalHomePage() {
         </div>
       </section>
 
+      {requestsLive ? <ClientRequestStatsRow stats={stats} /> : null}
+
       <div className="lg:hidden">
         <AccountManagerCard manager={home.accountManager} title={t('portal.yourAccountManager')} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="space-y-8">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0 space-y-8">
           {/* Phase 3 slot: approvals */}
           <section data-testid="slot-approvals">
             <SectionTitle
@@ -106,14 +147,24 @@ export default async function PortalHomePage() {
                 ) : null
               }
             />
-            <Card>
-              <EmptyState
-                compact
-                icon={CheckCheck}
-                title={approvalsLive ? t('portal.noApprovals') : t('portal.approvalsSoonTitle')}
-                description={approvalsLive ? t('portal.noApprovalsBody') : t('portal.approvalsSoonBody')}
-              />
-            </Card>
+            {awaiting.length ? (
+              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" data-testid="home-approvals">
+                {awaiting.slice(0, 3).map((d) => (
+                  <li key={d.id} className="min-w-0">
+                    <DeliverableCard d={d} side="client" href={`/portal/approvals/${d.id}`} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Card>
+                <EmptyState
+                  compact
+                  icon={CheckCheck}
+                  title={approvalsLive ? t('portal.noApprovals') : t('portal.approvalsSoonTitle')}
+                  description={approvalsLive ? t('portal.noApprovalsBody') : t('portal.approvalsSoonBody')}
+                />
+              </Card>
+            )}
           </section>
 
           {/* Phase 2 slot: requests */}
@@ -128,29 +179,58 @@ export default async function PortalHomePage() {
                 ) : null
               }
             />
-            <Card>
-              <EmptyState
-                compact
-                icon={ClipboardList}
-                title={requestsLive ? t('portal.noRequests') : t('portal.requestsSoonTitle')}
-                description={requestsLive ? t('portal.noRequestsBody') : t('portal.requestsSoonBody')}
-                action={
-                  can(ctx.permissions, 'portal_messages:send') ? (
-                    <Button asChild variant="outline" size="sm">
-                      <Link href="/portal/messages">
-                        <MessagesSquare />
-                        {t('portal.messageInstead')}
+            {requestsLive && activeRequests.length ? (
+              <Card className="overflow-hidden">
+                <ul className="divide-y divide-border" data-testid="home-requests">
+                  {activeRequests.slice(0, 4).map((r) => (
+                    <li key={r.id}>
+                      <RequestRow r={r} href={`/portal/requests/${r.id}`} />
+                    </li>
+                  ))}
+                </ul>
+                {canRequest ? (
+                  <div className="border-t border-border p-3">
+                    <Button asChild variant="ghost" size="sm">
+                      <Link href="/portal/requests/new">
+                        <Plus />
+                        {t('requests.newRequest')}
                       </Link>
                     </Button>
-                  ) : null
-                }
-              />
-            </Card>
+                  </div>
+                ) : null}
+              </Card>
+            ) : (
+              <Card>
+                <EmptyState
+                  compact
+                  icon={ClipboardList}
+                  title={requestsLive ? t('portal.noRequests') : t('portal.requestsSoonTitle')}
+                  description={requestsLive ? t('portal.noRequestsBody') : t('portal.requestsSoonBody')}
+                  action={
+                    canRequest ? (
+                      <Button asChild size="sm">
+                        <Link href="/portal/requests/new" data-testid="home-new-request">
+                          <Plus />
+                          {t('requests.newRequest')}
+                        </Link>
+                      </Button>
+                    ) : !requestsLive && can(ctx.permissions, 'portal_messages:send') ? (
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/portal/messages">
+                          <MessagesSquare />
+                          {t('portal.messageInstead')}
+                        </Link>
+                      </Button>
+                    ) : null
+                  }
+                />
+              </Card>
+            )}
           </section>
 
           <section>
             <SectionTitle title={t('portal.yourPackage')} />
-            <PackageUsageCard usage={home.usage} compact />
+            {requestsLive ? <PackageUsageChart usage={home.usage} /> : <PackageUsageCard usage={home.usage} compact />}
           </section>
 
           <section>
@@ -170,6 +250,35 @@ export default async function PortalHomePage() {
           <div className="hidden lg:block">
             <AccountManagerCard manager={home.accountManager} title={t('portal.yourAccountManager')} />
           </div>
+          {campaignsLive ? <PortalCampaignsSummary campaigns={campaigns} latest={reports[0] ?? null} /> : null}
+          {requestsLive ? (
+            <section>
+              <SectionTitle title={t('requests.dashboard.updates')} />
+              <Card className="p-4" data-testid="request-activity">
+                {requestActivity.length === 0 ? (
+                  <EmptyState compact icon={ClipboardList} title={t('requests.dashboard.noUpdates')} />
+                ) : (
+                  <ol className="grid gap-3">
+                    {requestActivity.map((a) => (
+                      <li key={a.id}>
+                        <Link href={`/portal/requests/${a.requestId}`} className="block rounded-md text-sm hover:underline">
+                          <span className="flex flex-wrap items-center gap-1.5">
+                            <span className="truncate font-medium">
+                              <bdi>{a.title}</bdi>
+                            </span>
+                            <RequestStatusBadge status={a.to} />
+                          </span>
+                          <span className="block text-xs text-subtle-foreground">
+                            <span dir="ltr">{a.reference}</span> · {f.relative(a.at)}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </Card>
+            </section>
+          ) : null}
           <section>
             <SectionTitle title={t('portal.recentActivity')} />
             <Card className="p-2" data-testid="portal-activity">
@@ -183,7 +292,9 @@ export default async function PortalHomePage() {
                         href={
                           a.kind === 'file'
                             ? `/portal/files${a.folderId ? `?folder=${a.folderId}` : ''}`
-                            : `/portal/messages?thread=${a.threadId}`
+                            : a.requestId
+                              ? `/portal/requests/${a.requestId}`
+                              : `/portal/messages?thread=${a.threadId}`
                         }
                         className="flex items-start gap-3 rounded-md px-2 py-2.5 transition-colors hover:bg-surface-muted"
                       >

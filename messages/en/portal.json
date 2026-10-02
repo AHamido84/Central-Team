@@ -41,5 +41,6 @@
       "description": "Publishing and delivery dates.",
       "body": "You'll see the publishing schedule and delivery dates for each campaign here."
     }
-  }
+  },
+  "reviewAwaiting": "{count, plural, one {Review # item awaiting your approval} other {Review # items awaiting your approval}}"
 }

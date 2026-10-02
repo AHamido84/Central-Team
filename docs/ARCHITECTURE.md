@@ -1,6 +1,6 @@
 # Architecture
 
-Status: **Phases 0–1 built** · Owner: platform team · Related: `DATA_MODEL.md`, `UI.md`, `DECISIONS.md`
+Status: **Phases 0–7 built** · Owner: platform team · Related: `DATA_MODEL.md`, `UI.md`, `DECISIONS.md`
 
 ## 1. System overview
 
@@ -23,7 +23,7 @@ flowchart LR
     PG[(Postgres<br/>RLS · app.* functions · triggers)]
     RT[Realtime<br/>notifications channel]
     ST[Storage<br/>avatars bucket]
-    EF["Edge Functions<br/>event dispatcher (Phase 1+)"]
+    EF["Event dispatcher<br/>after() + /api/cron (ADR-027)"]
   end
 
   MAIL[Email provider<br/>Resend / SMTP / Console]
@@ -109,6 +109,7 @@ Key properties:
 │   │   ├── clients/               # clients, portal users, packages + usage ledger
 │   │   ├── files/                 # folders, uploads (signed URLs), previews
 │   │   ├── messaging/             # threads, comments, mentions, read receipts
+│   │   ├── requests/              # request types + form builder, requests, triage, SLA, dashboard stats
 │   │   ├── notifications/         # notify(), bell, inbox, preferences
 │   │   ├── portal/                # portal home read models
 │   │   ├── dashboard/             # agency dashboard read models
@@ -292,6 +293,8 @@ export const updateRolePermissions = defineAction({
 
 `defineAction` guarantees: input validation → session → side check → `can()` → `withRls` transaction →
 handler → commit → `revalidatePath` → `Result<T>` with translatable error codes. Rate limiting is opt-in per action.
+An optional `complete` step runs **after commit** with what the handler prepared (RLS-checked) and returns the action's
+result — for slow work such as an AI provider call that must not hold a transaction open (ADR-079).
 
 ## 7. Domain events
 
@@ -307,17 +310,25 @@ emitEvent(tx, { type, aggregate: { type, id }, payload, clientId? })
   `role.updated`, `role.deleted`, `role.permissions_updated`, `user.roles_changed`,
   `user.permission_override_set`, `department.created`, `department.updated`, `department.members_changed`,
   `feature_flag.toggled`, `organization.updated`.
-- **Consumers (Phase 1+)**: a dispatcher (Supabase Database Webhook / `pg_net` → Edge Function, or a
-  cron-driven worker) reads unprocessed events, fans out to handlers (notifications rules, automations, AI
-  indexing), and marks `processed_at` per consumer (`domain_event_deliveries`). Phase 0 builds the producer
-  side and the table; one Phase 0 consumer exists inline: invitations send notification emails directly.
+- **Consumers (Phase 2, ADR-027)**: `src/lib/events/dispatcher.ts` + the registry in `src/lib/events/consumers.ts`.
+  After every committed `defineAction`, `scheduleEventDispatch()` runs the dispatcher via `after()`; the cron route
+  `/api/cron/dispatch-events` (Bearer `CRON_SECRET`) is the safety net. Per pass:
+  1. insert a `domain_event_deliveries (event_id, consumer)` row for each recent event (≤ 2 days) a consumer subscribes to;
+  2. claim due rows (`processed_at is null`, `next_attempt_at <= now()`, lease expired) with `for update skip locked`,
+     set `locked_until = now() + 2 min`, `attempts + 1`;
+  3. run the handler → `processed_at = now()`, or `last_error` + `next_attempt_at = now() + backoff` (30 s × 2ⁿ, ≤ 1 h, 8 attempts).
+  Handlers must be idempotent (`notify()` skips recipients already notified for the event).
+- Current consumers — all notification fan-out (ADR-028): `notifications.messages` (`comment.created` → message / mention,
+  request threads link to the request page), `notifications.files` (`file.uploaded`), `notifications.requests`
+  (`request.submitted | assigned | status_changed`), `notifications.invitations` (`invitation.accepted`),
+  `notifications.roles` (`user.roles_changed`). Automations (Phase 7) and AI indexing (Phase 8) add consumers here.
 
 ```mermaid
 flowchart LR
   SA[Server Action] -->|same tx| T[(domain tables)]
   SA -->|same tx| E[(domain_events)]
   T -->|trigger| AL[(activity_log)]
-  E -. Phase 1+ .-> D[Dispatcher]
+  E --> D[Dispatcher]
   D -.-> N[Notification rules]
   D -.-> AU[Automation engine · Phase 7]
   D -.-> AI[AI indexing · Phase 8]
@@ -403,8 +414,8 @@ Migrations are applied to staging/prod by CI (`supabase db push`) on merge, neve
 | React to something | Subscribe a handler to a `domain_events` type in the dispatcher |
 | Notify a user | `notify()` + a `notifications.types.*` translation + a preference category |
 | Client-scoped data | `client_id` column + `app.client_access(client_id)` in RLS |
-| Integrations (Phase 7) | `integration_connections` per org/client, secrets in Supabase Vault, webhooks under `/api/hooks/<provider>` |
-| AI (Phase 8) | Consumes `domain_events` + read models; pgvector for embeddings; provider behind an interface |
+| Integrations (Phase 7) | **Built** — §22: `IntegrationProvider` per platform, tokens in Vault, webhooks under `/api/hooks/<provider>` |
+| AI (Phase 8) | **Built** — §23 |
 
 ## 16. Phase 1 — client portal flows
 
@@ -461,3 +472,323 @@ which rows each subscriber receives, so internal notes never reach client socket
 `getPackageUsage(tx, clientPackageId)` → allowed per item (from `package_items`) vs used (sum of
 `package_usage_entries`), plus period progress. Runs inside the caller's RLS transaction, so the same service powers
 the agency client page and the portal home.
+
+## 17. Phase 2 — requests
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor C as Client user
+  participant W as Wizard (portal)
+  participant A as Server actions
+  participant DB as Postgres (RLS + triggers)
+  participant D as Dispatcher
+  actor AM as Account manager
+  C->>W: type card → brief → attachments → date & priority → review
+  W->>A: saveRequestDraftAction (any step) / submitRequestAction
+  A->>DB: validateBrief(type.form_schema) → draft row + request_attachments
+  A->>DB: status = submitted (trigger: number/reference, due date, extra flag, assignee, snapshot, history, thread)
+  A->>D: emitEvent(request.submitted) → after() → notifications.requests
+  D->>AM: request_submitted (in-app + email)
+  AM->>A: changeRequestStatusAction(needs_info, reason) — reason via app.transition_reason
+  D->>C: request_needs_info (with the question)
+  C->>A: resubmitRequestAction (brief validated against the snapshot) → under_review
+  AM->>A: accepted → trigger app.request_sync_usage writes package_usage_entries
+  DB-->>C: Realtime (requests row, comments) → live page
+```
+
+- Module: `src/modules/requests` — `form-schema.ts` (12 field types, `formSchemaSchema` for definitions, `validateBrief`
+  for answers — the same validator in the wizard, the server and the resubmit path), `constants.ts` (statuses,
+  `requestTransitions` per side mirrored by `app.request_transition_allowed`, SLA state, inbox views), `stats.ts`
+  (client dashboard), `server/{queries,actions,consumers}.ts`, components (type builder, wizard, inbox + preview drawer,
+  request detail, portal list, dashboard).
+- Routes: agency `/requests`, `/requests/[id]`, `/admin/request-types`, `/admin/request-types/[id]`, client tab
+  `/clients/[id]?tab=requests`; portal `/portal/requests`, `/portal/requests/new`, `/portal/requests/[id]`,
+  `/portal/requests/[id]/edit` (drafts and needs-info). All behind `module.requests`; "Convert to tasks" behind `module.tasks`.
+- Access: agency `requests:read` + client access; `requests:triage` (accept / needs info / reject, assign, priority,
+  due date, extra/billable) or `requests:update` (work statuses of requests assigned to you); `request_types:manage`.
+  Client `portal_requests:create` (Owner, Member); Viewers read only. Drafts are visible only to their author.
+
+## 18. Phase 3 — tasks, deliverables & approvals
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor AM as Account manager
+  actor D as Designer
+  actor TL as Team lead
+  actor C as Client approver
+  participant DB as Postgres (RLS + triggers)
+  participant S as Storage (TUS)
+  AM->>DB: convertRequestToTasksAction → accept + tasks/deps/deliverables (generateWorkflow) → request in_progress
+  D->>DB: createVersionAction (draft) · requestVersionUploadAction (signed token)
+  D->>S: TUS upload (6 MB chunks, resumable) + preview image
+  D->>DB: finalizeVersionFileAction · submitVersionAction → trigger picks internal_review
+  TL->>DB: decideVersionAction(internal, approved) → approvals trigger → client_review (file now visible to client)
+  C->>DB: addAnnotationAction (pin / timestamp) · decideVersionAction(client, changes) → revision round used
+  D->>DB: new version → review restarts → … → client approved → task done → request delivered
+  DB-->>C: Realtime (deliverables, versions, annotations) → live review screen
+```
+
+- Modules: `src/modules/workflows` (templates, steps, statuses, `generate.ts`, convert dialog, progress stepper),
+  `src/modules/tasks` (queries/actions/consumers/reminders, board/list/table/calendar, drawer, My Work, `filter.ts`),
+  `src/modules/deliverables` (queries/actions/consumers, review screen, viewers, resumable upload hook, approvals list,
+  content calendar).
+- Routes: agency `/tasks` (`?layout=board|list|table|calendar`, `?task=<id>` opens the drawer, `?view=<saved view>`),
+  `/my-work`, `/deliverables`, `/deliverables/[id]`, `/admin/workflows`, `/admin/workflows/[id]`; the request page and
+  the inbox preview drawer carry "Convert to tasks". Portal `/portal/approvals`, `/portal/approvals/[id]`,
+  `/portal/calendar`, progress + deliverables on `/portal/requests/[id]`, approvals CTA on `/portal`.
+- Access: `tasks:read/create/update/delete`, `workflows:manage`, `deliverables:manage`, `deliverables:review`,
+  `time:read_all`; client decisions need `client_users.can_approve`. Flags: `module.tasks`, `module.approvals`,
+  `module.calendar` (on by default).
+- Board: dnd-kit (pointer, touch, keyboard with localized announcements; Left/Right jump columns), fractional
+  `position`, optimistic cache updates rolled back on error, realtime refetch debounced (400 ms).
+- Reminders: `runReminderSweep()` in `/api/cron/dispatch-events` emits `task.due_soon`, `task.overdue`,
+  `deliverable.approval_reminder` once per marker (ADR-043).
+
+## 19. Phase 4 — campaigns, metrics & reports
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor AM as Account manager / media buyer
+  actor C as Client user
+  participant B as Browser
+  participant DB as Postgres (RLS + triggers)
+  participant Cron as Daily cron
+  AM->>DB: saveCampaignAction (campaign + channels + KPI targets) → refreshCampaignHealth
+  AM->>B: drop an ad-platform CSV → parseMetricsCsv (preset, mapping, date order) → preview
+  B->>DB: importMetricsAction (re-validated rows, upsert by channel/day, metric_imports log) → health cache
+  AM->>DB: createReportAction (default sections) · saveReportAction · publishReportAction → snapshot frozen
+  DB-->>C: report.published → notification + email → /portal/reports/[id] (print / PDF)
+  Cron->>DB: runCampaignSweep → planned→active, active→completed, health, stale reminder, scheduled reports
+```
+
+- Module: `src/modules/campaigns` — `constants.ts` (metric catalog: kind volume/cost/rate, format), `metrics.ts`
+  (pure math: derived metrics, pacing, health, series), `csv.ts` (tolerant CSV parser + presets), `periods.ts`
+  (schedule periods, default sections), `snapshot.ts` (rows, KPIs, report snapshots — not `server-only`, the seed
+  uses it), `server/` (queries, actions, analysis/health cache, sweep, consumers), `components/` (list, form,
+  overview, SVG charts, metrics grid, import dialog, report builder/view, schedules, portal views).
+- Routes: agency `/campaigns`, `/campaigns/[id]` (`?tab=overview|metrics|creatives|reports`), `/reports`,
+  `/reports/[id]`; portal `/portal/campaigns`, `/portal/campaigns/[id]`, `/portal/reports/[id]`, a campaigns block on
+  `/portal`; a campaign picker on the agency request page.
+- Access: `campaigns:read`, `campaigns:manage`, `metrics:manage`, `reports:manage`; clients see client-visible,
+  non-draft campaigns and published reports (flag `module.campaigns`, on by default).
+- Health: computed in TypeScript from the rows (`analyzeCampaign`), cached on `campaigns.health` through
+  `app.campaign_store_health` (security definer; direct writes to the cache columns are ignored) — ADR-051.
+- Reports: drafts render live numbers; publishing stores `reports.snapshot`; print CSS hides the shell and forces
+  light tokens, so "Print / PDF" in the browser gives the branded PDF (ADR-049).
+- Charts: plain SVG (`components/charts.tsx`) on `--chart-*` tokens validated for colour-vision deficiency in both
+  modes (ADR-050).
+
+
+## 20. Phase 5 — agency operations & SLA
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Admin as Operations manager
+  actor C as Client user
+  actor AM as Account manager
+  participant DB as Postgres (RLS + triggers)
+  participant Cron as Daily cron
+  Admin->>DB: savePolicyAction · saveBusinessHoursAction (app.set_business_hours) · saveHolidayAction
+  C->>DB: submit request → requests_sla: app.sla_policy_for → response_due_at (business hours), due_date (working days)
+  AM->>DB: needs info → sla_paused_at · client resubmits → due_date += working days waited (system event)
+  Cron->>DB: runSlaSweep → sla_breaches (once per request × kind × level) → sla.at_risk / sla.breached
+  DB-->>AM: notifications.sla consumer → assignee (+ account manager + escalation contact on breach)
+  AM->>DB: acknowledgeBreachAction (note; who/when stamped by trigger)
+```
+
+- Modules: `src/modules/sla` — `calendar.ts` (working days, business hours; mirror of the SQL, parity-tested),
+  `constants.ts` (policy matching, compliance), `server/` (queries: admin data, live issues `issuesOf`, monitor;
+  actions; sweep; consumer), `components/` (admin, monitor). `src/modules/operations` — `health.ts` (client health
+  score), `server/queries.ts` (ops overview, Client 360, clients health, team overview / member), `components/`.
+- Routes: `/dashboard` (ops view with `operations:read`, `?scope=mine|<account manager id>`), `/sla`
+  (`?days=90&view=unacknowledged|resolved|all&client=`), `/admin/sla`, `/team` (`?department=`), `/team/[userId]`;
+  Client 360 is the overview tab of `/clients/[id]`; the clients list gains a health column.
+- Live vs recorded: request screens, the monitor and the dashboard compute SLA states on read; the sweep only records
+  breaches and alerts (ADR-055). The cron route runs reminders → campaigns → SLA → dispatcher.
+- Scoping: every ops number comes from RLS-scoped queries (`withRls`), so views are limited to the clients the viewer
+  can access; time totals follow `time:read_all` (ADR-056).
+
+## 21. Phase 6 — CRM & capacity
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor V as Website visitor
+  participant F as /f/[token] (public, embeddable)
+  participant API as /api/public/lead-forms/[token]
+  participant DB as Postgres (RLS + triggers)
+  actor Rep as Sales rep
+  actor SM as Sales manager
+  participant Cron as Daily cron
+  V->>F: load (server signs a time ticket)
+  V->>API: submit (honeypot, ticket 3s–6h, rate limits)
+  API->>DB: ingestLead (service path) → duplicate? activity on existing lead : insert + assignment rules (round-robin)
+  DB-->>Rep: lead.assigned → notifications.crm
+  Rep->>DB: convertLeadAction → deal (first open stage, primary contact) · moveDealAction … Won
+  SM->>DB: convertDealToClientAction (one RLS transaction)
+  Note over DB: client + folders + thread → client package → invitation → onboarding request → workflow tasks → deal.converted
+  DB-->>V: invitation email (after-hook)
+  Cron->>DB: runCrmSweep → crm_activity.due · deal.stale → notifications.crm
+```
+
+- Modules: `src/modules/crm` — `leads.ts` (phone/email normalisation, duplicates, merge, score, rule matching),
+  `metrics.ts` (weighted value, stage conversion, win rate, cycle, forecast, sources, per owner), `quotes.ts` (totals,
+  mirror of `app.quote_recalculate`), `server/` (`intake.ts` public form + webhook, `queries.ts`, `actions.ts`,
+  `deal-actions.ts` files/quotes/conversion, `settings-actions.ts`, `dashboard.ts`, `sweep.ts`, `consumers.ts`),
+  `components/`. `src/modules/capacity` — `calc.ts` (pure capacity maths, ADR-059), `server/queries.ts` (inputs via
+  the `app.capacity_*` readers, ADR-060), `server/actions.ts` (hours, time off, service effort), `components/`.
+- Routes: `/crm/leads`, `/crm/leads/[id]`, `/crm/pipeline` (`?pipeline=`), `/crm/deals/[id]`, `/crm/quotes/[id]`
+  (print / PDF in the quote's language), `/crm/follow-ups` (`?scope=all` with `crm:manage_all`), `/crm/dashboard`
+  (`?period=month|quarter|year&owner=&pipeline=`), `/capacity`, `/admin/crm`; public `/f/[token]`,
+  `POST /api/public/lead-forms/[token]`, `POST /api/webhooks/leads`. The proxy treats `/f/`, `/api/public/` and
+  `/api/webhooks/` as public; only `/f/` may be framed.
+- Files: private `crm-files` bucket, `org/<org>/deals/<deal>/<file>-<name>`, signed upload after `app.can_write_deal`,
+  signed download for rows the caller can select (same pattern as client files).
+- The cron route now runs reminders → campaigns → SLA → CRM → dispatcher.
+
+### Inbound lead webhook (contract for Phase 7 and third parties)
+
+```http
+POST /api/webhooks/leads
+Authorization: Bearer ctw_…            (Sales settings → Integrations; shown once, stored hashed)
+Content-Type: application/json
+
+{
+  "external_ref": "meta-lead-123456",  // required, unique per source — replays are ignored
+  "source": "lead_ad",                 // website_form | whatsapp | instagram | referral | event | lead_ad | manual | other (default lead_ad)
+  "source_detail": "Meta · Ramadan",   // optional, free text
+  "full_name": "Sara Al-Otaibi",       // required
+  "company": "Qahwa Lab",              // optional
+  "phone": "0551234567",               // phone or email required; Saudi formats normalised to E.164
+  "email": "sara@example.com",
+  "city": "riyadh",                    // optional: riyadh | jeddah | dammam | khobar | makkah | madinah | abha | taif | tabuk | qassim | other
+  "services": ["social_media", "ads"], // optional: social_media | content | design | video | photography | ads | branding | web | influencers
+  "budget_range": "15k_50k",           // optional: under_5k | 5k_15k | 15k_50k | 50k_plus | unknown
+  "message": "…"                       // optional, stored in the lead notes
+}
+```
+
+| Response | Meaning |
+|---|---|
+| `201 {"leadId", "duplicate": false}` | New lead, assigned by the rules |
+| `200 {"leadId", "duplicate": true}` | Same `external_ref` again, or an existing lead with that phone/email (the submission is added to it as an activity) |
+| `400 {"error": "validation", "fieldErrors"}` | Invalid body |
+| `401` / `429` | Missing, unknown or revoked token / more than 120 requests per minute per token |
+
+
+## 22. Phase 7 — integrations & automation
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Admin as Integrations admin
+  participant App as Next.js (server)
+  participant P as Platform (or sandbox)
+  participant V as Supabase Vault
+  participant DB as Postgres (RLS + triggers)
+  participant D as Dispatcher
+  Admin->>App: startOAuthAction → signed state + nonce cookie
+  App-->>Admin: redirect to the platform's consent (sandbox: /integrations/sandbox/authorize)
+  P-->>App: /api/integrations/callback/[provider]?code&state (state + nonce + user + permission checked)
+  App->>P: exchangeCode · identify · listAccounts · listCampaigns
+  App->>V: app.integration_put_secret (service path) — tokens never in a table
+  App->>DB: connection, accounts, platform campaigns (audited, actor in claims)
+  Admin->>DB: map ad account → client · platform campaign → campaign channel (RLS, guard triggers)
+  Admin->>DB: requestSyncAction (queued run) → after(): executeSyncRun
+  App->>P: fetchDailyMetrics(range) → aggregate per channel/day → upsert metrics_daily (source api)
+  App->>DB: metrics.synced · campaign health → D → automations.engine → actions
+  P->>App: POST /api/hooks/[provider] (signature verified) → integration_webhook_events (dedup) → ingestLead / message status
+```
+
+- Modules: `src/modules/integrations` — `constants.ts` (providers, health, errors, sync limits), `providers/` (`types.ts`
+  interface + `ProviderError`, `http.ts`, `meta.ts`, `whatsapp.ts`, `tiktok.ts`, `snapchat.ts`, `google.ts`, `sandbox.ts`,
+  `index.ts` registry / env checks), `signatures.ts` (webhook signatures, OAuth state — pure), `metrics.ts` (aggregation —
+  pure), `webhook-parsers.ts` (payload → items — pure), `server/` (`connections.ts` Vault + discovery + health,
+  `sync.ts`, `webhooks.ts`, `whatsapp.ts`, `sweep.ts`, `consumers.ts`, `queries.ts`, `actions.ts`), `components/`.
+  `src/modules/automations` — `constants.ts` (trigger catalog with fields, operators, action applicability, limits),
+  `schemas.ts`, `engine-core.ts` (conditions, templating, loop guard, URL guard — pure), `server/engine.ts` (context
+  loader, actions, runs, the `automations.engine` consumer), `server/queries.ts`, `server/actions.ts`, `components/`.
+- Routes: `/admin/integrations`, `/admin/integrations/[connectionId]` (accounts, campaigns, sync, templates, messages,
+  webhooks), `/admin/automations`, `/admin/automations/new`, `/admin/automations/[id]` (`?tab=rule|test|runs`),
+  `/integrations/sandbox/authorize`; API `GET|POST /api/hooks/[provider]` (public, signature-checked; GET answers the
+  Meta verify challenge), `GET /api/integrations/callback/[provider]`. WhatsApp panel on `/crm/leads/[id]` and
+  `/crm/deals/[id]`; WhatsApp opt-in and channel column on `/settings/notifications`.
+- Service paths (ADR-067): Vault reads, provider calls and their bookkeeping, webhook processing and WhatsApp sends run
+  with the service connection **after** an RLS-checked lookup or permission probe in the action; guard triggers keep
+  status / health / external ids server-owned even for managers (`app.is_user_write()` reads the `role` setting).
+- Events: `integration.*`, `metrics.synced`, `whatsapp.*`, `automation.*`; `domain_events.automation_depth` /
+  `automation_chain` are set by `emitEvent` from `automationCause` (AsyncLocalStorage) while a rule's actions run.
+- Consumers: `notifications.integrations` (expired connection, final sync failure, failed rule, failed lead message) and
+  `automations.engine` (every trigger in the catalog). `notify()` adds the WhatsApp channel (opt-in + per-category switch).
+- Cron: reminders → campaigns → SLA → CRM → **integrations** (token refresh / expiry, daily sync scheduling, due runs
+  and retries, stuck webhook events, one WhatsApp retry) → dispatcher. On the Hobby plan this is once a day; "Sync now"
+  and backfills run immediately after the request.
+- Environment: `INTEGRATIONS_SANDBOX`, `INTEGRATIONS_SIGNING_SECRET`, `META_APP_ID`, `META_APP_SECRET`,
+  `META_WEBHOOK_VERIFY_TOKEN`, `META_GRAPH_VERSION`, `TIKTOK_APP_ID`, `TIKTOK_APP_SECRET`, `SNAPCHAT_CLIENT_ID`,
+  `SNAPCHAT_CLIENT_SECRET`, `SNAPCHAT_WEBHOOK_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+  `GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_LOGIN_CUSTOMER_ID`, `GOOGLE_ADS_API_VERSION`, `GOOGLE_LEAD_WEBHOOK_KEY`
+  (see `.env.example`). OAuth redirect URI per platform: `<APP_URL>/api/integrations/callback/<provider>`.
+
+### Outbound automation webhook (contract)
+
+```http
+POST <your https URL>
+Content-Type: application/json
+X-Central-Event: lead.created
+X-Central-Delivery: <run id>            (stable across retries)
+X-Central-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256(key, "<t>.<raw body>")>
+
+{ "automation": { "id", "name" }, "event": { "id", "type", "occurredAt", "payload" },
+  "subject": { "type": "lead", "id" }, "data": { "lead.full_name": "…", "lead.source": "lead_ad", … } }
+```
+
+The key is shown to `automations:manage` in the builder; any 2xx is success, anything else is retried (ADR-071).
+
+## 23. Phase 8 — AI intelligence
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant M as metrics_daily (sync / manual / CSV)
+  participant D as Dispatcher
+  participant A as ai.analysis (detectors — code)
+  participant I as ai.indexer
+  participant U as User (withRls)
+  participant P as AiProvider (Claude + Voyage, or mock)
+  M->>D: metrics.synced / recorded / imported
+  D->>A: runCampaignAnalysis → ai_insights + ai_recommendations (idempotent, resolve / reopen)
+  A-->>D: ai_insight.detected → notifications.ai · automations.engine · ai.indexer
+  D->>I: record events → buildChunks (redacted) → embed changed text → ai_chunks
+  U->>U: askAssistantAction: save question (RLS) — commit
+  U->>P: embed(question)
+  U->>U: withRls: nearest chunks (policy: ai:use + source row visible to the user)
+  U->>P: complete(grounded prompt with numbered sources)
+  U->>U: validate [n] citations → save answer (RLS)
+```
+
+- Module `src/modules/ai`: `types.ts`, `insights-core.ts` (detectors + recommendation rules — pure), `analysis.ts`
+  (reconcile insights for one campaign — shared with the seed), `insight-text.ts` + `kit.ts` (the sentences for insights
+  and recommendations in AR/EN, for UI, index, prompts and tasks), `prompts.ts` (grounded prompts, citation validation
+  — pure), `indexer-core.ts` (chunk text per source, redaction, hash-based reconcile — shared with the seed),
+  `providers/` (`types.ts` interface, `anthropic.ts`, `voyage.ts`, `mock.ts`, `mock-embedder.ts`, `index.ts` registry
+  / mode), `server/` (`runtime.ts` switch + budget + usage, `insights.ts`, `indexer.ts`, `reports.ts`, `assistant.ts`,
+  `consumers.ts`, `sweep.ts`, `queries.ts`, `actions.ts`), `components/`.
+- Routes: `/insights`, `/insights/[insightId]`, `/assistant`, `/assistant/[conversationId]`, `/admin/ai`; campaign
+  `?tab=insights`; "Draft with AI" in the report builder.
+- Service paths (ADR-073/075): usage records, cached explanations after an RLS-checked lookup, detector runs, the
+  indexer, scheduled-report auto-drafts and the index status counts run with the service connection. Every read a user
+  triggers (insight lookups, report snapshots, chunk search) runs in their RLS transaction first.
+- Model calls run in `defineAction`'s post-commit `complete` step (no open transaction while the model thinks) and
+  always go through `runtime.generate()` / `embedTexts()`: AI switch → provider configured → monthly budget → call →
+  usage row. Refusals are shown as such; provider errors map to `ai_unavailable` / `ai_not_configured`.
+- Events: `ai_insight.detected` / `status_changed`, `ai_recommendation.decided`, `ai_settings.updated`,
+  `ai_report.drafted`. Consumers: `ai.analysis`, `notifications.ai`, `ai.indexer`, `ai.report_drafts`;
+  `ai_insight.detected` is also an automation trigger (subject: campaign).
+- Cron: after the integrations sweep, `runAiSweep()` runs the detectors over live campaigns and catches the index up
+  (missing, outdated or re-modelled chunks, 500 per organization per run).
+- Environment: `AI_PROVIDER`, `ANTHROPIC_API_KEY`, `AI_MODEL`, `VOYAGE_API_KEY`, `AI_EMBEDDING_MODEL` (see
+  `.env.example`). Hosts: `api.anthropic.com`, `api.voyageai.com`.

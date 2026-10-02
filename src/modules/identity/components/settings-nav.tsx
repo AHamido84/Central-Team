@@ -1,19 +1,20 @@
 'use client';
 
-import { Bell, Settings2, UserRound } from 'lucide-react';
+import { Bell, Link2, Settings2, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils/cn';
 
-export function SettingsNav({ base }: { base: '/settings' | '/portal/settings' }) {
+export function SettingsNav({ base, showConnections = false }: { base: '/settings' | '/portal/settings'; showConnections?: boolean }) {
   const t = useTranslations();
   const pathname = usePathname();
   const items = [
     { href: `${base}/profile`, label: t('common.profile'), icon: UserRound },
     { href: `${base}/preferences`, label: t('nav.preferences'), icon: Settings2 },
     { href: `${base}/notifications`, label: t('nav.notificationSettings'), icon: Bell },
+    ...(showConnections ? [{ href: `${base}/connections`, label: t('nav.myConnections'), icon: Link2 }] : []),
   ];
   return (
     <nav className="-mx-(--gutter) overflow-x-auto px-(--gutter)" aria-label={t('nav.settings')}>

@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { boolean, check, date, index, integer, jsonb, pgTable, primaryKey, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
-import { createdAt, id, localized, updatedAt } from '@/lib/db/columns';
+import { createdAt, id, isDemo, localized, softDelete, updatedAt } from '@/lib/db/columns';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
 import { roles } from '@/modules/rbac/db/schema';
 
@@ -26,7 +26,11 @@ export const clients = pgTable(
       onDelete: 'set null',
     }),
     startDate: date('start_date'),
+    /** Prefix of request references (NAJD-0042). Defaults from the slug (trigger). */
+    requestPrefix: text('request_prefix'),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    ...softDelete(),
+    isDemo: isDemo(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -71,6 +75,7 @@ export const clientUsers = pgTable(
     jobTitle: text('job_title'),
     status: text('status').notNull().default('active'),
     invitedBy: uuid('invited_by').references(() => profiles.id, { onDelete: 'set null' }),
+    ...softDelete(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -112,6 +117,8 @@ export const packages = pgTable(
     priceMinor: integer('price_minor'),
     currency: text('currency').notNull().default('SAR'),
     isActive: boolean('is_active').notNull().default(true),
+    ...softDelete(),
+    isDemo: isDemo(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

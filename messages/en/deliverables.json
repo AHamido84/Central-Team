@@ -1,0 +1,211 @@
+{
+  "statuses": {
+    "in_progress": "In progress",
+    "internal_review": "Waiting for internal review",
+    "internal_changes": "Internal changes",
+    "client_review": "Waiting for client approval",
+    "client_changes": "Client changes",
+    "approved": "Approved"
+  },
+  "statusShort": {
+    "in_progress": "In progress",
+    "internal_review": "Internal review",
+    "internal_changes": "Changes",
+    "client_review": "With client",
+    "client_changes": "Client changes",
+    "approved": "Approved"
+  },
+  "versionStatuses": {
+    "draft": "Draft",
+    "internal_review": "Internal review",
+    "internal_changes": "Internal changes",
+    "client_review": "With client",
+    "client_changes": "Client asked for changes",
+    "approved": "Approved",
+    "superseded": "Superseded"
+  },
+  "clientStates": {
+    "awaiting": "Awaiting your approval",
+    "revising": "In revision",
+    "approved": "Approved"
+  },
+  "viewer": {
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fit": "Fit",
+    "clickToPin": "Click the image to pin a comment to that spot.",
+    "pinLabel": "Comment {n}",
+    "newPin": "New comment",
+    "timeline": "Timeline",
+    "commentAt": "Comment at {time}",
+    "timelineHint": "Click the timeline to comment at that moment",
+    "markerLabel": "Comment {n} at {time}",
+    "download": "Download"
+  },
+  "back": "Back",
+  "close": "Close",
+  "cancel": "Cancel",
+  "files": "Files",
+  "notes": "Team notes",
+  "copyText": "Proposed copy",
+  "agencyBadge": "Agency",
+  "internal": "Internal",
+  "versionN": "Version {n}",
+  "versionPicker": "Choose version",
+  "uploadedBy": "Uploaded by {name}",
+  "noVersions": "No versions yet",
+  "noVersionsAgency": "Upload the first version to start the review.",
+  "noVersionsClient": "It will appear here when the team sends it for your approval.",
+  "addComment": "Add a general comment",
+  "hintImage": "To comment on a specific spot, click the image.",
+  "hintVideo": "To comment on a moment, click the timeline or use “Comment at”.",
+  "showResolved": "Show resolved ({count})",
+  "noComments": "No comments on this version.",
+  "reply": "Write a reply…",
+  "sendReply": "Send reply",
+  "resolve": "Resolve",
+  "reopen": "Reopen",
+  "composer": {
+    "onPoint": "Comment on the selected spot",
+    "atTime": "Comment at {time}",
+    "general": "General comment",
+    "placeholder": "Write your comment…",
+    "add": "Add",
+    "visibleToClient": "Visible to the client",
+    "internalOnly": "Team only",
+    "internalUntilSent": "Team comments stay internal until the version is sent to the client."
+  },
+  "tabs": {
+    "comments": "Comments",
+    "versions": "Versions"
+  },
+  "compare": {
+    "button": "Compare versions",
+    "title": "Compare versions",
+    "pick": "Choose a version",
+    "noImage": "This version has no image to compare."
+  },
+  "revisionRounds": "{count, plural, one {# client revision round} other {# client revision rounds}}",
+  "decision": {
+    "approve": "Approve",
+    "requestChanges": "Request changes",
+    "approvedToast": "Deliverable approved.",
+    "changesToast": "Your feedback was sent to the team.",
+    "feedback": "What should change?",
+    "noteOptional": "Note (optional)",
+    "noRight": "Waiting for approval from someone with approval rights at your company.",
+    "quotaLeft": "Requesting changes uses a revision round from your package — {left} of {allowed} left.",
+    "quotaExceeded": "Your package's revision rounds are used up ({used} of {allowed}). You can still request changes; it may count as an extra round.",
+    "approveTitle": {
+      "internal": "Approve internally",
+      "client": "Approve deliverable"
+    },
+    "changesTitle": {
+      "internal": "Send back with changes",
+      "client": "Request changes"
+    },
+    "approveBody": {
+      "internal": "It goes to the client for approval if needed; otherwise it's approved.",
+      "client": "Approving tells the team it's ready to publish."
+    },
+    "changesBody": {
+      "internal": "The task goes back to its assignee with your feedback; the next version restarts the review.",
+      "client": "The team will revise it and send a new version. Your comments on the image or video reach them too."
+    }
+  },
+  "decisionLabels": {
+    "internal": {
+      "approved": "Approved internally by {name}",
+      "changes_requested": "{name} asked for internal changes"
+    },
+    "client": {
+      "approved": "Approved by {name}",
+      "changes_requested": "{name} asked for changes"
+    }
+  },
+  "upload": {
+    "title": "Version {n} (draft)",
+    "drop": "Drop files here or click to choose",
+    "limits": "Images up to 50 MB, videos up to 2 GB — uploads resume automatically if the connection drops.",
+    "states": {
+      "preparing": "Preparing",
+      "uploading": "Uploading",
+      "finishing": "Finishing",
+      "done": "Done",
+      "error": "Error"
+    },
+    "done": "Done",
+    "resumed": "Resumed an earlier upload of this file.",
+    "remove": "Remove file",
+    "notes": "Notes for the reviewer",
+    "copyText": "Copy",
+    "submitInternal": "Send for internal review",
+    "submitClient": "Send to client for approval",
+    "submitApprove": "Deliver as final",
+    "submitted": "Version sent.",
+    "newVersion": "Upload version {n}",
+    "newVersionHint": "To revise, upload a new version — the review starts again.",
+    "approvedHint": "Approved. You can still upload a new version if needed; the review starts again."
+  },
+  "agencyTitle": "Deliverables",
+  "agencyDescription": "Everything the team produces, by review stage.",
+  "tabsLabel": "Deliverable stages",
+  "listTabs": {
+    "review": "Internal review",
+    "client": "With client",
+    "changes": "Changes",
+    "progress": "In progress",
+    "approved": "Approved",
+    "awaiting": "Awaiting your approval",
+    "revising": "In revision"
+  },
+  "listEmpty": {
+    "review": {
+      "title": "Nothing waiting for internal review",
+      "body": "When someone uploads a version for review it shows up here."
+    },
+    "client": {
+      "title": "Nothing with clients right now",
+      "body": "Deliverables sent for approval show up here."
+    },
+    "changes": {
+      "title": "No changes requested",
+      "body": "Deliverables sent back with feedback show up here."
+    },
+    "progress": {
+      "title": "Nothing in progress",
+      "body": "Deliverables of running tasks show up here before their first version."
+    },
+    "approved": {
+      "title": "No approved deliverables yet",
+      "body": "Everything approved ends up here."
+    },
+    "awaiting": {
+      "title": "Nothing waiting for your approval",
+      "body": "When the team sends a design or video for your approval, you'll find it here."
+    },
+    "revising": {
+      "title": "Nothing in revision",
+      "body": "What you asked to change shows up here until the new version arrives."
+    }
+  },
+  "portal": {
+    "title": "Approvals",
+    "description": "Everything the team sent for your approval. Open one to preview it, add comments, then approve it or request changes.",
+    "descriptionViewer": "Deliverables the agency sent to your company. People with approval rights approve them.",
+    "forRequest": "Deliverables"
+  },
+  "calendar": {
+    "title": "Content calendar",
+    "description": "Approved and scheduled content by publishing date."
+  },
+  "edit": {
+    "button": "Edit",
+    "title": "Edit deliverable",
+    "name": "Title",
+    "scheduledFor": "Scheduled for",
+    "internalReview": "Needs internal review",
+    "clientApproval": "Needs client approval",
+    "deleteVersion": "Delete version {n}"
+  }
+}

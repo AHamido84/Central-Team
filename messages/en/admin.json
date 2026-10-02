@@ -15,7 +15,18 @@
     "clients": "Clients",
     "files": "Files",
     "messaging": "Messages",
-    "portal": "Portal"
+    "portal": "Portal",
+    "requests": "Requests",
+    "tasks": "Tasks & deliverables",
+    "approvals": "Approvals",
+    "calendar": "Calendar",
+    "campaigns": "Campaigns & reports",
+    "operations": "Operations & SLA",
+    "crm": "Sales (CRM)",
+    "capacity": "Capacity planning",
+    "integrations": "Integrations",
+    "automations": "Automations",
+    "ai": "AI intelligence"
   },
   "users": {
     "title": "Team & invitations",
@@ -64,7 +75,13 @@
     "reactivateTitle": "Reactivate {name}?",
     "deactivateBody": "They won't be able to sign in until reactivated.",
     "reactivateBody": "They'll be able to sign in again.",
-    "expiresIn": "Expires {when}"
+    "expiresIn": "Expires {when}",
+    "changeEmail": "Sign-in email",
+    "changeEmailButton": "Change email",
+    "changeEmailHint": "Changes it right away, without confirmation emails. The member is notified at both addresses.",
+    "changeEmailTitle": "Change this member's email?",
+    "changeEmailBody": "{name} will sign in with {to} instead of {from}. No confirmation is sent; both addresses get a notice.",
+    "emailChanged": "Email changed."
   },
   "roles": {
     "title": "Roles & permissions",
@@ -106,7 +123,13 @@
     "empty": "No departments yet",
     "ledBy": "Led by {names}",
     "noLead": "No lead",
-    "manageMembers": "Members ({count})"
+    "manageMembers": "Members ({count})",
+    "delete": "Delete",
+    "deleteTitle": "Delete {name}?",
+    "deleteBody": "Departments are deleted right away (they don't go to the Trash). {count, plural, =0 {It has no members.} one {Its # member can move to another department.} other {Its # members can move to another department.}} Open tasks and workflow steps move with them.",
+    "moveTo": "Move members and work to",
+    "moveNone": "Don't move (they lose this department)",
+    "deleted": "Department deleted"
   },
   "organization": {
     "title": "Agency settings",
@@ -151,12 +174,16 @@
     "actionsLabel": {
       "insert": "Created",
       "update": "Updated",
-      "delete": "Deleted"
+      "delete": "Deleted",
+      "data_export": "Backup",
+      "data_reset": "Data reset"
     },
     "actions": {
       "insert": "created a",
       "update": "updated a",
-      "delete": "deleted a"
+      "delete": "deleted a",
+      "data_export": "downloaded a data backup",
+      "data_reset": "reset the agency's data"
     },
     "tables": {
       "organizations": "agency settings",

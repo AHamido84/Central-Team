@@ -1,0 +1,153 @@
+{
+  "scope": {
+    "label": "Showing",
+    "all": "All my clients",
+    "mine": "Clients I manage",
+    "manager": "Managed by {name}"
+  },
+  "tiles": {
+    "openRequests": "Open requests",
+    "openRequestsFooter": "{count, plural, =0 {None waiting for triage} one {# waiting for triage} other {# waiting for triage}}",
+    "sla": "SLA overdue",
+    "slaFooter": "{count, plural, =0 {None at risk} other {# more at risk}}",
+    "overdueTasks": "Overdue tasks",
+    "overdueTasksFooter": "Past their due date, not done",
+    "clientReview": "Waiting on clients",
+    "clientReviewFooter": "{count, plural, =0 {Nothing in internal review} other {# in internal review}}",
+    "campaigns": "Campaigns needing attention",
+    "campaignsFooter": "{off} off track · {risk} at risk",
+    "unanswered": "Unanswered client messages",
+    "unansweredFooter": "Last message is from the client",
+    "compliance": "Replied on time (30 days)",
+    "complianceFooter": "Delivered on time: {rate}",
+    "breaches": "Breaches to acknowledge",
+    "breachesFooter": "Open the SLA monitor"
+  },
+  "attention": {
+    "title": "Needs attention",
+    "empty": "Nothing needs attention",
+    "emptyBody": "No SLA issues, overdue tasks, stalled approvals or struggling campaigns right now.",
+    "overdueTask": "Task overdue since {date}",
+    "staleApproval": "Waiting on the client since {when}",
+    "campaign": "Campaign {health, select, off_track {off track} other {at risk}}",
+    "more": "{count} more in the SLA monitor"
+  },
+  "portfolio": {
+    "title": "Client portfolio",
+    "description": "Sorted by health, worst first.",
+    "client": "Client",
+    "health": "Health",
+    "accountManager": "Account manager",
+    "requests": "Requests",
+    "sla": "SLA",
+    "tasks": "Overdue tasks",
+    "approvals": "Waiting on client",
+    "campaigns": "Campaigns",
+    "lastActivity": "Client last active",
+    "never": "—",
+    "empty": "No clients in this view",
+    "emptyBody": "Try another scope or assign clients to an account manager."
+  },
+  "workload": {
+    "title": "Workload by department",
+    "open": "{count} open",
+    "overdue": "{count} overdue",
+    "members": "{count, plural, one {# member} other {# members}}",
+    "viewTeam": "Team view"
+  },
+  "health": {
+    "levels": {
+      "healthy": "Healthy",
+      "watch": "Watch",
+      "at_risk": "At risk"
+    },
+    "score": "Score {score}/100",
+    "title": "Client health",
+    "allGood": "No open issues for this client.",
+    "reasons": {
+      "slaOverdue": "{count, plural, one {# request past its SLA} other {# requests past their SLA}}",
+      "slaAtRisk": "{count, plural, one {# request close to its SLA} other {# requests close to their SLA}}",
+      "overdueTasks": "{count, plural, one {# overdue task} other {# overdue tasks}}",
+      "staleApprovals": "{count, plural, one {# approval waiting too long} other {# approvals waiting too long}}",
+      "campaignsOffTrack": "{count, plural, one {# campaign off track} other {# campaigns off track}}",
+      "campaignsAtRisk": "{count, plural, one {# campaign at risk} other {# campaigns at risk}}",
+      "unansweredMessages": "{count, plural, one {# unanswered conversation} other {# unanswered conversations}}",
+      "recentBreaches": "{count, plural, one {# SLA breach in 30 days} other {# SLA breaches in 30 days}}"
+    },
+    "explain": "Each open issue lowers the score: 80 and above is healthy, 55–79 needs watching, below 55 is at risk."
+  },
+  "client360": {
+    "title": "Client 360",
+    "openRequests": "Open requests",
+    "openRequestsFooter": "{count, plural, =0 {None waiting for triage} other {# waiting for triage}}",
+    "openTasks": "Open tasks",
+    "openTasksFooter": "{count, plural, =0 {None overdue} other {# overdue}}",
+    "approvals": "Waiting on the client",
+    "approvalsFooter": "{count, plural, =0 {Nothing in internal review} other {# in internal review}}",
+    "campaigns": "Live campaigns",
+    "campaignsFooter": "Worst: {health}",
+    "compliance": "SLA (90 days)",
+    "responseRate": "Replied on time",
+    "resolutionRate": "Delivered on time",
+    "noData": "No data yet",
+    "ofTotal": "{met} of {total}",
+    "deadlines": "Next 14 days",
+    "noDeadlines": "Nothing due in the next 14 days",
+    "noDeadlinesBody": "Request due dates and task deadlines show up here.",
+    "activity": "Recent activity",
+    "noActivity": "No activity yet",
+    "noActivityBody": "Request updates, review decisions, reports and messages appear here.",
+    "issues": "SLA issues",
+    "openSla": "SLA monitor",
+    "activityKinds": {
+      "request_status": "Request moved to {status}",
+      "approval": "{decision, select, approved {Approved} other {Changes requested}}",
+      "report": "Report published",
+      "message": "{side, select, client {Message from the client} other {Reply from the team}}"
+    },
+    "systemActor": "The system",
+    "due": "Due {date}"
+  },
+  "team": {
+    "title": "Team",
+    "description": "Who is working on what across your clients: open work, deadlines, reviews and logged time.",
+    "search": "Search people",
+    "allDepartments": "All departments",
+    "member": "Member",
+    "departments": "Departments",
+    "openTasks": "Open tasks",
+    "overdue": "Overdue",
+    "week": "Due this week",
+    "reviews": "Reviews waiting",
+    "requests": "Requests",
+    "clients": "Clients managed",
+    "hours": "Hours (7 days)",
+    "load": "Load",
+    "lead": "Lead",
+    "empty": "No one matches",
+    "emptyBody": "Try another department or search.",
+    "hoursHidden": "Only visible with permission to see everyone's time.",
+    "scopeNote": "Counts include only the clients you can access.",
+    "detail": {
+      "stats": "This week",
+      "tasks": "Open tasks",
+      "noTasks": "No open tasks",
+      "noTasksBody": "Tasks assigned to this person appear here.",
+      "requests": "Assigned requests",
+      "noRequests": "No open requests assigned",
+      "clients": "Clients managed",
+      "noClients": "Not an account manager for any client",
+      "time": "Logged time (14 days)",
+      "totalHours": "{hours} h total",
+      "noTime": "No time logged in the last 14 days",
+      "buckets": {
+        "overdue": "Overdue",
+        "today": "Today",
+        "week": "This week",
+        "later": "Later",
+        "none": "No due date"
+      }
+    },
+    "hoursValue": "{hours} h"
+  }
+}

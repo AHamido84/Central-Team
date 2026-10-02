@@ -25,6 +25,8 @@ export type ActivityItem =
       actorAvatar: string | null;
       threadId: string;
       threadTitle: string;
+      /** Set when the message belongs to a request conversation (links to the request page). */
+      requestId: string | null;
       body: string;
     };
 
@@ -57,6 +59,8 @@ export async function getPortalHome(ctx: ClientContext) {
         body: comments.body,
         threadId: comments.threadId,
         threadTitle: threads.title,
+        subjectType: threads.subjectType,
+        subjectId: threads.subjectId,
         actorName: profiles.fullName,
         actorAvatar: profiles.avatarPath,
       })
@@ -84,6 +88,7 @@ export async function getPortalHome(ctx: ClientContext) {
         actorAvatar: m.actorAvatar,
         threadId: m.threadId,
         threadTitle: m.threadTitle,
+        requestId: m.subjectType === 'request' ? m.subjectId : null,
         body: m.body,
       })),
     ]
@@ -92,6 +97,7 @@ export async function getPortalHome(ctx: ClientContext) {
 
     const [unread] = await tx.execute<{ n: number }>(sql`
       select count(*)::int as n from public.comments c
+      join public.threads t on t.id = c.thread_id and t.subject_type = 'client'
       where c.client_id = ${clientId} and c.deleted_at is null and c.author_id is distinct from auth.uid()
         and c.created_at > coalesce((select r.last_read_at from public.thread_reads r where r.thread_id = c.thread_id and r.user_id = auth.uid()), 'epoch')`);
 

@@ -1,12 +1,12 @@
 {
   "title": "Settings",
   "description": "Your profile, preferences and notifications.",
-  "emailChangeSent": "We sent a confirmation link to the new address.",
+  "emailChangeSent": "Confirmation links sent to both addresses.",
   "emailChanged": "Your new email is confirmed.",
   "profileSection": "Profile",
   "profileSectionHint": "Visible to teammates and the clients you work with.",
   "emailSection": "Email",
-  "emailSectionHint": "Your current email is {email}. Changing it requires confirmation from the new address.",
+  "emailSectionHint": "Your current email is {email}. Changing it needs confirmation from both the current and the new address.",
   "newEmail": "New email",
   "sendConfirmation": "Send confirmation link",
   "passwordSection": "Password",
@@ -34,6 +34,62 @@
     "files": {
       "title": "Files",
       "body": "Newly shared or uploaded files."
+    },
+    "requests": {
+      "title": "Requests",
+      "body": "New requests, assignments and status changes."
+    },
+    "tasks": {
+      "title": "Tasks & reviews",
+      "body": "Task assignments, due dates and internal reviews."
+    },
+    "approvals": {
+      "title": "Approvals",
+      "body": "Deliverables waiting for your approval, and reminders."
+    },
+    "campaigns": {
+      "title": "Campaigns & reports",
+      "body": "New reports, campaign launches, and alerts when a campaign needs attention."
+    },
+    "sla": {
+      "title": "SLA alerts",
+      "body": "Requests close to or past their response and delivery targets."
+    },
+    "sales": {
+      "title": "Sales",
+      "body": "New leads assigned to you, follow-ups due, quiet deals and won deals."
+    },
+    "integrations": {
+      "title": "Integrations",
+      "body": "A platform connection that expired, failed syncs and automation errors."
+    },
+    "automations": {
+      "title": "Automations",
+      "body": "Messages that automation rules send to you."
+    },
+    "ai": {
+      "title": "AI insights",
+      "body": "Unusual changes, KPIs off track and budget pacing on your campaigns."
     }
-  }
+  },
+  "whatsappChannel": "WhatsApp",
+  "whatsappSection": "WhatsApp notifications",
+  "whatsappSectionHint": "Get the notifications you choose on WhatsApp, from the agency's official number. You can stop anytime.",
+  "whatsappPhone": "WhatsApp number",
+  "whatsappConsent": "I agree to receive work notifications on this number.",
+  "whatsappOptIn": "Turn on WhatsApp",
+  "whatsappOptOut": "Stop WhatsApp messages",
+  "whatsappOn": "On for {phone} since {date}",
+  "whatsappOff": "Off",
+  "whatsappUnavailable": "The agency hasn't connected WhatsApp Business yet, so this channel can't be turned on right now.",
+  "whatsappNeedsOptIn": "Turn on WhatsApp above to choose what reaches you there.",
+  "whatsappConsentRequired": "Please confirm your consent.",
+  "emailChangeResent": "We sent the links again.",
+  "emailChangeCancelled": "Email change cancelled.",
+  "emailChangeCancel": "Cancel change",
+  "emailChangeResend": "Resend links",
+  "emailPendingTitle": "Email change pending",
+  "emailPendingBoth": "Open the link we sent to <current></current> and the one sent to <next></next>. Your email changes once both are confirmed.",
+  "emailPendingOne": "One address is confirmed. Open the link in the other inbox to change your email to <next></next>.",
+  "emailDevHint": "Local development: emails go to <link>Mailpit</link>, not to real inboxes."
 }

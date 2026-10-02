@@ -63,6 +63,19 @@
   --input: #cdd2da;
   --ring: color-mix(in oklab, var(--brand) 80%, white);
 
+  /* Charts (docs/UI.md §4 · ADR-050): categorical slots in fixed order (never cycled), validated for colour-vision
+     deficiency against --surface in each mode; the dark steps are selected, not flipped. */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-6: #008300;
+  --chart-7: #4a3aa7;
+  --chart-8: #e34948;
+  --chart-grid: #e8eaee;
+  --chart-axis: #cdd2da;
+
   /* Sidebar */
   --sidebar: #ffffff;
   --sidebar-foreground: #373e4d;
@@ -130,6 +143,17 @@
   --input: rgb(255 255 255 / 0.14);
   --ring: color-mix(in oklab, var(--brand) 60%, white);
 
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #008300;
+  --chart-7: #9085e9;
+  --chart-8: #e66767;
+  --chart-grid: rgb(255 255 255 / 0.07);
+  --chart-axis: rgb(255 255 255 / 0.16);
+
   --sidebar: #11141b;
   --sidebar-foreground: #c3c9d4;
   --sidebar-active: color-mix(in oklab, var(--brand) 20%, #11141b);
@@ -170,6 +194,16 @@
   --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-axis: var(--chart-axis);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-active: var(--sidebar-active);
@@ -256,5 +290,51 @@ html[lang='en'] {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Report print / "Save as PDF" (ADR-049): only the report prints, always on light tokens. */
+@media print {
+  :root,
+  .dark {
+    --background: #ffffff;
+    --foreground: #161a22;
+    --surface: #ffffff;
+    --surface-muted: #f1f3f6;
+    --surface-raised: #ffffff;
+    --muted-foreground: #4d5566;
+    --subtle-foreground: #6b7485;
+    --border: #e4e7ec;
+    --border-strong: #cdd2da;
+    --chart-grid: #e8eaee;
+    --chart-axis: #cdd2da;
+    --chart-1: #2a78d6;
+    --chart-2: #eb6834;
+    --chart-3: #1baf7a;
+    --chart-4: #eda100;
+    --chart-5: #e87ba4;
+    --chart-6: #008300;
+    --chart-7: #4a3aa7;
+    --chart-8: #e34948;
+    color-scheme: light;
+  }
+  @page {
+    margin: 14mm;
+  }
+  body:has(.report-print) * {
+    visibility: hidden;
+  }
+  body:has(.report-print) .report-print,
+  body:has(.report-print) .report-print * {
+    visibility: visible;
+  }
+  body:has(.report-print) .report-print {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+  }
+  .report-print {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 }

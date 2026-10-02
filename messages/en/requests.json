@@ -1,0 +1,461 @@
+{
+  "inboxTitle": "Requests",
+  "inboxDescription": "Every client request in one inbox: review, accept, ask for details and keep work within its SLA.",
+  "portalTitle": "Requests",
+  "portalDescription": "Submit new work to the agency and follow each request from brief to delivery.",
+  "newRequest": "New request",
+  "editRequest": "Edit request",
+  "continueDraft": "Continue draft",
+  "untitledDraft": "Untitled draft",
+  "noTypesTitle": "No request types are available yet",
+  "noTypesBody": "Your agency hasn't published any request types. You can still message your account manager.",
+  "request": "Request",
+  "type": "Type",
+  "allTypes": "All types",
+  "brief": "Brief",
+  "formVersion": "Form v{version}",
+  "priority": "Priority",
+  "assignee": "Account manager",
+  "accountManager": "Account manager",
+  "unassigned": "Unassigned",
+  "age": "Age",
+  "dueDate": "Due date",
+  "deliveredAt": "Delivered",
+  "expectedDelivery": "Expected delivery",
+  "expectedOn": "Expected {date}",
+  "updatedWhen": "updated {when}",
+  "searchPlaceholder": "Search by title, reference or client",
+  "portalSearch": "Search requests",
+  "attachments": "Attachments",
+  "attachmentsAndReferences": "Attachments & references",
+  "referenceLinks": "Reference links",
+  "referenceLinksHint": "Links to examples, competitors or inspiration.",
+  "addLink": "Add link",
+  "noAttachments": "No files were attached.",
+  "conversation": "Discussion",
+  "internalNoteHint": "Turn on “Internal note” in the composer to write something the client won't see.",
+  "info": "About this request",
+  "history": "History",
+  "submittedBy": "Submitted by",
+  "submittedAt": "Submitted",
+  "notAssignedYet": "We're assigning your account manager",
+  "packageItem": "Package item",
+  "extra": "Extra",
+  "extraOutside": "Extra (outside the package)",
+  "choose": "Choose…",
+  "notAnswered": "Not answered",
+  "answerYes": "Yes",
+  "answerNo": "No",
+  "internal": "Internal",
+  "moveTo": "Actions",
+  "saved": "Request updated.",
+  "statusUpdated": "Status updated.",
+  "openFull": "Open full request",
+  "convertToTasks": "Convert to tasks",
+  "submit": "Submit request",
+  "submitted": "Request {reference} submitted. We'll be in touch soon.",
+  "attachHint": "Drag files here or choose up to {max} (images, PDFs, videos, documents).",
+  "chooseFiles": "Choose files",
+  "filesLeft": "{count, plural, =0 {No more files} one {# more file} other {# more files}}",
+  "attachedFile": "Attached file",
+  "removeFile": "Remove file",
+  "removeItem": "Remove",
+  "pickColor": "Color",
+  "addColor": "Add color",
+  "customSize": "Custom",
+  "width": "Width",
+  "height": "Height",
+  "px": "px",
+  "formattingHint": "Tip: **bold** and lines starting with “- ” become a list.",
+  "bulkAssign": "Assign to…",
+  "bulkPriority": "Set priority…",
+  "fields": {
+    "title": "Title",
+    "titleHint": "A short summary, e.g. “National Day post for Instagram”.",
+    "desiredDate": "Needed by",
+    "desiredDateHint": "Optional — helps us plan."
+  },
+  "statuses": {
+    "draft": "Draft",
+    "submitted": "Submitted",
+    "under_review": "Under review",
+    "needs_info": "Needs info",
+    "accepted": "Accepted",
+    "in_progress": "In progress",
+    "in_review": "Internal review",
+    "delivered": "Delivered",
+    "closed": "Closed",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled"
+  },
+  "priorities": {
+    "low": "Low",
+    "normal": "Normal",
+    "high": "High",
+    "urgent": "Urgent"
+  },
+  "actions": {
+    "submitted": "Submit",
+    "under_review": "Start review",
+    "needs_info": "Request info",
+    "accepted": "Accept",
+    "rejected": "Reject",
+    "in_progress": "Start work",
+    "in_review": "Send to internal review",
+    "delivered": "Mark delivered",
+    "closed": "Close",
+    "cancelled": "Cancel request",
+    "reopen": "Reopen",
+    "withdraw": "Back to review"
+  },
+  "actionHints": {
+    "agency": {
+      "submitted": "The request goes back to the queue.",
+      "under_review": "Let the client know you're looking at it.",
+      "needs_info": "Ask exactly what you need. The client can update the brief and send it back.",
+      "accepted": "Work is confirmed; the package item is counted unless the request is extra.",
+      "rejected": "Explain why so the client knows what to do next.",
+      "in_progress": "The team is working on it.",
+      "in_review": "Internal quality check before delivery.",
+      "delivered": "The client is notified that the work is ready.",
+      "closed": "Closes the request.",
+      "cancelled": "The request is closed without being done.",
+      "reopen": "Brings the request back into work.",
+      "withdraw": "Take the question back and continue reviewing."
+    },
+    "client": {
+      "submitted": "Send the request to the agency.",
+      "under_review": "Send your updates back to the agency.",
+      "closed": "Confirm you received the work. The request will be closed.",
+      "cancelled": "The agency will stop working on it. You can submit a new request anytime."
+    }
+  },
+  "reason": {
+    "question": "What do you need from the client?",
+    "rejection": "Reason for rejecting",
+    "note": "Message",
+    "noteHint": "Optional — posted to the discussion.",
+    "visibleToClient": "The client sees this in the request and in the notification.",
+    "questionPlaceholder": "e.g. Please share the product photos in high resolution."
+  },
+  "flags": {
+    "extra": "Extra",
+    "extraHint": "Outside the package — doesn't use a package item.",
+    "billable": "Billable",
+    "billableHint": "Invoice this request separately."
+  },
+  "needsInfo": {
+    "title": "Update {reference}",
+    "description": "Answer the agency's question, adjust the brief, and send it back.",
+    "theyAsked": "The agency asked:",
+    "note": "Message to the agency",
+    "noteHint": "Optional — what did you change?",
+    "update": "Update & resubmit",
+    "bannerTitle": "The agency needs more information",
+    "bannerBody": "Update the brief (or reply in the discussion) to move the request forward."
+  },
+  "deliveredBanner": {
+    "title": "Your request was delivered",
+    "body": "Take a look and close the request, or ask for changes in the discussion."
+  },
+  "wizard": {
+    "description": "Pick what you need, answer a few questions and we'll take it from there. You can save a draft at any step.",
+    "progress": "Progress",
+    "stepOf": "Step {step} of {total}",
+    "steps": {
+      "type": "Type",
+      "brief": "Brief",
+      "attachments": "Files & references",
+      "schedule": "Date & priority",
+      "review": "Review"
+    },
+    "changeType": "Change type",
+    "next": "Next",
+    "saveDraft": "Save draft",
+    "draftSaved": "Draft saved. You can come back to it anytime.",
+    "resubmit": "Send updates",
+    "resubmitted": "Thanks — the agency will review your updates.",
+    "typicalTime": "Usually delivered in {days, plural, one {# working day} other {# working days}}",
+    "expectedBy": "If submitted today, expected by {date}.",
+    "expected": "Expected by",
+    "priorityHint": "Urgent requests are agreed with your account manager.",
+    "extraAllowed": "You can still submit — it will be handled as an extra."
+  },
+  "quota": {
+    "remaining": "{count} of {total} {item} left in your package this period.",
+    "exceeded": "You've used all {item} in your package this period — this request will be counted as extra.",
+    "notIncluded": "{item} aren't included in your current package — this request will be counted as extra.",
+    "notCounted": "This request type doesn't use your package.",
+    "items": {
+      "post": "posts",
+      "reel": "reels",
+      "story": "stories",
+      "video": "videos",
+      "design": "designs",
+      "photo_shoot": "photo shoots",
+      "ad_campaign": "ad campaigns",
+      "blog_article": "articles",
+      "revision_round": "revision rounds"
+    }
+  },
+  "tracker": {
+    "submitted": "Submitted",
+    "under_review": "Review",
+    "accepted": "Accepted",
+    "in_progress": "In progress",
+    "delivered": "Delivered",
+    "closed": "Closed",
+    "rejected": "This request was rejected. See the history for the reason.",
+    "cancelled": "This request was cancelled."
+  },
+  "views": {
+    "label": "Views",
+    "new": "New",
+    "pending": "Pending",
+    "active": "In work",
+    "delivered": "Delivered",
+    "closed": "Closed",
+    "mine": "Mine",
+    "all": "All"
+  },
+  "portalTabs": {
+    "open": "Open",
+    "waiting": "Waiting on you",
+    "active": "In progress",
+    "delivered": "Delivered",
+    "closed": "Closed",
+    "drafts": "Drafts"
+  },
+  "stats": {
+    "new": "New requests",
+    "unassigned": "Unassigned",
+    "overdue": "Overdue",
+    "atRisk": "At risk"
+  },
+  "empty": {
+    "new": {
+      "title": "No new requests",
+      "body": "Newly submitted requests will appear here."
+    },
+    "pending": {
+      "title": "Nothing pending",
+      "body": "Requests under review or waiting on the client show up here."
+    },
+    "active": {
+      "title": "No work in progress",
+      "body": "Accepted requests appear here while they're being worked on."
+    },
+    "delivered": {
+      "title": "Nothing delivered yet",
+      "body": "Delivered requests wait here until they're closed."
+    },
+    "closed": {
+      "title": "No closed requests",
+      "body": "Closed, rejected and cancelled requests are kept here."
+    },
+    "mine": {
+      "title": "Nothing assigned to you",
+      "body": "Open requests assigned to you will show up here."
+    },
+    "all": {
+      "title": "No requests yet",
+      "body": "Requests submitted from the client portal will appear here."
+    }
+  },
+  "portalEmpty": {
+    "open": {
+      "title": "No open requests",
+      "body": "Need a design, a video or a campaign? Submit a request and track it here."
+    },
+    "waiting": {
+      "title": "Nothing waiting on you",
+      "body": "When the agency needs details, the request shows up here."
+    },
+    "active": {
+      "title": "Nothing in progress",
+      "body": "Requests being reviewed or worked on show up here."
+    },
+    "delivered": {
+      "title": "Nothing delivered yet",
+      "body": "Delivered work waits here for you to close it."
+    },
+    "closed": {
+      "title": "No closed requests",
+      "body": "Closed, rejected and cancelled requests are kept here."
+    },
+    "drafts": {
+      "title": "No drafts",
+      "body": "Drafts you save while writing a request appear here."
+    },
+    "readOnly": "Requests submitted by your team will appear here.",
+    "noMatchTitle": "No matching requests",
+    "noMatchBody": "Try a different search or type."
+  },
+  "sla": {
+    "title": "SLA",
+    "dueOn": "Due {date}",
+    "noTarget": "No SLA target",
+    "workingDays": "Working days are Sunday–Thursday, excluding holidays; replies count business hours only.",
+    "states": {
+      "none": "No SLA",
+      "met": "Delivered on time",
+      "missed": "Delivered late",
+      "on_track": "On track",
+      "at_risk": "At risk",
+      "overdue": "Overdue",
+      "paused": "Paused — waiting on client"
+    },
+    "responseDue": "First reply due {when}",
+    "policy": "Policy",
+    "responseTarget": "First reply due",
+    "firstResponse": "First reply",
+    "pausedSince": "Paused since",
+    "pausedDays": "Time waiting on the client",
+    "days": "{count, plural, one {# working day} other {# working days}}",
+    "responseStates": {
+      "none": "No reply target",
+      "met": "Replied on time",
+      "missed": "Replied late",
+      "on_track": "Reply on track",
+      "at_risk": "Reply due soon",
+      "overdue": "Reply overdue",
+      "paused": "Reply paused"
+    }
+  },
+  "timeline": {
+    "system": "The system",
+    "someone": "Someone",
+    "submitted": "{actor} submitted the request",
+    "statusChanged": "{actor} changed the status to {status}",
+    "assigned": "{actor} assigned it to {name}",
+    "unassigned": "{actor} removed the assignee",
+    "priorityChanged": "{actor} set the priority to {priority}",
+    "dueDateChanged": "{actor} moved the due date to {date}",
+    "flagsChanged": "{actor} marked it {extra, select, true {extra} other {in package}} · {billable, select, true {billable} other {not billable}}",
+    "briefUpdated": "{actor} updated the brief"
+  },
+  "categories": {
+    "design": "Design",
+    "video": "Video",
+    "content": "Content",
+    "ads": "Advertising",
+    "web": "Website",
+    "branding": "Branding",
+    "other": "Other"
+  },
+  "icons": {
+    "image": "Image",
+    "gallery-horizontal": "Carousel",
+    "clapperboard": "Video",
+    "smartphone": "Story",
+    "megaphone": "Megaphone",
+    "camera": "Camera",
+    "globe": "Website",
+    "palette": "Palette",
+    "pen-line": "Writing",
+    "clipboard-list": "Clipboard"
+  },
+  "platforms": {
+    "instagram": "Instagram",
+    "tiktok": "TikTok",
+    "snapchat": "Snapchat",
+    "x": "X",
+    "linkedin": "LinkedIn",
+    "youtube": "YouTube",
+    "facebook": "Facebook"
+  },
+  "fieldTypes": {
+    "short_text": "Short text",
+    "long_text": "Long text",
+    "number": "Number",
+    "single_select": "Single choice",
+    "multi_select": "Multiple choice",
+    "date": "Date",
+    "file": "File upload",
+    "links": "Links",
+    "platforms": "Platforms",
+    "dimensions": "Size / aspect ratio",
+    "color": "Colors",
+    "checkbox": "Checkbox"
+  },
+  "types": {
+    "title": "Request types",
+    "description": "What your clients can ask for, the brief each type asks for, its SLA and the package item it uses.",
+    "new": "New request type",
+    "created": "Request type created. Build its brief, then activate it.",
+    "createAndEdit": "Create and build the brief",
+    "editSettings": "Settings",
+    "icon": "Icon",
+    "category": "Category",
+    "defaultPriority": "Default priority",
+    "slaDays": "SLA (working days)",
+    "slaHint": "Leave empty for no target.",
+    "slaShort": "{days, plural, one {# day} other {# days}} SLA",
+    "packageItem": "Counts against",
+    "packageItemHint": "Accepted requests use one of these from the client's package.",
+    "notCounted": "Not counted",
+    "activeLabel": "Available to clients",
+    "activeHint": "Inactive types are hidden from the portal.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "versionN": "Form v{version}",
+    "summary": "{fields, plural, one {# question} other {# questions}} · {requests, plural, one {# request} other {# requests}}",
+    "updated": "Updated {when} · v{version}",
+    "emptyTitle": "No request types yet",
+    "emptyBody": "Create a type for each kind of work your clients ask for — posts, reels, campaigns."
+  },
+  "builder": {
+    "description": "Build the brief clients fill in. Drag to reorder, add conditions, and check the live preview.",
+    "questions": "Questions ({count})",
+    "addField": "Add question",
+    "untitled": "Untitled question",
+    "labelAr": "Question (Arabic)",
+    "labelEn": "Question (English)",
+    "helpAr": "Help text (Arabic)",
+    "helpEn": "Help text (English)",
+    "min": "Minimum",
+    "max": "Maximum",
+    "maxItems": "Maximum items",
+    "options": "Options",
+    "optionAr": "Option (Arabic)",
+    "optionEn": "Option (English)",
+    "addOption": "Add option",
+    "removeOption": "Remove option",
+    "required": "Required",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "removeField": "Remove question",
+    "editField": "Edit question",
+    "showIf": "Show only when",
+    "always": "Always shown",
+    "equals": "is",
+    "noConditionSources": "Conditions can use earlier choice, platform or checkbox questions.",
+    "noFields": "No questions yet",
+    "noFieldsBody": "Add the questions you need answered before work can start.",
+    "titleNote": "Every request also asks for a title, attachments & references, a needed-by date and a priority.",
+    "unsaved": "You have unsaved changes.",
+    "unsavedBadge": "Unsaved",
+    "upToDate": "All changes saved.",
+    "save": "Save form",
+    "saved": "Form saved. New requests use this version; existing ones keep theirs.",
+    "discard": "Discard changes",
+    "preview": "Client preview",
+    "previewNote": "Conditional questions appear as you answer."
+  },
+  "dashboard": {
+    "open": "Open requests",
+    "waiting": "Waiting on you",
+    "waitingHint": "The agency needs your input",
+    "delivered": "Delivered this month",
+    "turnaround": "Average turnaround",
+    "turnaroundHint": "Submit to delivery, last 90 days",
+    "days": "{count} days",
+    "packageUsage": "Package usage this period",
+    "used": "Used",
+    "allowed": "Included",
+    "barTooltip": "{item}: {used} of {allowed} used · {left} left",
+    "usageNote": "Items are counted when the agency accepts a request.",
+    "updates": "Request updates",
+    "noUpdates": "No request updates yet"
+  }
+}

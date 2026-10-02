@@ -21,7 +21,10 @@ export type ThreadSummary = {
   unread: number;
 };
 
-/** Threads visible to the caller (RLS), newest activity first, with unread counts for the caller. */
+/**
+ * General conversation threads visible to the caller (RLS), newest activity first, with unread counts.
+ * Request conversations (`subject_type = 'request'`) live on their request page instead.
+ */
 export async function listThreads(opts: { clientId?: string; limit?: number } = {}): Promise<ThreadSummary[]> {
   return withRls(async (tx) => {
     const rows = await tx
@@ -42,7 +45,13 @@ export async function listThreads(opts: { clientId?: string; limit?: number } = 
       })
       .from(threads)
       .innerJoin(clients, eq(clients.id, threads.clientId))
-      .where(and(opts.clientId ? eq(threads.clientId, opts.clientId) : undefined, sql`${threads.archivedAt} is null`))
+      .where(
+        and(
+          opts.clientId ? eq(threads.clientId, opts.clientId) : undefined,
+          eq(threads.subjectType, 'client'),
+          sql`${threads.archivedAt} is null`,
+        ),
+      )
       .orderBy(desc(threads.lastCommentAt))
       .limit(opts.limit ?? 200);
     return rows.map((r) => ({
@@ -70,6 +79,7 @@ export type CommentView = {
   authorAvatar: string | null;
   authorSide: 'agency' | 'client';
   createdAt: string;
+  editedAt: string | null;
   attachments: FileItem[];
 };
 
@@ -125,7 +135,13 @@ export async function getThread(threadId: string): Promise<ThreadDetail | null> 
       union
       select p.id, p.full_name, p.avatar_path, c.author_side
         from public.comments c join public.profiles p on p.id = c.author_id
-        where c.thread_id = ${threadId}`);
+        where c.thread_id = ${threadId}
+      union
+      -- Task conversations are internal: anyone on the agency team can be mentioned.
+      select p.id, p.full_name, p.avatar_path, 'agency'
+        from public.organization_members m join public.profiles p on p.id = m.user_id
+        where ${thread.subjectType} = 'task' and m.organization_id = ${thread.organizationId}
+          and m.user_type = 'agency' and m.status = 'active'`);
     const sideOf = new Map(participants.map((p) => [p.user_id, p.side]));
     return {
       thread: { id: thread.id, clientId: thread.clientId, title: thread.title, visibility: thread.visibility as 'internal' | 'client' },
@@ -138,6 +154,7 @@ export async function getThread(threadId: string): Promise<ThreadDetail | null> 
         authorAvatar: avatar,
         authorSide: c.authorSide as 'agency' | 'client',
         createdAt: c.createdAt.toISOString(),
+        editedAt: c.editedAt?.toISOString() ?? null,
         attachments: attachments.filter((a) => a.commentId === c.id).map((a) => toFileItem(a.file, a.uploaderName, a.uploaderAvatar)),
       })),
       reads: reads.map((r) => ({ ...r, side: sideOf.get(r.userId) ?? 'agency', lastReadAt: r.lastReadAt.toISOString() })),

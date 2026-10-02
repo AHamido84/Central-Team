@@ -13,9 +13,17 @@ import { and, eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
+import { databaseUrl } from '../src/lib/db/url';
 import * as schema from '../src/lib/db/schema';
 import { hashInvitationToken } from '../src/modules/invitations/server/tokens';
 import { artworkPng, simplePdf } from './seed-assets';
+import { seedAiData } from './seed-ai';
+import { seedCampaignsData } from './seed-campaigns';
+import { seedCrmData } from './seed-crm';
+import { seedIntegrationsData } from './seed-integrations';
+import { seedSlaData } from './seed-sla';
+import { seedRequestsData } from './seed-requests';
+import { seedTasksData } from './seed-tasks';
 
 config({ path: '.env.local' });
 
@@ -30,7 +38,7 @@ if (!/127\.0\.0\.1|localhost/.test(url) && process.env.SEED_ALLOW_REMOTE !== '1'
 }
 
 const supabase = createClient(url, secret, { auth: { persistSession: false, autoRefreshToken: false } });
-const client = postgres(process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 4 });
+const client = postgres(databaseUrl(process.env, 'direct') ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 4 });
 const db = drizzle(client, { schema });
 
 type Person = {
@@ -146,6 +154,27 @@ const staff: (Person & { role: string; department: string; lead?: boolean; title
     department: 'media_buying',
     lead: true,
     title: 'أخصائي شراء وسائط',
+  },
+  {
+    key: 'majed',
+    email: 'majed@ofoq.test',
+    name: 'ماجد الشهري',
+    phone: '+966501110011',
+    locale: 'ar',
+    role: 'sales_manager',
+    department: 'sales',
+    lead: true,
+    title: 'مدير المبيعات',
+  },
+  {
+    key: 'ruba',
+    email: 'ruba@ofoq.test',
+    name: 'Ruba Haddad',
+    phone: '+966501110012',
+    locale: 'en',
+    role: 'sales_rep',
+    department: 'sales',
+    title: 'Account Executive',
   },
 ];
 
@@ -434,6 +463,7 @@ async function main() {
   const deptId = (key: string) => deptRows.find((d) => d.key === key)!.id;
 
   const ids: Record<string, string> = {};
+  const clientIds: Record<string, string> = {};
 
   // --- Agency team ---------------------------------------------------------
   for (const [i, s] of staff.entries()) {
@@ -484,7 +514,10 @@ async function main() {
   }
 
   const now = new Date();
-  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  // The month two weeks ago through the end of this month: seeded requests were accepted over the last weeks and must
+  // land inside the package period (seeding on the 1st used to leave them in last month — nothing consumed).
+  const twoWeeksAgo = new Date(now.getTime() - 14 * 86_400_000);
+  const periodStart = new Date(twoWeeksAgo.getFullYear(), twoWeeksAgo.getMonth(), 1);
   const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const monthLabel = (locale: 'ar' | 'en') =>
@@ -509,6 +542,7 @@ async function main() {
       })
       .returning();
     const clientId = clientRow!.id;
+    clientIds[c.slug] = clientId;
     await db.insert(schema.clientNotes).values({
       clientId,
       organizationId: ORG_ID,
@@ -822,6 +856,46 @@ async function main() {
     ]);
   }
 
+  await seedRequests(ids, clientIds);
+  await seedTasksData({ db, ids, clientIds, orgId: ORG_ID, upload, clients: clientSeeds });
+  await seedCampaignsData({
+    db,
+    ids,
+    clientIds,
+    orgId: ORG_ID,
+    today: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+      new Date(),
+    ),
+  });
+
+  await seedSlaData({ db, ids, clientIds, orgId: ORG_ID });
+  await seedCrmData({
+    db,
+    ids,
+    clientIds,
+    orgId: ORG_ID,
+    today: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+      new Date(),
+    ),
+  });
+  await seedIntegrationsData({
+    db,
+    ids,
+    clientIds,
+    orgId: ORG_ID,
+    today: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+      new Date(),
+    ),
+  });
+  await seedAiData({
+    db,
+    ids,
+    orgId: ORG_ID,
+    today: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+      new Date(),
+    ),
+  });
+
   // --- Invitations (pending + expired) --------------------------------------
   await db.insert(schema.invitations).values([
     {
@@ -875,12 +949,27 @@ async function main() {
     },
   ]);
 
+  // Everything above is demo data: Settings → Data management can remove it in one go (ADR-081).
+  await db.execute(sql`select app.mark_demo_data(${ORG_ID}::uuid)`);
+
   const [usersCount] = await db.execute<{ count: number }>(sql`select count(*)::int as count from auth.users`);
   const [clientsCount] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(schema.clients)
     .where(and(eq(schema.clients.organizationId, ORG_ID)));
   console.info(`✓ Seeded ${usersCount?.count} users, ${clientsCount?.n} clients. Password for every account: ${SEED_PASSWORD}`);
+}
+
+async function seedRequests(ids: Record<string, string>, clientIds: Record<string, string>) {
+  await seedRequestsData({
+    db,
+    ids,
+    clientIds,
+    orgId: ORG_ID,
+    upload,
+    clients: clientSeeds,
+    staffNames: Object.fromEntries(staff.map((s) => [s.key, s.name])),
+  });
 }
 
 main()

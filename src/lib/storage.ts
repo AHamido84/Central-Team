@@ -1,6 +1,8 @@
 /** Storage conventions (ADR-020). Buckets: `client-files` (private) and `public-assets` (public, images only). */
 export const CLIENT_FILES_BUCKET = 'client-files';
 export const PUBLIC_ASSETS_BUCKET = 'public-assets';
+/** CRM attachments (proposals, briefs from prospects) — agency-only, private. */
+export const CRM_FILES_BUCKET = 'crm-files';
 
 export function publicAssetUrl(path: string | null | undefined): string | null {
   if (!path) return null;
@@ -38,6 +40,17 @@ export const storagePaths = {
   /** org/<org>/clients/<client>/threads/<thread>/<fileId>-<slug> */
   attachment: (orgId: string, clientId: string, threadId: string, fileId: string, name: string) =>
     `org/${orgId}/clients/${clientId}/threads/${threadId}/${fileId}-${slugifyFileName(name)}`,
+  /** org/<org>/clients/<client>/requests/<fileId>-<slug> — attached while filling in a request, linked on submit. */
+  requestAttachment: (orgId: string, clientId: string, fileId: string, name: string) =>
+    `org/${orgId}/clients/${clientId}/requests/${fileId}-${slugifyFileName(name)}`,
+  /** org/<org>/clients/<client>/deliverables/<deliverable>/<fileId>-<slug> (+ `<fileId>-thumb.webp` preview). */
+  deliverableFile: (orgId: string, clientId: string, deliverableId: string, fileId: string, name: string) =>
+    `org/${orgId}/clients/${clientId}/deliverables/${deliverableId}/${fileId}-${slugifyFileName(name)}`,
+  deliverableThumb: (orgId: string, clientId: string, deliverableId: string, fileId: string) =>
+    `org/${orgId}/clients/${clientId}/deliverables/${deliverableId}/${fileId}-thumb.webp`,
+  /** crm-files: org/<org>/deals/<deal>/<fileId>-<slug> */
+  dealFile: (orgId: string, dealId: string, fileId: string, name: string) =>
+    `org/${orgId}/deals/${dealId}/${fileId}-${slugifyFileName(name)}`,
 };
 
 export type FileKind = 'image' | 'video' | 'pdf' | 'document' | 'archive' | 'other';

@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Archive, Crown, Network, Pencil, Plus, UsersRound } from 'lucide-react';
+import { Archive, Crown, Network, Pencil, Plus, Trash2, UsersRound } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -15,6 +15,7 @@ import {
   Dialog,
   DialogBody,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -23,13 +24,18 @@ import {
   SheetDescription,
   SheetTitle,
 } from '@/components/ui/overlays';
-import { Avatar, AvatarGroup, Badge, Card, Checkbox, Switch } from '@/components/ui/primitives';
+import { Avatar, AvatarGroup, Badge, Card, Checkbox, NativeSelect, Switch } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
 import { localized, type Locale, type LocalizedText } from '@/lib/i18n/localized';
 import { publicAssetUrl } from '@/lib/storage';
 import { cn } from '@/lib/utils/cn';
 import { departmentColorClass, departmentColors, type DepartmentColor } from '@/modules/departments/constants';
-import { createDepartmentAction, setDepartmentMembersAction, updateDepartmentAction } from '@/modules/departments/server/actions';
+import {
+  createDepartmentAction,
+  deleteDepartmentAction,
+  setDepartmentMembersAction,
+  updateDepartmentAction,
+} from '@/modules/departments/server/actions';
 
 export type DepartmentView = {
   id: string;
@@ -214,12 +220,70 @@ function MembersSheet({
   );
 }
 
+function DeleteDepartmentDialog({
+  department,
+  others,
+  onOpenChange,
+}: {
+  department: DepartmentView | null;
+  others: DepartmentView[];
+  onOpenChange: (open: boolean) => void;
+}) {
+  const t = useTranslations();
+  const locale = useLocale() as Locale;
+  const [moveTo, setMoveTo] = useState('');
+  const remove = useAction(deleteDepartmentAction, { successMessage: t('admin.departments.deleted') });
+  const name = department ? localized(department.name, locale) : '';
+  return (
+    <Dialog open={Boolean(department)} onOpenChange={onOpenChange}>
+      <DialogContent closeLabel={t('common.close')} data-testid="department-delete-dialog">
+        <DialogHeader>
+          <DialogTitle>{t('admin.departments.deleteTitle', { name })}</DialogTitle>
+          <DialogDescription>{t('admin.departments.deleteBody', { count: department?.members.length ?? 0 })}</DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          <Field label={t('admin.departments.moveTo')}>
+            {(p) => (
+              <NativeSelect {...p} value={moveTo} onChange={(e) => setMoveTo(e.target.value)} data-testid="department-move-to">
+                <option value="">{t('admin.departments.moveNone')}</option>
+                {others.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {localized(o.name, locale)}
+                  </option>
+                ))}
+              </NativeSelect>
+            )}
+          </Field>
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            variant="destructive"
+            loading={remove.pending}
+            onClick={async () => {
+              if (!department) return;
+              const res = await remove.run({ departmentId: department.id, moveTo: moveTo || null });
+              if (res.ok) onOpenChange(false);
+            }}
+            data-testid="department-delete-confirm"
+          >
+            {t('admin.departments.delete')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function DepartmentsAdmin({ departments, people }: { departments: DepartmentView[]; people: PersonView[] }) {
   const t = useTranslations();
   const locale = useLocale() as Locale;
   const [editing, setEditing] = useState<DepartmentView | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [membersFor, setMembersFor] = useState<DepartmentView | null>(null);
+  const [deleting, setDeleting] = useState<DepartmentView | null>(null);
   const person = (id: string) => people.find((p) => p.userId === id);
 
   return (
@@ -289,6 +353,16 @@ export function DepartmentsAdmin({ departments, people }: { departments: Departm
                     <Pencil />
                     {t('common.edit')}
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ms-auto text-danger"
+                    onClick={() => setDeleting(d)}
+                    data-testid="department-delete"
+                  >
+                    <Trash2 />
+                    {t('admin.departments.delete')}
+                  </Button>
                 </div>
               </Card>
             );
@@ -296,6 +370,12 @@ export function DepartmentsAdmin({ departments, people }: { departments: Departm
         </div>
       )}
       <DepartmentDialog department={editing} open={dialogOpen} onOpenChange={setDialogOpen} />
+      <DeleteDepartmentDialog
+        key={deleting?.id ?? 'none'}
+        department={deleting}
+        others={departments.filter((x) => x.id !== deleting?.id && !x.isArchived)}
+        onOpenChange={(o) => !o && setDeleting(null)}
+      />
       <MembersSheet
         key={membersFor?.id ?? 'none'}
         department={membersFor}

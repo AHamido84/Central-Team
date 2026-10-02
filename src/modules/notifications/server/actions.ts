@@ -74,7 +74,9 @@ export async function markNotificationsReadAction(input: { ids: string[] | 'all'
 }
 
 const prefsSchema = z.object({
-  preferences: z.array(z.object({ category: z.enum(notificationCategories), inApp: z.boolean(), email: z.boolean() })),
+  preferences: z.array(
+    z.object({ category: z.enum(notificationCategories), inApp: z.boolean(), email: z.boolean(), whatsapp: z.boolean().default(false) }),
+  ),
 });
 
 export const updateNotificationPreferencesAction = defineAction({
@@ -90,10 +92,12 @@ export const updateNotificationPreferencesAction = defineAction({
           category: pref.category,
           inApp: pref.inApp,
           email: pref.email,
+          // WhatsApp is an agency channel (Phase 7).
+          whatsapp: ctx.side === 'agency' && pref.whatsapp,
         })
         .onConflictDoUpdate({
           target: [notificationPreferences.userId, notificationPreferences.organizationId, notificationPreferences.category],
-          set: { inApp: pref.inApp, email: pref.email },
+          set: { inApp: pref.inApp, email: pref.email, whatsapp: ctx.side === 'agency' && pref.whatsapp },
         });
     }
     return null;

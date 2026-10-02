@@ -1,11 +1,23 @@
 import { expect, type Page } from '@playwright/test';
+import postgres from 'postgres';
 
 export const PASSWORD = 'Passw0rd!';
 const MAILPIT = process.env.MAILPIT_URL ?? 'http://127.0.0.1:54324';
 
 export const unique = (prefix: string) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
+/**
+ * Signs in. The suite signs the same personas in many times, and the app allows 10 sign-ins per email per 15 minutes
+ * (gotcha 20): clear that one counter first so the run's speed doesn't decide whether a test can log in. The limit
+ * itself is covered by `tests/unit` and stays on for everything else.
+ */
 export async function login(page: Page, email: string, password = PASSWORD) {
+  const db = postgres(process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 1 });
+  try {
+    await db`delete from public.rate_limits where key = ${`login:email:${email.toLowerCase()}`}`;
+  } finally {
+    await db.end();
+  }
   await page.goto('/login');
   await page.getByTestId('login-email').fill(email);
   await page.getByTestId('login-password').fill(password);

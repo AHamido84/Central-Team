@@ -18,6 +18,21 @@ export const namespaces = [
   'files',
   'messaging',
   'portal',
+  'requests',
+  'tasks',
+  'workflows',
+  'deliverables',
+  'campaigns',
+  'reports',
+  'sla',
+  'operations',
+  'crm',
+  'capacity',
+  'integrations',
+  'automations',
+  'ai',
+  'data',
+  'mail',
 ] as const;
 
 export type Namespace = (typeof namespaces)[number];

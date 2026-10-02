@@ -1,0 +1,140 @@
+{
+  "autoTitle": {
+    "monthly": "{period} report",
+    "weekly": "Weekly report, {period}",
+    "campaign": "{campaign} — {title}"
+  },
+  "title": "Reports",
+  "description": "Client performance reports: drafts for review, and published versions that show in the portal.",
+  "status": {
+    "draft": "Draft",
+    "published": "Published"
+  },
+  "scheduled": "Scheduled",
+  "list": {
+    "new": "New report",
+    "emptyTitle": "No reports yet",
+    "emptyBody": "Create a report for a client and period, or schedule monthly reports that prepare themselves.",
+    "report": "Report",
+    "client": "Client",
+    "period": "Period",
+    "status": "Status",
+    "updated": "Updated",
+    "allClients": "All clients",
+    "allStatuses": "All statuses"
+  },
+  "create": {
+    "title": "New report",
+    "client": "Client",
+    "scope": "Scope",
+    "scopeClient": "All campaigns the client can see",
+    "campaign": "One campaign",
+    "period": "Period",
+    "presets": {
+      "lastMonth": "Last month",
+      "thisMonth": "This month so far",
+      "flight": "Campaign flight",
+      "custom": "Custom period"
+    },
+    "from": "From",
+    "to": "To",
+    "reportTitle": "Report title",
+    "locale": "Report language",
+    "localeAr": "Arabic",
+    "localeEn": "English",
+    "submit": "Create draft",
+    "created": "Report draft created",
+    "defaultTitle": "{client} report — {period}"
+  },
+  "builder": {
+    "sections": "Report sections",
+    "addSection": "Add section",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "remove": "Remove section",
+    "save": "Save draft",
+    "saved": "Draft saved",
+    "publish": "Publish to client",
+    "publishTitle": "Publish this report to the client?",
+    "publishBody": "The numbers are frozen as they are now and the client's users are notified. You can take it back to draft later.",
+    "published": "Report published",
+    "unpublish": "Back to draft",
+    "unpublishTitle": "Take the report back to draft?",
+    "unpublishBody": "It disappears from the client portal until you publish it again, and its numbers are recalculated.",
+    "unpublished": "Report is a draft again",
+    "delete": "Delete draft",
+    "deleteTitle": "Delete this report draft?",
+    "deleteBody": "This can't be undone.",
+    "deleted": "Report deleted",
+    "print": "Print / PDF",
+    "live": "Numbers update automatically until you publish.",
+    "frozen": "Numbers frozen when published on {date}.",
+    "bodyPlaceholder": "Write here (simple formatting: headings, lists, **bold**)…",
+    "metrics": "Metrics shown",
+    "grain": "Grouping",
+    "unsaved": "Unsaved changes",
+    "saveFirst": "Save your changes before publishing."
+  },
+  "kind": {
+    "kpi_summary": "KPI summary",
+    "trend": "Performance over time",
+    "channel_breakdown": "Performance by channel",
+    "top_creatives": "Creatives",
+    "commentary": "Team analysis",
+    "next_steps": "Next steps"
+  },
+  "view": {
+    "period": "{start} – {end}",
+    "preparedBy": "Prepared by {agency}",
+    "publishedOn": "Published {date}",
+    "draftBanner": "Draft — the client hasn't seen it yet",
+    "vsPrevious": "vs previous period",
+    "noChange": "no change",
+    "campaigns": "Campaigns covered",
+    "campaignLine": "{name} · {start} – {end}",
+    "kpiTarget": "Target {target}",
+    "noData": "No numbers in this period.",
+    "noCreatives": "No approved creatives in this period.",
+    "empty": "Nothing written in this section.",
+    "approvedOn": "Approved {date}",
+    "budget": "Budget {spent} of {budget}",
+    "footer": "Numbers from the ad platforms as entered through {date}."
+  },
+  "schedules": {
+    "title": "Scheduled reports",
+    "description": "Prepared automatically after each period ends — as a draft to review, or published straight away.",
+    "new": "New schedule",
+    "empty": "No schedules yet.",
+    "cadence": {
+      "weekly": "Weekly (Sunday to Saturday)",
+      "monthly": "Monthly"
+    },
+    "cadenceShort": {
+      "weekly": "Weekly",
+      "monthly": "Monthly"
+    },
+    "scope": "Scope",
+    "autoPublish": "Publish to the client automatically",
+    "autoPublishHint": "Otherwise you get a draft to review before publishing.",
+    "active": "Active",
+    "paused": "Paused",
+    "nextRun": "Next report {date}",
+    "lastRun": "Last report {date}",
+    "save": "Save schedule",
+    "saved": "Schedule saved",
+    "edit": "Edit schedule",
+    "delete": "Delete schedule",
+    "deleteTitle": "Delete this schedule?",
+    "deleteBody": "No new reports will be prepared from it. Past reports stay.",
+    "deleted": "Schedule deleted",
+    "sections": "Sections",
+    "frequency": "Frequency"
+  },
+  "portal": {
+    "title": "Reports",
+    "empty": "No published reports yet",
+    "emptyBody": "Your campaign performance reports will show here as soon as they're published.",
+    "open": "Open report",
+    "back": "Back"
+  }
+}

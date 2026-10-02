@@ -1,4 +1,5 @@
-import { bigserial, boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { bigserial, boolean, index, integer, jsonb, pgTable, primaryKey, smallint, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { createdAt, id } from '@/lib/db/columns';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
@@ -18,6 +19,13 @@ export const domainEvents = pgTable(
     actorId: uuid('actor_id'),
     payload: jsonb('payload').notNull().default({}),
     version: integer('version').notNull().default(1),
+    /** How many automation actions led to this event (0 = a person or a sweep); the loop guard stops at 3. */
+    automationDepth: smallint('automation_depth').notNull().default(0),
+    /** Automations whose actions led to this event, oldest first (a rule never re-triggers itself down its chain). */
+    automationChain: uuid('automation_chain')
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
     occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -36,8 +44,18 @@ export const domainEventDeliveries = pgTable(
     processedAt: timestamp('processed_at', { withTimezone: true }),
     attempts: integer('attempts').notNull().default(0),
     lastError: text('last_error'),
+    /** Earliest time the next attempt may run (exponential backoff after a failure). */
+    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Claim lease: another dispatcher may take the delivery over once it expires. */
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    createdAt: createdAt(),
   },
-  (t) => [primaryKey({ columns: [t.eventId, t.consumer] })],
+  (t) => [
+    primaryKey({ columns: [t.eventId, t.consumer] }),
+    index('domain_event_deliveries_pending_idx')
+      .on(t.nextAttemptAt)
+      .where(sql`${t.processedAt} is null`),
+  ],
 );
 
 /** Row-level audit trail, written only by the `app.audit_trigger()` trigger. */
@@ -97,6 +115,8 @@ export const notificationPreferences = pgTable(
     category: text('category').notNull(),
     inApp: boolean('in_app').notNull().default(true),
     email: boolean('email').notNull().default(true),
+    /** Off by default; only delivered with an active `whatsapp_opt_ins` row (Phase 7). */
+    whatsapp: boolean('whatsapp').notNull().default(false),
   },
   (t) => [primaryKey({ columns: [t.userId, t.organizationId, t.category] })],
 );

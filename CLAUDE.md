@@ -28,13 +28,16 @@ Built single-agency first, but **multi-tenant ready**: every tenant-scoped row c
 |---|---|---|
 | 0 — Foundation | Infra, auth, users, roles & permissions, AR/EN (RTL/LTR), design system, notifications infra | **Done** |
 | 1 — Client Portal | Portal shell, home, files, messages, agency-side client management | **Done** |
-| 2 — Requests | Dynamic request forms, request lifecycle, triage inbox | **Next** |
-| 3 — Tasks & Deliverables | Tasks, workflow templates, deliverables, versions, approvals | — |
-| 4 — Campaigns | Campaigns, KPIs, analytics, reports | — |
-| 5 — Agency Operations | Internal dashboard, Client 360, team, SLA | — |
-| 6 — CRM & Capacity | Leads, pipeline, deals, team capacity | — |
-| 7 — Integrations & Automation | Meta, WhatsApp, TikTok, Snap, Google, automation engine | — |
-| 8 — AI Intelligence | AI analysis, recommendations, reports, assistant | — |
+| 2 — Requests | Request types + form builder, portal wizard, lifecycle, triage inbox, client dashboard, event dispatcher | **Done** |
+| 3 — Tasks & Deliverables | Workflow templates, tasks (board/list/table/calendar/My Work), deliverables & versions, internal review, client approvals with annotations, content calendar | **Done** |
+| 4 — Campaigns | Campaigns, channels & KPI targets, daily metrics (entry + CSV import), analytics with pacing/health, client reports (snapshots, print/PDF, schedules), portal campaigns & reports | **Done** |
+| 5 — Agency Operations | Ops dashboard across clients, Client 360 with client health, team workload views, SLA policies (business hours, holidays, pause on client) with breach alerts, SLA monitor | **Done** |
+| 6 — CRM & Capacity | Leads (manual, CSV, public form, webhook; dedup/merge; assignment rules), pipelines & deals, quotes, won → client, follow-ups, sales dashboard, capacity planning with simulator | **Done** |
+| 7 — Integrations & Automation | Provider interface + sandbox, connections with Vault tokens (Meta, WhatsApp, TikTok, Snapchat, Google), daily metric sync, signed lead-ad webhooks, WhatsApp notifications and lead messages, automation engine with builder, dry run and run log | **Done** |
+| 8 — AI Intelligence | Campaign insights (code-computed anomalies + pacing) with recommendations → tasks, AI explanations, AI-drafted report text (AR/EN), assistant with permission-aware retrieval (pgvector) and citations; `AiProvider` (Claude + Voyage) with a mock | **Done** |
+| FR1 — Feedback Round 1 | Edit/delete everywhere with Trash and data reset, tasks performance + drawer, reviewed convert-to-tasks, per-field task permissions, AI keys in `/admin/ai`, personal connected accounts (Meta, TikTok, Snapchat, Google Ads, X, LinkedIn), email change fix (ADR-080…087) | **Done** |
+| FR3 — Feedback Round 3 | Assistant reliability: crash fix (effects never return values), inline failure reasons with "Fix in AI settings", Anthropic-only assistant through read-only tools that run as the user (Voyage optional), index health with background re-index, "Test assistant", model check on key save (ADR-089/090) | **Done** (deployed; live answers wait for Anthropic credit) |
+| FR2 — Feedback Round 2 | Settings → Mail (Gmail App Password, Workspace, Outlook, Zoho, Resend, SMTP) with tests and status, one outbox for app and auth emails (retries, fallback, daily limit, 90-day log), email change through the configured sender (ADR-088) | **Done** |
 
 Current state & gotchas: `docs/HANDOFF.md` (read first in a new session). Details: `docs/ROADMAP.md`. Architecture: `docs/ARCHITECTURE.md`. Data: `docs/DATA_MODEL.md`.
 UI: `docs/UI.md`. Decisions: `docs/DECISIONS.md` (append-only, numbered).
@@ -51,7 +54,8 @@ UI: `docs/UI.md`. Decisions: `docs/DECISIONS.md` (append-only, numbered).
 | Validation / forms | Zod v4, React Hook Form |
 | Data fetching | Server Components first; TanStack Query for client-side/realtime state; TanStack Table |
 | i18n | next-intl (Arabic default, English), cookie-based locale, no URL prefix |
-| Email | App emails: React Email + `EmailProvider` → Resend (prod), SMTP/Mailpit (local), Console (test). Auth emails: GoTrue bilingual templates (ADR-017) |
+| AI | `AiProvider` interface (ADR-073): Anthropic Claude via `@anthropic-ai/sdk` (+ optional Voyage embeddings), deterministic mock for dev/tests; the assistant retrieves through read-only tools that run as the user (ADR-090), pgvector when an embedder is set; numbers are computed by code, never by the model; every failure maps to one `ai_*` reason (ADR-089) |
+| Email | Every email (app and auth) is rendered with React Email and queued in `email_outbox`, then sent through the organization's sender from Settings → Mail (Gmail / Workspace / Outlook / Zoho / Resend / SMTP; secret in Vault), with the env `EMAIL_PROVIDER` as fallback and Mailpit in development (ADR-088). Auth links come from GoTrue's Admin `generateLink` |
 | Tests | Vitest (unit + DB/RLS integration), Playwright (E2E) |
 | Tooling | pnpm, ESLint (flat config), Prettier, Husky + lint-staged, commitlint (Conventional Commits) |
 | Deploy | Vercel on a **custom domain** + Supabase Cloud. Never rely on `*.pages.dev` / `*.netlify.app` (blocked on the owner's network). |
@@ -62,8 +66,9 @@ UI: `docs/UI.md`. Decisions: `docs/DECISIONS.md` (append-only, numbered).
 pnpm install            # install deps (Node 22, pnpm 10)
 cp .env.example .env.local   # then paste keys from `supabase status -o env`
 pnpm db:start           # start local Supabase (Docker)
-pnpm db:reset           # drop + migrate + seed (1 agency, 10 staff, 5 Saudi clients, files, threads)
+pnpm db:reset           # drop + migrate + seed (1 agency, 12 staff incl. a sales manager and rep, 5 Saudi clients, files, threads, request types + requests, workflows, ~320 tasks, deliverables at every review stage, campaigns with ~90 days of metrics, reports, SLA policies, holidays and a breach log, leads, deals in every stage, quotes, capacity settings, sandbox integrations with synced numbers, WhatsApp templates and automations)
 pnpm dev                # Next.js dev server on http://localhost:3000
+pnpm db:seed:perf       # top the demo agency up to 1,000 tasks (or: pnpm db:seed:perf 3000) for profiling
 pnpm db:generate        # drizzle-kit: generate SQL migration from schema changes
 pnpm lint               # ESLint (incl. RTL logical-properties rule and no hardcoded JSX text)
 pnpm typecheck          # tsc --noEmit (message keys are type-checked)
@@ -117,11 +122,21 @@ Rules:
 - **Localized DB content** (org-defined names like roles, departments): `jsonb` `{ "ar": "...", "en": "..." }`
   typed as `LocalizedText`; render with `localized(value, locale)` which falls back to the other language.
 - **Mutations** go through `defineAction()` (see ARCHITECTURE §5): Zod-validate → authenticate →
-  `can()` check → RLS-scoped transaction → `emitEvent()` → typed `Result`. No raw Server Actions.
+  `can()` check → RLS-scoped transaction → `emitEvent()` → typed `Result`. No raw Server Actions. Slow external calls
+  (AI providers) go in the action's post-commit `complete` step, never inside the transaction (ADR-079).
+- **Side effects of events** (notifications, automations) are consumers in `src/lib/events/consumers.ts`, never
+  inline in actions (ADR-027/028). Consumers must be idempotent.
 - **Reads** in Server Components go through module `server/queries.ts` using the RLS-scoped DB (`withRls`).
 - **Service-role access** (`supabaseAdmin`, `dbAdmin`) is allowed only in these server paths: invitation preview/
-  acceptance, `notify()` fan-out, signed storage URLs issued after an RLS-checked lookup, the rate limiter, and the
-  seed. Every use needs a comment why.
+  acceptance, the domain-event dispatcher and its consumers (incl. `notify()` fan-out), signed storage URLs issued after an RLS-checked lookup, the rate limiter, the reminder sweeps
+  (`runReminderSweep`, `runCampaignSweep`, `runSlaSweep`, `runCrmSweep`, cron), public lead intake (`ingestLead` from the
+  website form, the lead webhook and platform lead ads — no session exists), integration token storage in Vault, platform
+  calls with their bookkeeping (sync, discovery, webhook processing, WhatsApp sends) and the automation engine (ADR-067/071),
+  AI bookkeeping and background work (usage rows, cached explanations after an RLS-checked lookup, detector runs, the
+  assistant indexer, scheduled-report auto-drafts, index status — ADR-073/075), Storage cleanup after a Trash purge, the
+  data reset job and the Super Admin backup export (ADR-080/081), decrypting AI provider keys in `getAIClient` (ADR-085),
+  an admin setting a member's login email through GoTrue's admin API after an RLS-checked lookup (ADR-087), the email outbox
+  (queueing, the worker, the sender's Vault secret, auth links from `generateLink` after an active-member lookup — ADR-088), and the seed. Every use needs a comment why.
 - **Errors**: actions return `{ ok: true, data } | { ok: false, error: { code, message?, fieldErrors? } }`;
   error `code`s are translated in the UI. Never leak DB error text to users.
 - **Commits**: Conventional Commits (`feat(auth): …`, `fix(rbac): …`, `docs: …`). One logical change per commit.
@@ -148,7 +163,8 @@ Rules:
 ## 8. Security rules
 
 1. **RLS enabled on every table**, including lookup tables. A migration that creates a table without
-   RLS + policies fails CI (`test:db` asserts it).
+   RLS + policies fails CI (`test:db` asserts it). Policies test access with the array functions
+   (`client_id = any ((select app.agency_client_ids())::uuid[])`), never a per-row access function (ADR-082).
 2. **The database is the source of truth for authorization.** `app.has_permission()` in Postgres decides;
    the TS `can()` mirrors it for UI and early rejection only, and is computed from the same DB data.
 3. App DB queries run as role `authenticated` with the user's JWT claims (`withRls`). Service role is the

@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/overlays';
 import { Avatar, Badge, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/primitives';
 import { useAction } from '@/lib/actions/use-action';
+import { RowActions } from '@/modules/data/components/row-actions';
 import { localized, type Locale, type LocalizedText } from '@/lib/i18n/localized';
 import { publicAssetUrl } from '@/lib/storage';
 import { resendInvitationAction, revokeInvitationAction } from '@/modules/invitations/server/actions';
@@ -187,6 +188,22 @@ export function TeamAdmin(props: TeamAdminProps) {
         header: t('admin.users.joined'),
         accessorFn: (m) => m.joinedAt,
         cell: ({ row }) => <span className="tabular text-muted-foreground">{f.date(row.original.joinedAt)}</span>,
+      },
+      {
+        id: 'actions',
+        header: () => <span className="sr-only">{t('data.actions.column')}</span>,
+        enableSorting: false,
+        cell: ({ row }) =>
+          row.original.userId === props.me.userId ? null : (
+            <RowActions
+              label={row.original.name}
+              onEdit={can('users:update') ? () => setOpenUserId(row.original.userId) : undefined}
+              del={can('users:delete') ? { type: 'member', id: row.original.membershipId } : undefined}
+              people={props.members
+                .filter((x) => x.status === 'active' && x.userId !== row.original.userId)
+                .map((x) => ({ id: x.userId, name: x.name }))}
+            />
+          ),
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps

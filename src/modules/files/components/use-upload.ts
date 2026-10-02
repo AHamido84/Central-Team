@@ -18,7 +18,13 @@ export type UploadItem = {
   fileId?: string;
 };
 
-type Target = { clientId: string; folderId: string | null; threadId: string | null; visibility: 'internal' | 'client' };
+type Target = {
+  clientId: string;
+  folderId: string | null;
+  threadId: string | null;
+  visibility: 'internal' | 'client';
+  forRequest?: boolean;
+};
 
 function putWithProgress(url: string, file: File, onProgress: (p: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {

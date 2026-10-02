@@ -9,7 +9,8 @@ afterAll(async () => {
   await sql.end();
 });
 
-const SERVICE_ONLY = new Set(['rate_limits', 'domain_event_deliveries']);
+// integration_secrets (Phase 7): Vault ids, reachable only through the app.integration_*_secret functions (ADR-067).
+const SERVICE_ONLY = new Set(['rate_limits', 'domain_event_deliveries', 'integration_secrets']);
 
 describe('RLS coverage (meta)', () => {
   it('every public table has RLS enabled', async () => {

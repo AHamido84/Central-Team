@@ -32,5 +32,14 @@
   "noThreadsBody": "ابدأ محادثة جديدة مع فريقك أو عميلك.",
   "unreadCount": "{count} غير مقروءة",
   "selectThread": "اختر محادثة",
-  "selectThreadBody": "اختر محادثة من القائمة لعرض الرسائل."
+  "selectThreadBody": "اختر محادثة من القائمة لعرض الرسائل.",
+  "own": {
+    "edit": "تعديل",
+    "delete": "حذف",
+    "edited": "معدّلة",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "actions": "إجراءات الرسالة",
+    "editLabel": "تعديل الرسالة"
+  }
 }

@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
-import { bigint, check, index, pgTable, text, timestamp, uuid, type AnyPgColumn } from 'drizzle-orm/pg-core';
+import { bigint, check, index, integer, numeric, pgTable, text, timestamp, uuid, type AnyPgColumn } from 'drizzle-orm/pg-core';
 
-import { createdAt, id, updatedAt } from '@/lib/db/columns';
+import { createdAt, id, softDelete, updatedAt } from '@/lib/db/columns';
 import { clients } from '@/modules/clients/db/schema';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
 
@@ -22,6 +22,7 @@ export const fileFolders = pgTable(
     kind: text('kind').notNull().default('custom'),
     visibility: text('visibility').notNull().default('client'),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    ...softDelete(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -49,10 +50,17 @@ export const files = pgTable(
     sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull(),
     kind: text('kind').notNull(),
     visibility: text('visibility').notNull().default('client'),
-    /** `library` files appear in the files library; `attachment` files belong to a comment. */
+    /** `library` files appear in the files library; `attachment` files belong to a comment, request or task; `deliverable` files to a deliverable version. */
     source: text('source').notNull().default('library'),
+    /** Preview image generated in the browser at upload (image thumbnail or video poster frame), same bucket. */
+    thumbnailPath: text('thumbnail_path'),
+    width: integer('width'),
+    height: integer('height'),
+    durationSeconds: numeric('duration_seconds', { mode: 'number' }),
     uploadedBy: uuid('uploaded_by').references(() => profiles.id, { onDelete: 'set null' }),
     uploaderSide: text('uploader_side').notNull(),
+    deletedBy: uuid('deleted_by'),
+    deleteBatch: uuid('delete_batch'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -61,7 +69,7 @@ export const files = pgTable(
     index('files_client_folder_idx').on(t.clientId, t.folderId, t.createdAt),
     check('files_kind_check', sql`${t.kind} in ('image','video','pdf','document','archive','other')`),
     check('files_visibility_check', sql`${t.visibility} in ('internal','client')`),
-    check('files_source_check', sql`${t.source} in ('library','attachment')`),
+    check('files_source_check', sql`${t.source} in ('library','attachment','deliverable')`),
     check('files_uploader_side_check', sql`${t.uploaderSide} in ('agency','client')`),
   ],
 );

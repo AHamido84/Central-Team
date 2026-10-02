@@ -1,28 +1,27 @@
-import { CheckCheck } from 'lucide-react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
-import { EmptyState, PageHeader } from '@/components/patterns';
-import { Card } from '@/components/ui/primitives';
+import { PageHeader } from '@/components/patterns';
 import { requirePortal } from '@/lib/auth/context';
+import { DeliverablesList } from '@/modules/deliverables/components/deliverables-list';
+import { listDeliverables } from '@/modules/deliverables/server/queries';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('nav');
   return { title: t('approvals') };
 }
 
-/** Designed-in route for an upcoming phase. Hidden (404) until the `module.approvals` flag is enabled. */
+/** Approvals center: everything the agency sent for approval — awaiting you, in revision, approved. */
 export default async function PortalApprovalsPage() {
   const ctx = await requirePortal();
   if (!ctx.flags['module.approvals']) notFound();
-  const t = await getTranslations();
+  const t = await getTranslations('deliverables.portal');
+  const deliverables = await listDeliverables({ clientId: ctx.client.id, clientVisibleOnly: true });
   return (
     <>
-      <PageHeader title={t('nav.approvals')} description={t('portal.upcoming.approvals.description')} />
-      <Card>
-        <EmptyState icon={CheckCheck} title={t('portal.upcoming.approvals.title')} description={t('portal.upcoming.approvals.body')} />
-      </Card>
+      <PageHeader title={t('title')} description={ctx.client.canApprove ? t('description') : t('descriptionViewer')} />
+      <DeliverablesList deliverables={deliverables} side="client" />
     </>
   );
 }

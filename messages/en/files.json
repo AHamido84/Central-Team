@@ -43,5 +43,7 @@
   "previewFailed": "We couldn't preview this file.",
   "noPreview": "No preview is available for this file type.",
   "recentFiles": "Recent files",
-  "noRecentFiles": "No shared files yet"
+  "noRecentFiles": "No shared files yet",
+  "renameFolder": "Rename folder",
+  "folderName": "Folder name"
 }

@@ -111,9 +111,11 @@ export function SheetContent({
         {...props}
       >
         {children}
+        {/* Stays in place while the sheet's body scrolls (the scroll container is inside). */}
         <DialogPrimitive.Close
-          className="absolute end-3 top-3 rounded-md p-1.5 text-subtle-foreground hover:bg-surface-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="absolute end-3 top-3 z-10 rounded-md bg-surface-raised/90 p-1.5 text-subtle-foreground backdrop-blur-sm hover:bg-surface-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           aria-label={closeLabel}
+          data-testid="sheet-close"
         >
           <X className="size-4" />
         </DialogPrimitive.Close>
@@ -186,12 +188,13 @@ export function DropdownMenuContent({
   ...props
 }: ComponentProps<typeof DropdownPrimitive.Content>) {
   return (
+    // Above sheets (z-60) and dialogs (z-70): menus and pickers opened inside a drawer must not render behind it.
     <DropdownPrimitive.Portal>
       <DropdownPrimitive.Content
         sideOffset={sideOffset}
         align={align}
         className={cn(
-          'z-40 min-w-48 overflow-hidden rounded-lg border border-border bg-surface-raised p-1 shadow-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
+          'z-[80] min-w-48 overflow-hidden rounded-lg border border-border bg-surface-raised p-1 shadow-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
           className,
         )}
         {...props}

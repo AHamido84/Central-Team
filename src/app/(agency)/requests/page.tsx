@@ -1,0 +1,49 @@
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
+
+import { PageHeader } from '@/components/patterns';
+import { requireAgency } from '@/lib/auth/context';
+import { can } from '@/lib/permissions/can';
+import { listDepartments } from '@/modules/rbac/server/queries';
+import { listAgencyPeople } from '@/modules/clients/server/queries';
+import { RequestsInbox } from '@/modules/requests/components/requests-inbox';
+import { inboxViews, type InboxView } from '@/modules/requests/constants';
+import { listRequests } from '@/modules/requests/server/queries';
+import { dayInZone } from '@/modules/tasks/constants';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('nav');
+  return { title: t('requests') };
+}
+
+export default async function RequestsPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+  const ctx = await requireAgency('requests:read');
+  if (!ctx.flags['module.requests']) notFound();
+  const { view } = await searchParams;
+  const t = await getTranslations('requests');
+  const [requests, people, departments] = await Promise.all([listRequests(), listAgencyPeople(ctx), listDepartments(ctx)]);
+  return (
+    <>
+      <PageHeader title={t('inboxTitle')} description={t('inboxDescription')} />
+      <RequestsInbox
+        requests={requests}
+        me={ctx.session.userId}
+        people={people.map((p) => ({ id: p.id, name: p.name, avatarPath: p.avatar_path }))}
+        canTriage={can(ctx.permissions, 'requests:triage')}
+        canDelete={can(ctx.permissions, 'requests:delete')}
+        initialView={inboxViews.includes(view as InboxView) ? (view as InboxView) : 'new'}
+        convert={
+          ctx.flags['module.tasks'] && can(ctx.permissions, 'tasks:create')
+            ? {
+                today: dayInZone(new Date(), ctx.organization.defaultTimezone),
+                canManageWorkflows: can(ctx.permissions, 'workflows:manage'),
+                people: people.map((p) => ({ id: p.id, name: p.name })),
+                departments: departments.map((d) => ({ id: d.id, name: d.name })),
+              }
+            : undefined
+        }
+      />
+    </>
+  );
+}

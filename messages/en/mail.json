@@ -1,0 +1,160 @@
+{
+  "title": "Mail",
+  "description": "The address that sends every platform email: invitations, sign-in links, password resets, email changes, notifications and reports.",
+  "tabs": {
+    "settings": "Sender",
+    "log": "Email log"
+  },
+  "devNotice": "Development mode: every email goes to Mailpit (<link>open Mailpit</link>), not to real inboxes. Set EMAIL_DEV_REAL_SEND=1 to send through the sender below.",
+  "presets": {
+    "gmail": {
+      "name": "Gmail",
+      "hint": "Your Gmail address with a Google App Password. About 500 emails a day."
+    },
+    "google_workspace": {
+      "name": "Google Workspace",
+      "hint": "A Workspace mailbox with an App Password. About 2,000 emails a day."
+    },
+    "microsoft365": {
+      "name": "Microsoft 365 / Outlook",
+      "hint": "smtp.office365.com. Your tenant admin may have to allow SMTP AUTH for the mailbox."
+    },
+    "zoho": {
+      "name": "Zoho Mail",
+      "hint": "smtp.zoho.com (use smtp.zoho.sa or .eu if your account is hosted there)."
+    },
+    "resend": {
+      "name": "Resend (API key)",
+      "hint": "Recommended for production with your own domain (SPF / DKIM verified in Resend)."
+    },
+    "smtp": {
+      "name": "Custom SMTP",
+      "hint": "Any SMTP server: host, port and security from your provider."
+    }
+  },
+  "recommended": "Recommended",
+  "gmailSteps": {
+    "title": "Connect Gmail in three steps",
+    "step1": "Turn on 2-Step Verification for the Google account.",
+    "step2": "Create an App Password (name it “Central”) and copy the 16 characters.",
+    "step3": "Paste it below as the password, with your full Gmail address as the username and the From email.",
+    "link": "Open Google App Passwords",
+    "limit": "Gmail allows roughly 500 messages a day from a personal account; for more, use Google Workspace or Resend with your own domain."
+  },
+  "outlookNote": "If the test says the login was rejected, ask your Microsoft 365 admin to enable “Authenticated SMTP” for this mailbox.",
+  "fields": {
+    "preset": "Provider",
+    "host": "SMTP host",
+    "port": "Port",
+    "security": "Security",
+    "username": "Username (email)",
+    "password": "Password / App password",
+    "apiKey": "API key",
+    "secretKeep": "Leave blank to keep the saved one ({hint})",
+    "fromNameAr": "From name (Arabic)",
+    "fromNameEn": "From name (English)",
+    "fromEmail": "From email",
+    "replyTo": "Reply-to",
+    "dailyLimit": "Daily limit",
+    "dailyLimitHint": "Emails a day through this sender; past it, mail goes through the backup sender or waits until tomorrow.",
+    "active": "Use this sender"
+  },
+  "security": {
+    "starttls": "STARTTLS (587)",
+    "ssl": "SSL/TLS (465)",
+    "none": "None"
+  },
+  "fromMismatch": "{provider} sends only as the signed-in account ({username}) or a verified alias. Use the same address, or add {from} as an alias in the provider first — otherwise it will be rewritten or rejected.",
+  "save": "Save",
+  "saved": "Mail settings saved.",
+  "remove": "Remove sender",
+  "removeTitle": "Remove the configured sender?",
+  "removeBody": "Emails go back to the default (environment) sender. The stored password is deleted.",
+  "removed": "Sender removed.",
+  "test": "Test connection",
+  "testOk": "Connected and signed in.",
+  "testFailed": "Connection failed: {reason}",
+  "testSend": "Send test email",
+  "testSendTo": "Send to",
+  "testSent": "Test email sent.",
+  "testQueued": "Test email queued; it will be retried.",
+  "testSentDev": "Test email delivered to Mailpit (development).",
+  "status": {
+    "title": "Status",
+    "active": "Active sender",
+    "lastSuccess": "Last successful send",
+    "never": "never",
+    "today": "Sent today",
+    "todayOf": "{sent} of {limit}",
+    "failedToday": "Failed today",
+    "queued": "Waiting in queue",
+    "lastTest": "Last test",
+    "testOk": "passed {when}",
+    "testFailed": "failed {when}",
+    "fallbackAlert": "The configured sender has been failing since {when}; emails are going out through the backup sender.",
+    "limitWarning": "Close to today's limit.",
+    "environment": "Default: {provider} · {from}"
+  },
+  "senders": {
+    "configured": "Configured sender",
+    "environment": "Default (environment)",
+    "fallback": "Backup sender",
+    "dev": "Mailpit (development)"
+  },
+  "errors": {
+    "auth_failed": "Wrong username or password. For Gmail, use an App Password, not your normal password.",
+    "port_blocked": "Couldn't reach the server on that port (blocked by a firewall or wrong port).",
+    "timeout": "The server took too long to answer.",
+    "tls_failed": "The secure connection (TLS) failed. Check the security setting matches the port (587 = STARTTLS, 465 = SSL).",
+    "host_not_found": "The SMTP host doesn't exist. Check the spelling.",
+    "sender_rejected": "The provider rejected the From address. Use the signed-in account or a verified alias / domain.",
+    "recipient_rejected": "The recipient address was rejected.",
+    "api_key_invalid": "The API key is invalid or doesn't have sending access.",
+    "rate_limited": "The provider is limiting sends right now.",
+    "daily_limit": "Today's sending limit was reached; it will go out tomorrow.",
+    "not_configured": "No sender is configured.",
+    "unknown": "The provider returned an error."
+  },
+  "log": {
+    "title": "Email log",
+    "description": "Every email from the last 90 days. Sign-in and invitation links aren't kept.",
+    "search": "Search by recipient",
+    "allStatuses": "All statuses",
+    "allKinds": "All types",
+    "recipient": "Recipient",
+    "kind": "Type",
+    "subject": "Subject",
+    "provider": "Provider",
+    "status": "Status",
+    "time": "Time",
+    "attempts": "{count, plural, one {# attempt} other {# attempts}}",
+    "retryAt": "retry {when}",
+    "resend": "Resend",
+    "resent": "Queued again.",
+    "notResendable": "Sign-in links aren't kept",
+    "empty": "No emails yet",
+    "emptyBody": "Emails appear here as soon as the platform sends them.",
+    "page": "Page {page} of {pages}",
+    "prev": "Previous",
+    "next": "Next"
+  },
+  "statuses": {
+    "queued": "Queued",
+    "sending": "Sending",
+    "sent": "Sent",
+    "failed": "Failed",
+    "retrying": "Retrying"
+  },
+  "kinds": {
+    "magic_link": "Sign-in link",
+    "recovery": "Password reset",
+    "email_change": "Email change",
+    "invitation": "Invitation",
+    "notification": "Notification",
+    "security_notice": "Security notice",
+    "report": "Report",
+    "test": "Test",
+    "other": "Other"
+  },
+  "cancel": "Cancel"
+}
