@@ -17,6 +17,9 @@ import { databaseUrl } from '../src/lib/db/url';
 
 const log = (message: string) => process.stdout.write(`[deploy-db] ${message}\n`);
 
+/** The seeded demo clients (`scripts/seed.ts`); the demo top-ups need them. */
+const DEMO_CLIENT_SLUGS = ['najd-heritage', 'darb-coffee', 'future-smile', 'gulf-vision', 'lujain-fashion'];
+
 async function main() {
   if (process.env.VERCEL_ENV !== 'production' && process.env.DEPLOY_DB !== '1') {
     log('not a production build — skipping');
@@ -56,42 +59,51 @@ async function main() {
       const [row] = await sql<{ count: number }[]>`select count(*)::int as count from auth.users`;
       if ((row?.count ?? 0) > 0) {
         log('database already has users — skipping the demo seed');
-        // Deployments seeded before Phase 4 get the demo campaigns once (the script checks it's the demo agency).
-        const result = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-campaigns-standalone.ts'], {
-          stdio: 'inherit',
-          env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
-        });
-        if (result.status !== 0) throw new Error(`campaign seed failed with exit code ${result.status}`);
-        // Same for Phase 5: the demo SLA policies, holidays and breach log, once.
-        const sla = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-sla-standalone.ts'], {
-          stdio: 'inherit',
-          env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
-        });
-        if (sla.status !== 0) throw new Error(`SLA seed failed with exit code ${sla.status}`);
-        // And Phase 6: the demo sales team, pipeline, leads, deals and capacity settings, once.
-        const crm = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-crm-standalone.ts'], {
-          stdio: 'inherit',
-          env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
-        });
-        if (crm.status !== 0) throw new Error(`CRM seed failed with exit code ${crm.status}`);
-        // And Phase 7: sandbox connections, mappings, synced numbers, WhatsApp templates and automations, once.
-        const integrations = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-integrations-standalone.ts'], {
-          stdio: 'inherit',
-          env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
-        });
-        if (integrations.status !== 0) throw new Error(`integrations seed failed with exit code ${integrations.status}`);
-        // And Phase 8: AI switched on, detector insights and the assistant index (mock embeddings), once.
-        const ai = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-ai-standalone.ts'], {
-          stdio: 'inherit',
-          env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
-        });
-        if (ai.status !== 0) throw new Error(`AI seed failed with exit code ${ai.status}`);
-        // And Feedback Round 4: one portal user in three clients (hala@group.test), once.
-        const multi = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-multi-client-standalone.ts'], {
-          stdio: 'inherit',
-          env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
-        });
-        if (multi.status !== 0) throw new Error(`multi-client seed failed with exit code ${multi.status}`);
+        // The one-time demo top-ups below attach to the demo clients. When those are gone (the owner cleared demo data
+        // with the data reset, ADR-081), adding demo records back would undo that reset — skip them all.
+        const [demo] = await sql<{ count: number }[]>`
+          select count(*)::int as count from public.clients
+          where slug = any(${DEMO_CLIENT_SLUGS}) and deleted_at is null`;
+        if ((demo?.count ?? 0) === 0) {
+          log('demo clients are gone (data reset) — skipping the demo top-ups');
+        } else {
+          // Deployments seeded before Phase 4 get the demo campaigns once (the script checks it's the demo agency).
+          const result = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-campaigns-standalone.ts'], {
+            stdio: 'inherit',
+            env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
+          });
+          if (result.status !== 0) throw new Error(`campaign seed failed with exit code ${result.status}`);
+          // Same for Phase 5: the demo SLA policies, holidays and breach log, once.
+          const sla = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-sla-standalone.ts'], {
+            stdio: 'inherit',
+            env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
+          });
+          if (sla.status !== 0) throw new Error(`SLA seed failed with exit code ${sla.status}`);
+          // And Phase 6: the demo sales team, pipeline, leads, deals and capacity settings, once.
+          const crm = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-crm-standalone.ts'], {
+            stdio: 'inherit',
+            env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
+          });
+          if (crm.status !== 0) throw new Error(`CRM seed failed with exit code ${crm.status}`);
+          // And Phase 7: sandbox connections, mappings, synced numbers, WhatsApp templates and automations, once.
+          const integrations = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-integrations-standalone.ts'], {
+            stdio: 'inherit',
+            env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
+          });
+          if (integrations.status !== 0) throw new Error(`integrations seed failed with exit code ${integrations.status}`);
+          // And Phase 8: AI switched on, detector insights and the assistant index (mock embeddings), once.
+          const ai = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-ai-standalone.ts'], {
+            stdio: 'inherit',
+            env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
+          });
+          if (ai.status !== 0) throw new Error(`AI seed failed with exit code ${ai.status}`);
+          // And Feedback Round 4: one portal user in three clients (hala@group.test), once.
+          const multi = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-multi-client-standalone.ts'], {
+            stdio: 'inherit',
+            env: { ...process.env, SEED_ALLOW_REMOTE: '1' },
+          });
+          if (multi.status !== 0) throw new Error(`multi-client seed failed with exit code ${multi.status}`);
+        }
       } else {
         const [org] = await sql<{ count: number }[]>`select count(*)::int as count from public.organizations`;
         if ((org?.count ?? 0) === 0) {
