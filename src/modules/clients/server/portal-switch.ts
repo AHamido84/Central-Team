@@ -6,12 +6,6 @@ import { cookies } from 'next/headers';
 import { getSession } from '@/lib/auth/session';
 import { ACTIVE_CLIENT_COOKIE, getPortalScope, runAs } from '@/lib/db/rls';
 
-/** Only portal paths: the switch link must never become an open redirect. */
-export function safePortalPath(next: string | null | undefined): string {
-  if (!next || !next.startsWith('/portal') || next.startsWith('//') || next.includes('\\')) return '/portal';
-  return next;
-}
-
 /**
  * Makes `clientId` the portal user's active client (FR4.3, ADR-091): checks the membership, sets the httpOnly cookie
  * every later request is scoped by, and remembers the client for the next sign-in. Returns false for a client the user

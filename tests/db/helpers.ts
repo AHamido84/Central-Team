@@ -32,13 +32,15 @@ type Tx = postgres.TransactionSql;
  * `request.jwt.claims` set), then rolls everything back so tests never change seed data.
  * Pass `null` to run as `anon`.
  */
-export async function as<T>(email: string | null, fn: (tx: Tx) => Promise<T>): Promise<T> {
+export async function as<T>(email: string | null, fn: (tx: Tx) => Promise<T>, activeClient?: string): Promise<T> {
   let result: T | undefined;
   try {
     await sql.begin(async (tx) => {
       if (email) {
         const sub = await userId(email);
-        await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub, role: 'authenticated' })}, true), set_config('role', 'authenticated', true)`;
+        // `activeClient` mirrors the portal's selected client (ADR-091), as `withRls` sets it.
+        await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub, role: 'authenticated' })}, true), set_config('role', 'authenticated', true),
+          set_config('app.active_client', ${activeClient ?? ''}, true)`;
       } else {
         await tx`select set_config('request.jwt.claims', ${JSON.stringify({ role: 'anon' })}, true), set_config('role', 'anon', true)`;
       }
@@ -52,16 +54,24 @@ export async function as<T>(email: string | null, fn: (tx: Tx) => Promise<T>): P
 }
 
 /** Runs a statement as the user and returns the Postgres error code/message it raised (or null on success). */
-export async function attempt(email: string | null, fn: (tx: Tx) => Promise<unknown>): Promise<{ code: string; message: string } | null> {
-  return as(email, async (tx) => {
-    try {
-      await tx.savepoint(async (sp) => {
-        await fn(sp as unknown as Tx);
-      });
-      return null;
-    } catch (error) {
-      const e = error as { code?: string; message?: string };
-      return { code: e.code ?? 'unknown', message: e.message ?? '' };
-    }
-  });
+export async function attempt(
+  email: string | null,
+  fn: (tx: Tx) => Promise<unknown>,
+  activeClient?: string,
+): Promise<{ code: string; message: string } | null> {
+  return as(
+    email,
+    async (tx) => {
+      try {
+        await tx.savepoint(async (sp) => {
+          await fn(sp as unknown as Tx);
+        });
+        return null;
+      } catch (error) {
+        const e = error as { code?: string; message?: string };
+        return { code: e.code ?? 'unknown', message: e.message ?? '' };
+      }
+    },
+    activeClient,
+  );
 }

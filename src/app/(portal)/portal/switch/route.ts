@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-import { activatePortalClient, safePortalPath } from '@/modules/clients/server/portal-switch';
+import { safePortalPath } from '@/modules/clients/portal-links';
+import { activatePortalClient } from '@/modules/clients/server/portal-switch';
 
 /**
  * `/portal/switch?client=<id>&next=<portal path>` — used by notification links and emails (FR4.3): opens `next` as that

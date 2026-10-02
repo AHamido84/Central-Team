@@ -215,3 +215,14 @@ test('Admin → Users → Portal users: the drawer lists every client membership
   await expect(drawer.getByTestId('account-deactivate')).toBeVisible();
   await page.screenshot({ path: 'test-results/fr4-portal-user-drawer.png' });
 });
+
+test("a Client Owner's drawer shows only their own client's membership", async ({ page }) => {
+  await login(page, 'yasser@darb.test');
+  await page.goto('/portal/company?tab=team');
+  await page.getByTestId('client-user-row').filter({ hasText: 'hala@group.test' }).getByTestId('client-user-open').click();
+  const drawer = page.getByTestId('portal-user-drawer');
+  await expect(drawer.getByTestId('portal-user-membership')).toHaveCount(1);
+  await expect(drawer.getByTestId('portal-user-membership')).toHaveAttribute('data-client-id', await clientId('darb-coffee'));
+  await expect(drawer.getByTestId('membership-add')).toHaveCount(0);
+  await expect(drawer.getByTestId('account-deactivate')).toHaveCount(0);
+});

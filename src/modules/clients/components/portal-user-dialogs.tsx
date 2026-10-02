@@ -219,7 +219,13 @@ export function PendingEmailNotice({ userId, email, canCancel }: { userId: strin
   const t = useTranslations('clients.users');
   const cancel = useAction(cancelPortalEmailChangeAction, { successMessage: t('pendingEmailCancelled') });
   return (
-    <span className="inline-flex flex-wrap items-center gap-1.5" data-testid="pending-email">
+    // Inside clickable table rows: cancelling must not also open the row.
+    <span
+      className="inline-flex flex-wrap items-center gap-1.5"
+      data-testid="pending-email"
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
       <Badge tone="info">
         <MailPlus />
         <span>{t.rich('pendingEmail', { email, b: (chunks) => <Bdi>{chunks}</Bdi> })}</span>

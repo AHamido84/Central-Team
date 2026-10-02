@@ -39,6 +39,8 @@ export type PortalUserSummary = {
 async function load(filter: { userIds?: string[]; query?: string }): Promise<PortalUserSummary[]> {
   return withRls(async (tx) => {
     const term = filter.query?.trim().toLowerCase();
+    // From the profiles the caller can see: agency staff also read `organization_members` (account status, people with
+    // no membership left); a Client Owner can't, so for them a portal user is someone with a membership they can see.
     const people = await tx
       .select({
         userId: profiles.id,
@@ -47,13 +49,14 @@ async function load(filter: { userIds?: string[]; query?: string }): Promise<Por
         avatarPath: profiles.avatarPath,
         accountStatus: organizationMembers.status,
       })
-      .from(organizationMembers)
-      .innerJoin(profiles, eq(profiles.id, organizationMembers.userId))
+      .from(profiles)
+      .leftJoin(organizationMembers, eq(organizationMembers.userId, profiles.id))
       .where(
         and(
-          eq(organizationMembers.userType, 'client'),
-          isNull(organizationMembers.deletedAt),
-          filter.userIds ? inArray(organizationMembers.userId, filter.userIds) : undefined,
+          sql`(${organizationMembers.userType} is null or (${organizationMembers.userType} = 'client' and ${organizationMembers.deletedAt} is null))`,
+          sql`(${organizationMembers.userType} = 'client' or exists (
+            select 1 from public.client_users cu where cu.user_id = ${profiles.id} and cu.deleted_at is null))`,
+          filter.userIds ? inArray(profiles.id, filter.userIds) : undefined,
           term ? sql`(lower(${profiles.fullName}) like ${`%${term}%`} or lower(${profiles.email}) like ${`%${term}%`})` : undefined,
         ),
       )
@@ -90,7 +93,7 @@ async function load(filter: { userIds?: string[]; query?: string }): Promise<Por
         name: p.name || p.email,
         email: p.email,
         avatarPath: p.avatarPath,
-        accountStatus: p.accountStatus as PortalUserSummary['accountStatus'],
+        accountStatus: (p.accountStatus ?? 'active') as PortalUserSummary['accountStatus'],
         memberships: rows
           .filter((r) => r.userId === p.userId)
           .map((r) => ({

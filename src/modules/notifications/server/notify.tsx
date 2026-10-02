@@ -17,6 +17,7 @@ import {
 import { sendActionEmail } from '@/lib/email/send';
 import { isLocale, localized, type Locale } from '@/lib/i18n/localized';
 import { loadMessages } from '@/i18n/messages';
+import { clientLink } from '@/modules/clients/portal-links';
 import { sendNotificationWhatsApp } from '@/modules/integrations/server/whatsapp';
 import { notificationTypes, type NotificationType } from '@/modules/notifications/types';
 
@@ -33,12 +34,6 @@ export type NotifyInput = {
   /** The client this is about (FR4.3); defaults to the event's client. Labels and opens it for multi-client portal users. */
   clientId?: string | null;
 };
-
-/** A portal link opened as a given client goes through the switch route (FR4.3), so the click lands in that client. */
-export function clientLink(link: string, clientId: string | null): string {
-  if (!clientId || !link.startsWith('/portal') || link.startsWith('/portal/switch')) return link;
-  return `/portal/switch?client=${clientId}&next=${encodeURIComponent(link)}`;
-}
 
 /**
  * Fan-out from event consumers: in-app rows + email per recipient preference. Runs with the service
