@@ -13,6 +13,7 @@ import {
   invitations,
   packageItems,
   packages,
+  portalEmailChanges,
   profiles,
   roles,
 } from '@/lib/db/schema';
@@ -79,6 +80,8 @@ export type ClientPortalUser = {
   canApprove: boolean;
   status: 'active' | 'deactivated';
   joinedAt: string;
+  /** An admin's "ask to confirm" email change waiting on the new address (FR4.1); only visible with the permission. */
+  pendingEmail: string | null;
 };
 
 export type ClientInvitation = {
@@ -111,6 +114,22 @@ export async function listClientUsers(clientId: string) {
       .from(roles)
       .where(eq(roles.side, 'client'))
       .orderBy(asc(roles.sortOrder));
+    // RLS returns these rows only to callers with `client_users:update_email`.
+    const pending = users.length
+      ? await tx
+          .select({ userId: portalEmailChanges.userId, to: portalEmailChanges.toEmail })
+          .from(portalEmailChanges)
+          .where(
+            and(
+              inArray(
+                portalEmailChanges.userId,
+                users.map((u) => u.p.id),
+              ),
+              eq(portalEmailChanges.status, 'pending'),
+              sql`${portalEmailChanges.expiresAt} > now()`,
+            ),
+          )
+      : [];
     return {
       users: users.map(({ cu, p, roleKey }) => ({
         clientUserId: cu.id,
@@ -125,6 +144,7 @@ export async function listClientUsers(clientId: string) {
         canApprove: cu.canApprove,
         status: cu.status as 'active' | 'deactivated',
         joinedAt: cu.createdAt.toISOString(),
+        pendingEmail: pending.find((x) => x.userId === p.id)?.to ?? null,
       })) satisfies ClientPortalUser[],
       invitations: invites.map((i) => ({
         id: i.id,

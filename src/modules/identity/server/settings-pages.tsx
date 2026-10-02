@@ -8,12 +8,17 @@ import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/patterns';
 import { requireSignedIn } from '@/lib/auth/context';
 import { withRls } from '@/lib/db/rls';
-import { notificationPreferences } from '@/lib/db/schema';
+import { notificationClientPreferences, notificationPreferences } from '@/lib/db/schema';
 import { localized, type Locale } from '@/lib/i18n/localized';
 import { can } from '@/lib/permissions/can';
 import { SettingsNav } from '@/modules/identity/components/settings-nav';
 import type { EmailChangeState } from '@/modules/identity/server/actions';
-import { NotificationSettings, PreferencesSettings, ProfileSettings } from '@/modules/identity/components/settings-forms';
+import {
+  ClientNotificationSettings,
+  NotificationSettings,
+  PreferencesSettings,
+  ProfileSettings,
+} from '@/modules/identity/components/settings-forms';
 import { WhatsAppOptIn } from '@/modules/integrations/components/whatsapp-opt-in';
 import { MyConnections } from '@/modules/integrations/components/my-connections';
 import { sandboxEnabled } from '@/modules/integrations/providers';
@@ -122,16 +127,39 @@ export async function NotificationSettingsPage({ base }: { base: Base }) {
       : notificationCategories.filter((c) => c !== 'approvals');
   // WhatsApp is an agency channel (Phase 7): shown when the agency has a notification template to send through.
   const whatsapp = ctx.side === 'agency' ? await getWhatsAppChannel(ctx.session.userId, ctx.organization.id) : null;
+  const defaults = categories.map((category) => {
+    const row = rows.find((r) => r.category === category);
+    return { category, inApp: row?.inApp ?? true, email: row?.email ?? true, whatsapp: row?.whatsapp ?? false };
+  });
+  // A portal user in several clients gets per-client overrides on top of the default (FR4.3, ADR-093).
+  if (ctx.side === 'client' && ctx.clients.length > 1) {
+    const overrides = await withRls((tx) =>
+      tx.select().from(notificationClientPreferences).where(eq(notificationClientPreferences.userId, ctx.session.userId)),
+    );
+    const locale = (await getLocale()) as Locale;
+    return (
+      <Shell base={base}>
+        <ClientNotificationSettings
+          defaults={defaults}
+          clients={ctx.clients.map((c) => ({
+            id: c.id,
+            name: localized(c.name, locale),
+            overrides: overrides.some((o) => o.clientId === c.id)
+              ? defaults.map((d) => {
+                  const o = overrides.find((x) => x.clientId === c.id && x.category === d.category);
+                  return { ...d, inApp: o?.inApp ?? d.inApp, email: o?.email ?? d.email };
+                })
+              : null,
+          }))}
+          initialScope={ctx.client.id}
+        />
+      </Shell>
+    );
+  }
   return (
     <Shell base={base}>
       {whatsapp ? <WhatsAppOptIn channel={whatsapp} /> : null}
-      <NotificationSettings
-        whatsapp={whatsapp ? { available: whatsapp.available, optedIn: whatsapp.optedIn } : null}
-        defaults={categories.map((category) => {
-          const row = rows.find((r) => r.category === category);
-          return { category, inApp: row?.inApp ?? true, email: row?.email ?? true, whatsapp: row?.whatsapp ?? false };
-        })}
-      />
+      <NotificationSettings whatsapp={whatsapp ? { available: whatsapp.available, optedIn: whatsapp.optedIn } : null} defaults={defaults} />
     </Shell>
   );
 }

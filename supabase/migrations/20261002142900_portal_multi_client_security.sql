@@ -159,9 +159,8 @@ grant select, insert, update, delete on public.notification_client_preferences t
 create policy notification_client_preferences_select on public.notification_client_preferences for select to authenticated
   using (user_id = (select auth.uid()));
 create policy notification_client_preferences_write on public.notification_client_preferences for insert to authenticated
-  with check (user_id = (select auth.uid()) and exists (
-    select 1 from public.client_users cu where cu.user_id = (select auth.uid()) and cu.client_id = notification_client_preferences.client_id
-      and cu.organization_id = notification_client_preferences.organization_id and cu.status = 'active' and cu.deleted_at is null));
+  -- Any of the caller's own clients, not only the selected one (my_portal_clients ignores app.active_client).
+  with check (user_id = (select auth.uid()) and client_id in (select p.client_id from app.my_portal_clients() p));
 create policy notification_client_preferences_update on public.notification_client_preferences for update to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 create policy notification_client_preferences_delete on public.notification_client_preferences for delete to authenticated

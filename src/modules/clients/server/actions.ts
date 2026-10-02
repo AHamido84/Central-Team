@@ -202,7 +202,7 @@ export const updateClientUserAction = defineAction({
     });
     return null;
   },
-  revalidate: (input) => [`/clients/${input.clientId}`, '/portal/company'],
+  revalidate: (input) => [`/clients/${input.clientId}`, '/portal/company', '/admin/users'],
 });
 
 /* -------------------------------------------------------------------------- */

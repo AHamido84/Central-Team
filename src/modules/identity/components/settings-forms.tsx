@@ -47,7 +47,11 @@ import {
   updateProfileAction,
   type EmailChangeState,
 } from '@/modules/identity/server/actions';
-import { updateNotificationPreferencesAction } from '@/modules/notifications/server/actions';
+import {
+  resetClientNotificationPreferencesAction,
+  updateClientNotificationPreferencesAction,
+  updateNotificationPreferencesAction,
+} from '@/modules/notifications/server/actions';
 import type { NotificationCategory } from '@/modules/notifications/types';
 
 const phonePattern = /^(\+?[1-9]\d{7,14}|0?5\d{8})$/;
@@ -362,10 +366,13 @@ type Channel = 'inApp' | 'email' | 'whatsapp';
 export function NotificationSettings({
   defaults,
   whatsapp,
+  onSave,
 }: {
   defaults: Pref[];
   /** Null on the portal (WhatsApp is an agency channel). */
   whatsapp: { available: boolean; optedIn: boolean } | null;
+  /** Saves somewhere else than the organization-wide preferences (a per-client override, FR4.3). */
+  onSave?: (prefs: Pref[]) => void;
 }) {
   const t = useTranslations();
   const [prefs, setPrefs] = useState(defaults);
@@ -373,7 +380,8 @@ export function NotificationSettings({
   const update = (category: NotificationCategory, key: Channel, value: boolean) => {
     const next = prefs.map((p) => (p.category === category ? { ...p, [key]: value } : p));
     setPrefs(next);
-    void save.run({ preferences: next });
+    if (onSave) onSave(next);
+    else void save.run({ preferences: next });
   };
   const channels: { key: Channel; label: string; disabled: boolean }[] = [
     { key: 'inApp', label: t('settings.inApp'), disabled: false },
@@ -430,5 +438,73 @@ export function NotificationSettings({
         );
       })}
     </Card>
+  );
+}
+
+/**
+ * Portal notifications for someone in several clients (FR4.3, ADR-093): "All clients" is the default; each client can
+ * override it, or follow the default again.
+ */
+export function ClientNotificationSettings({
+  defaults,
+  clients,
+  initialScope,
+}: {
+  defaults: Pref[];
+  clients: { id: string; name: string; overrides: Pref[] | null }[];
+  initialScope: string;
+}) {
+  const t = useTranslations('settings');
+  const tc = useTranslations('common');
+  const [scope, setScope] = useState<string>(initialScope);
+  const saveClient = useAction(updateClientNotificationPreferencesAction, { successMessage: tc('saved') });
+  const reset = useAction(resetClientNotificationPreferencesAction, { successMessage: t('clientPrefsReset') });
+  const current = clients.find((c) => c.id === scope) ?? null;
+  return (
+    <div className="space-y-4" data-testid="client-notification-settings">
+      <Card className="flex flex-wrap items-end justify-between gap-3 p-4">
+        <Field
+          label={t('clientPrefsScope')}
+          hint={current ? (current.overrides ? t('clientPrefsCustom') : t('clientPrefsFollows')) : t('clientPrefsAllHint')}
+        >
+          {(p) => (
+            <NativeSelect {...p} value={scope} onChange={(e) => setScope(e.target.value)} className="w-64" data-testid="client-prefs-scope">
+              <option value="all">{t('clientPrefsAll')}</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </NativeSelect>
+          )}
+        </Field>
+        {current?.overrides ? (
+          <Button
+            variant="outline"
+            loading={reset.pending}
+            onClick={() => void reset.run({ clientId: current.id })}
+            data-testid="client-prefs-reset"
+          >
+            <RefreshCw />
+            {t('clientPrefsUseDefault')}
+          </Button>
+        ) : null}
+      </Card>
+      {current ? (
+        <NotificationSettings
+          key={`${current.id}:${current.overrides ? 'custom' : 'default'}`}
+          defaults={current.overrides ?? defaults}
+          whatsapp={null}
+          onSave={(prefs) =>
+            void saveClient.run({
+              clientId: current.id,
+              preferences: prefs.map((p) => ({ category: p.category, inApp: p.inApp, email: p.email })),
+            })
+          }
+        />
+      ) : (
+        <NotificationSettings key="all" defaults={defaults} whatsapp={null} />
+      )}
+    </div>
   );
 }

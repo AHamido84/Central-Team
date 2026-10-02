@@ -91,5 +91,12 @@
   "emailPendingTitle": "تغيير البريد قيد الانتظار",
   "emailPendingBoth": "افتح الرابط المرسل إلى <current></current> والرابط المرسل إلى <next></next>. يتغيّر بريدك بعد تأكيدهما معًا.",
   "emailPendingOne": "تم تأكيد أحد العنوانين. افتح الرابط في البريد الآخر لتغيير بريدك إلى <next></next>.",
-  "emailDevHint": "بيئة التطوير المحلية: تصل الرسائل إلى <link>Mailpit</link> وليس إلى صناديق بريد حقيقية."
+  "emailDevHint": "بيئة التطوير المحلية: تصل الرسائل إلى <link>Mailpit</link> وليس إلى صناديق بريد حقيقية.",
+  "clientPrefsScope": "الإشعارات لـ",
+  "clientPrefsAll": "كل العملاء (الافتراضي)",
+  "clientPrefsAllHint": "ينطبق على كل العملاء ما لم تغيّر إعدادات عميل بعينه.",
+  "clientPrefsFollows": "يتبع إعدادك الافتراضي لكل العملاء. غيّر أي مفتاح لتخصيص هذا العميل.",
+  "clientPrefsCustom": "مخصّص لهذا العميل.",
+  "clientPrefsUseDefault": "استخدم الافتراضي لهذا العميل",
+  "clientPrefsReset": "عاد هذا العميل إلى إعدادك الافتراضي"
 }

@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 
 import { dbAdmin } from '@/lib/db/client';
 import { withRls } from '@/lib/db/rls';
@@ -52,6 +52,7 @@ async function load(filter: { userIds?: string[]; query?: string }): Promise<Por
       .where(
         and(
           eq(organizationMembers.userType, 'client'),
+          isNull(organizationMembers.deletedAt),
           filter.userIds ? inArray(organizationMembers.userId, filter.userIds) : undefined,
           term ? sql`(lower(${profiles.fullName}) like ${`%${term}%`} or lower(${profiles.email}) like ${`%${term}%`})` : undefined,
         ),
@@ -75,7 +76,7 @@ async function load(filter: { userIds?: string[]; query?: string }): Promise<Por
       .from(clientUsers)
       .innerJoin(clients, eq(clients.id, clientUsers.clientId))
       .innerJoin(roles, eq(roles.id, clientUsers.roleId))
-      .where(inArray(clientUsers.userId, ids))
+      .where(and(inArray(clientUsers.userId, ids), isNull(clientUsers.deletedAt), isNull(clients.deletedAt)))
       .orderBy(asc(clientUsers.createdAt));
     const pending = await tx
       .select({ userId: portalEmailChanges.userId, to: portalEmailChanges.toEmail, expiresAt: portalEmailChanges.expiresAt })
@@ -165,4 +166,29 @@ export async function lookupPortalEmail(organizationId: string, email: string, c
         )
     : [];
   return { kind: 'portal_user', userId: member.userId, inClient: Boolean(inClient), summary: await getPortalUser(member.userId) };
+}
+
+export type ClientOption = { id: string; name: LocalizedText; logoPath: string | null };
+
+/** Clients the caller can add portal users to (drawer → "Add to a client"); RLS limits them to the caller's clients. */
+export function listClientOptions(): Promise<ClientOption[]> {
+  return withRls((tx) =>
+    tx
+      .select({ id: clients.id, name: clients.name, logoPath: clients.logoPath })
+      .from(clients)
+      .where(and(isNull(clients.deletedAt), ne(clients.status, 'archived')))
+      .orderBy(sql`${clients.name}->>'ar'`),
+  );
+}
+
+export type ClientRoleOption = { id: string; key: string; name: LocalizedText; description: LocalizedText };
+
+export function listClientRoleOptions(): Promise<ClientRoleOption[]> {
+  return withRls((tx) =>
+    tx
+      .select({ id: roles.id, key: roles.key, name: roles.name, description: roles.description })
+      .from(roles)
+      .where(eq(roles.side, 'client'))
+      .orderBy(asc(roles.sortOrder)),
+  );
 }

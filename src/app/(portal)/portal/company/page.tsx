@@ -123,6 +123,7 @@ async function TeamTab({
       roles={data.roles}
       canManage={canManage}
       meUserId={meUserId}
+      side="client"
     />
   );
 }

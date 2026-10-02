@@ -91,5 +91,12 @@
   "emailPendingTitle": "Email change pending",
   "emailPendingBoth": "Open the link we sent to <current></current> and the one sent to <next></next>. Your email changes once both are confirmed.",
   "emailPendingOne": "One address is confirmed. Open the link in the other inbox to change your email to <next></next>.",
-  "emailDevHint": "Local development: emails go to <link>Mailpit</link>, not to real inboxes."
+  "emailDevHint": "Local development: emails go to <link>Mailpit</link>, not to real inboxes.",
+  "clientPrefsScope": "Notifications for",
+  "clientPrefsAll": "All clients (default)",
+  "clientPrefsAllHint": "Applies to every client unless you change a client's own settings.",
+  "clientPrefsFollows": "Follows your default for all clients. Change a switch to customize this client.",
+  "clientPrefsCustom": "Customized for this client.",
+  "clientPrefsUseDefault": "Use the default for this client",
+  "clientPrefsReset": "This client follows your default again"
 }

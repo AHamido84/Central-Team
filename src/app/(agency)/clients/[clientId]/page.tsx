@@ -187,6 +187,8 @@ export default async function ClientPage({
           clientName={name}
           canManage={can(ctx.permissions, 'client_users:manage')}
           canDelete={can(ctx.permissions, 'client_users:delete')}
+          canChangeEmail={can(ctx.permissions, 'client_users:update_email')}
+          canDeactivateAccount={can(ctx.permissions, 'users:deactivate')}
           meUserId={ctx.session.userId}
         />
       ) : null}
@@ -253,12 +255,16 @@ async function UsersTab({
   clientName,
   canManage,
   canDelete,
+  canChangeEmail,
+  canDeactivateAccount,
   meUserId,
 }: {
   clientId: string;
   clientName: string;
   canManage: boolean;
   canDelete: boolean;
+  canChangeEmail: boolean;
+  canDeactivateAccount: boolean;
   meUserId: string;
 }) {
   const data = await listClientUsers(clientId);
@@ -271,6 +277,8 @@ async function UsersTab({
       roles={data.roles}
       canManage={canManage}
       canDelete={canDelete}
+      canChangeEmail={canChangeEmail}
+      canDeactivateAccount={canDeactivateAccount}
       meUserId={meUserId}
     />
   );

@@ -7,7 +7,7 @@ import { defineAction } from '@/lib/actions/define-action';
 import type { ActionResult } from '@/lib/actions/errors';
 import { getSession } from '@/lib/auth/session';
 import { getPortalScope, withRls } from '@/lib/db/rls';
-import { notificationPreferences, notifications, profiles } from '@/lib/db/schema';
+import { notificationClientPreferences, notificationPreferences, notifications, profiles } from '@/lib/db/schema';
 import { notificationCategories, type NotificationItem, type NotificationType } from '@/modules/notifications/types';
 
 export async function listNotificationsAction(input: {
@@ -108,4 +108,48 @@ export const updateNotificationPreferencesAction = defineAction({
     }
     return null;
   },
+});
+
+/**
+ * Per-client overrides (FR4.3, ADR-093): a portal user in several clients can tune one client's notifications; the
+ * organization-wide choice stays the default for the others. RLS allows rows only for the caller's own clients.
+ */
+export const updateClientNotificationPreferencesAction = defineAction({
+  input: z.object({
+    clientId: z.uuid(),
+    preferences: z.array(z.object({ category: z.enum(notificationCategories), inApp: z.boolean(), email: z.boolean() })),
+  }),
+  side: 'client',
+  async handler({ input, tx, ctx }) {
+    for (const pref of input.preferences) {
+      await tx
+        .insert(notificationClientPreferences)
+        .values({
+          userId: ctx.session.userId,
+          organizationId: ctx.organization.id,
+          clientId: input.clientId,
+          category: pref.category,
+          inApp: pref.inApp,
+          email: pref.email,
+        })
+        .onConflictDoUpdate({
+          target: [notificationClientPreferences.userId, notificationClientPreferences.clientId, notificationClientPreferences.category],
+          set: { inApp: pref.inApp, email: pref.email },
+        });
+    }
+    return null;
+  },
+});
+
+/** Back to the organization-wide choice for one client. */
+export const resetClientNotificationPreferencesAction = defineAction({
+  input: z.object({ clientId: z.uuid() }),
+  side: 'client',
+  async handler({ input, tx, ctx }) {
+    await tx
+      .delete(notificationClientPreferences)
+      .where(and(eq(notificationClientPreferences.userId, ctx.session.userId), eq(notificationClientPreferences.clientId, input.clientId)));
+    return null;
+  },
+  revalidate: ['/portal/settings/notifications'],
 });

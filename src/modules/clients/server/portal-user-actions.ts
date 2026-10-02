@@ -21,7 +21,17 @@ import {
   newEmailToken,
   sendConfirmEmail,
 } from '@/modules/clients/server/portal-email';
-import { lookupPortalEmail, searchPortalUsers, type EmailLookup, type PortalUserSummary } from '@/modules/clients/server/portal-users';
+import {
+  getPortalUser,
+  listClientOptions,
+  listClientRoleOptions,
+  lookupPortalEmail,
+  searchPortalUsers,
+  type ClientOption,
+  type ClientRoleOption,
+  type EmailLookup,
+  type PortalUserSummary,
+} from '@/modules/clients/server/portal-users';
 import { createClientInvitation, sendInvitationEmail } from '@/modules/invitations/server/services';
 
 const email = z.email({ message: 'invalid_email' }).trim().toLowerCase().max(254);
@@ -47,6 +57,30 @@ export const searchPortalUsersAction = defineAction({
   },
   async complete({ input }): Promise<PortalUserSummary[]> {
     return searchPortalUsers(input.query);
+  },
+});
+
+/**
+ * The portal user drawer (FR4.2): the person with the memberships the caller may see (RLS: a Client Owner sees only
+ * their own client), plus — on the agency side — the clients they can be added to.
+ */
+export const getPortalUserAction = defineAction({
+  input: z.object({ userId: z.uuid() }),
+  side: 'any',
+  async handler({ ctx }) {
+    if (ctx.side === 'agency' ? !can(ctx.permissions, 'client_users:manage') : !can(ctx.permissions, 'portal_users:manage')) {
+      throw new ActionFailure('forbidden');
+    }
+    return { agency: ctx.side === 'agency' };
+  },
+  async complete({ input, prepared }): Promise<{ user: PortalUserSummary; clients: ClientOption[]; roles: ClientRoleOption[] }> {
+    const [user, clients, roles] = await Promise.all([
+      getPortalUser(input.userId),
+      prepared.agency ? listClientOptions() : Promise.resolve([]),
+      listClientRoleOptions(),
+    ]);
+    if (!user) throw new ActionFailure('not_found');
+    return { user, clients, roles };
   },
 });
 

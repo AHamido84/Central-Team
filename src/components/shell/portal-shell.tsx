@@ -110,8 +110,11 @@ export function PortalShell({ data, children }: { data: ShellData; children: Rea
   const [moreOpen, setMoreOpen] = useState(false);
   const items = portalNav.filter((i) => isNavItemVisible(i, data.permissions, data.flags));
   // Bottom bar holds at most 5 slots; extra items move into a "More" sheet.
-  const bottomItems = items.length > 5 ? items.slice(0, 4) : items;
-  const overflowItems = items.length > 5 ? items.slice(4) : [];
+  // Someone in several clients also gets their accounts in the sheet (FR4.3), so "More" is always there for them.
+  const multiClient = data.clients.length > 1;
+  const needsMore = items.length > 5 || multiClient;
+  const bottomItems = needsMore ? items.slice(0, 4) : items;
+  const overflowItems = needsMore ? items.slice(4) : [];
 
   return (
     <BreadcrumbProvider>
@@ -193,11 +196,12 @@ export function PortalShell({ data, children }: { data: ShellData; children: Rea
                 </li>
               );
             })}
-            {overflowItems.length > 0 ? (
+            {needsMore ? (
               <li className="flex-1">
                 <button
                   type="button"
                   onClick={() => setMoreOpen(true)}
+                  data-testid="portal-more"
                   className="flex h-16 w-full flex-col items-center justify-center gap-1 text-[0.6875rem] font-medium text-subtle-foreground"
                 >
                   <MoreHorizontal className="size-5" aria-hidden />
@@ -210,6 +214,44 @@ export function PortalShell({ data, children }: { data: ShellData; children: Rea
         <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
           <SheetContent closeLabel={t('common.close')} className="p-4">
             <SheetTitle className="mb-4">{t('nav.more')}</SheetTitle>
+            {multiClient ? (
+              <section className="mb-4 border-b border-border pb-4" aria-labelledby="portal-more-accounts">
+                <h3 id="portal-more-accounts" className="mb-2 px-3 text-xs font-medium text-subtle-foreground">
+                  {t('nav.switchClient')}
+                </h3>
+                <ul className="space-y-1" data-testid="mobile-client-switcher">
+                  {data.clients.map((c) => {
+                    const current = c.id === data.client?.id;
+                    return (
+                      <li key={c.id}>
+                        {/* A full navigation (not <Link>): the shell is re-rendered for the chosen client. */}
+                        <a
+                          href={`/portal/switch?client=${c.id}&next=/portal`}
+                          aria-current={current ? 'true' : undefined}
+                          className={cn(
+                            'flex items-center gap-3 rounded-md px-3 py-2.5 hover:bg-surface-muted',
+                            current && 'bg-primary-soft text-primary-soft-foreground',
+                          )}
+                          data-testid="mobile-client-switcher-item"
+                        >
+                          <Avatar name={c.name} src={c.logoUrl} size="sm" square />
+                          <span className="flex min-w-0 flex-1 flex-col">
+                            <span className="truncate text-sm font-medium">{c.name}</span>
+                            <span className="truncate text-xs text-subtle-foreground">{c.roleName}</span>
+                          </span>
+                          {c.pendingApprovals > 0 ? (
+                            <Badge tone="warning" aria-label={t('portal.accounts.pendingApprovals', { count: c.pendingApprovals })}>
+                              {c.pendingApprovals}
+                            </Badge>
+                          ) : null}
+                          {current ? <Check className="size-4 text-primary" aria-hidden /> : null}
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ) : null}
             <ul className="space-y-1">
               {overflowItems.map((item) => (
                 <li key={item.href}>

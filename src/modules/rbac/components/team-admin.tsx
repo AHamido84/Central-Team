@@ -1,10 +1,10 @@
 'use client';
 
 import type { ColumnDef } from '@tanstack/react-table';
-import { MailX, MoreHorizontal, RotateCw, Send, Users, XCircle } from 'lucide-react';
+import { MailX, MoreHorizontal, RotateCw, Send, Users, UsersRound, XCircle } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 
 import { DataTable } from '@/components/patterns/data-table';
 import { EmptyState } from '@/components/patterns';
@@ -28,6 +28,8 @@ export type TeamAdminProps = {
   departments: { id: string; name: LocalizedText }[];
   permissions: PermissionRow[];
   me: { userId: string; isSuperAdmin: boolean; permissions: string[] };
+  /** Admin → Users → Portal users (FR4): rendered by the clients module, shown with `client_users:manage`. */
+  portalUsers?: { count: number; content: ReactNode } | null;
 };
 
 const statusTone = { pending: 'info', accepted: 'success', revoked: 'neutral', expired: 'warning' } as const;
@@ -296,13 +298,15 @@ export function TeamAdmin(props: TeamAdminProps) {
     [locale],
   );
 
-  const tab = search.get('tab') === 'invitations' && props.invitations ? 'invitations' : 'members';
+  const requested = search.get('tab');
+  const tab =
+    requested === 'invitations' && props.invitations ? 'invitations' : requested === 'portal' && props.portalUsers ? 'portal' : 'members';
   const openMember = props.members.find((m) => m.userId === openUserId) ?? null;
   const pendingCount = props.invitations?.filter((i) => i.status === 'pending').length ?? 0;
 
   return (
     <>
-      <Tabs value={tab} onValueChange={(v) => router.replace(v === 'invitations' ? '?tab=invitations' : '?', { scroll: false })}>
+      <Tabs value={tab} onValueChange={(v) => router.replace(v === 'members' ? '?' : `?tab=${v}`, { scroll: false })}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <TabsList>
             <TabsTrigger value="members">
@@ -315,6 +319,13 @@ export function TeamAdmin(props: TeamAdminProps) {
                 <Send />
                 {t('admin.users.invitationsTab')}
                 {pendingCount ? <Badge tone="info">{f.number(pendingCount)}</Badge> : null}
+              </TabsTrigger>
+            ) : null}
+            {props.portalUsers ? (
+              <TabsTrigger value="portal" data-testid="tab-portal-users">
+                <UsersRound />
+                {t('clients.users.adminTab')}
+                <Badge tone="neutral">{f.number(props.portalUsers.count)}</Badge>
               </TabsTrigger>
             ) : null}
           </TabsList>
@@ -401,6 +412,7 @@ export function TeamAdmin(props: TeamAdminProps) {
             />
           </TabsContent>
         ) : null}
+        {props.portalUsers ? <TabsContent value="portal">{props.portalUsers.content}</TabsContent> : null}
       </Tabs>
       <MemberSheet
         key={openMember ? `${openMember.userId}:${openMember.roleIds.join()}:${openMember.jobTitle}` : 'none'}

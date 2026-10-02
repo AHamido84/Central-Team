@@ -1,10 +1,12 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { BadgeCheck, MailPlus, MoreHorizontal, RotateCw, Trash2, UserPlus, Users, XCircle } from 'lucide-react';
+import { BadgeCheck, Info, MailPlus, MoreHorizontal, Pencil, RotateCw, Trash2, UserCheck, UserPlus, Users, XCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { toast } from 'sonner';
 import { z } from 'zod';
 
 import { Bdi, EmptyState } from '@/components/patterns';
@@ -32,7 +34,20 @@ import { useAction } from '@/lib/actions/use-action';
 import { languageNames, localized, type Locale, type LocalizedText } from '@/lib/i18n/localized';
 import { publicAssetUrl } from '@/lib/storage';
 import { clientRoleKeys, type ClientRoleKey } from '@/modules/clients/constants';
+import {
+  ChangeEmailDialog,
+  PendingEmailNotice,
+  PortalUserDrawer,
+  quietAction,
+  type ChangeEmailTarget,
+} from '@/modules/clients/components/portal-user-dialogs';
 import { updateClientUserAction } from '@/modules/clients/server/actions';
+import {
+  addExistingPortalUserAction,
+  lookupPortalEmailAction,
+  searchPortalUsersAction,
+} from '@/modules/clients/server/portal-user-actions';
+import type { EmailLookup, PortalUserSummary } from '@/modules/clients/server/portal-users';
 import { DeleteDialog } from '@/modules/data/components/delete-dialog';
 import type { ClientInvitation, ClientPortalUser } from '@/modules/clients/server/queries';
 import { inviteClientUserAction, resendInvitationAction, revokeInvitationAction } from '@/modules/invitations/server/actions';
@@ -48,29 +63,137 @@ const inviteSchema = z.object({
   locale: z.enum(['ar', 'en']),
 });
 
-function InviteClientUserDialog({ clientId, roles, clientName }: { clientId: string; roles: RoleOption[]; clientName: string }) {
+function InviteClientUserDialog({
+  clientId,
+  roles,
+  clientName,
+  side,
+  open,
+  onOpenChange,
+  initialEmail,
+}: {
+  clientId: string;
+  roles: RoleOption[];
+  clientName: string;
+  side: 'agency' | 'client';
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  initialEmail: string;
+}) {
   const t = useTranslations();
+  const te = useTranslations('errors');
   const locale = useLocale() as Locale;
-  const [open, setOpen] = useState(false);
+  const f = useFormat();
+  const router = useRouter();
   const form = useForm<z.infer<typeof inviteSchema>>({
     resolver: zodResolver(inviteSchema),
-    defaultValues: { email: '', fullName: '', jobTitle: '', clientRoleKey: 'client_member', canApprove: false, locale },
+    defaultValues: { email: initialEmail, fullName: '', jobTitle: '', clientRoleKey: 'client_member', canApprove: false, locale },
   });
-  const invite = useAction(inviteClientUserAction, { successMessage: t('admin.users.inviteSent') });
-  const submit = form.handleSubmit(async (v) => {
-    const res = await invite.run({ ...v, clientId, fullName: v.fullName || undefined, jobTitle: v.jobTitle || undefined });
-    if (res.ok) {
-      form.reset();
-      setOpen(false);
+  const [lookup, setLookup] = useState<EmailLookup | null>(null);
+  const [suggestions, setSuggestions] = useState<PortalUserSummary[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const email = form.watch('email');
+
+  const check = async (address: string) => {
+    const value = address.trim().toLowerCase();
+    if (!z.email().safeParse(value).success) {
+      setLookup(null);
+      return null;
     }
+    const res = await quietAction(lookupPortalEmailAction, { clientId, email: value });
+    const found = res.ok ? res.data : null;
+    setLookup(found);
+    return found;
+  };
+
+  // Opened from "add that user instead": check the address straight away.
+  useEffect(() => {
+    if (open && initialEmail) {
+      form.setValue('email', initialEmail);
+      void check(initialEmail);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialEmail]);
+
+  // Agency side: existing portal users by name or email while typing (FR4.2). A Client Owner only gets the
+  // per-address check on blur — they must not browse other clients' people.
+  useEffect(() => {
+    if (side !== 'agency' || !open) return;
+    const q = email.trim();
+    if (q.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      void quietAction(searchPortalUsersAction, { query: q }).then((res) => {
+        setSuggestions(res.ok ? res.data : []);
+      });
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [email, side, open]);
+
+  const close = () => {
+    form.reset({ email: '', fullName: '', jobTitle: '', clientRoleKey: 'client_member', canApprove: false, locale });
+    setLookup(null);
+    setSuggestions([]);
+    onOpenChange(false);
+  };
+
+  const existing = lookup?.kind === 'portal_user' && !lookup.inClient ? lookup : null;
+  const blocked = lookup?.kind === 'agency_member' || (lookup?.kind === 'portal_user' && lookup.inClient);
+
+  const submit = form.handleSubmit(async (v) => {
+    const address = v.email.trim().toLowerCase();
+    if (existing) {
+      const res = await quietAction(addExistingPortalUserAction, {
+        clientId,
+        email: address,
+        roleKey: v.clientRoleKey,
+        canApprove: v.clientRoleKey === 'client_viewer' ? false : v.canApprove,
+        jobTitle: v.jobTitle || null,
+      });
+      if (!res.ok) {
+        toast.error(te(res.error.code));
+        return;
+      }
+      toast.success(t('clients.users.added', { name: existing.summary?.name ?? address, client: clientName }));
+      router.refresh();
+      close();
+      return;
+    }
+    const res = await quietAction(inviteClientUserAction, {
+      ...v,
+      email: address,
+      clientId,
+      fullName: v.fullName || undefined,
+      jobTitle: v.jobTitle || undefined,
+    });
+    if (res.ok) {
+      toast.success(t('admin.users.inviteSent'));
+      router.refresh();
+      close();
+      return;
+    }
+    // The address turned out to have an account: switch the dialog to "add them" instead of failing.
+    if (
+      res.error.code === 'existing_portal_user' ||
+      res.error.code === 'email_used_by_team_member' ||
+      res.error.code === 'already_member'
+    ) {
+      await check(address);
+      return;
+    }
+    toast.error(te(res.error.code));
   });
+
   const roleKey = form.watch('clientRoleKey');
+  const existingClients =
+    existing?.summary?.memberships.filter((m) => m.status === 'active').map((m) => localized(m.clientName, locale)) ?? [];
+  const emailField = form.register('email');
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <Button onClick={() => setOpen(true)} data-testid="invite-client-user">
-        <UserPlus />
-        {t('clients.users.invite')}
-      </Button>
+    <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(true) : close())}>
       <DialogContent closeLabel={t('common.close')}>
         <form onSubmit={submit} noValidate className="flex min-h-0 flex-col">
           <DialogHeader>
@@ -79,13 +202,122 @@ function InviteClientUserDialog({ clientId, roles, clientName }: { clientId: str
           </DialogHeader>
           <DialogBody className="grid gap-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={t('common.email')} error={form.formState.errors.email?.message} required>
-                {(p) => <Input {...p} type="email" dir="ltr" {...form.register('email')} data-testid="client-invite-email" />}
-              </Field>
-              <Field label={t('common.name')} optional>
-                {(p) => <Input {...p} {...form.register('fullName')} />}
-              </Field>
+              <div className="relative">
+                <Field
+                  label={t('common.email')}
+                  error={form.formState.errors.email?.message}
+                  hint={side === 'agency' ? t('clients.users.searchHint') : undefined}
+                  required
+                >
+                  {(p) => (
+                    <Input
+                      {...p}
+                      type="email"
+                      dir="ltr"
+                      autoComplete="off"
+                      role={side === 'agency' ? 'combobox' : undefined}
+                      aria-expanded={side === 'agency' ? showSuggestions && suggestions.length > 0 : undefined}
+                      aria-controls={side === 'agency' ? 'portal-user-suggestions' : undefined}
+                      {...emailField}
+                      onChange={(e) => {
+                        void emailField.onChange(e);
+                        setLookup(null);
+                        setShowSuggestions(true);
+                      }}
+                      onBlur={(e) => {
+                        void emailField.onBlur(e);
+                        // Let a click on a suggestion land before the list closes.
+                        setTimeout(() => {
+                          setShowSuggestions(false);
+                        }, 150);
+                        void check(e.target.value);
+                      }}
+                      data-testid="client-invite-email"
+                    />
+                  )}
+                </Field>
+                {side === 'agency' && showSuggestions && suggestions.length > 0 ? (
+                  <ul
+                    id="portal-user-suggestions"
+                    role="listbox"
+                    aria-label={t('clients.users.searchResults')}
+                    className="absolute inset-x-0 top-full z-10 mt-1 max-h-64 overflow-y-auto rounded-lg border border-border bg-surface-raised p-1 shadow-lg sm:w-[min(28rem,80vw)]"
+                    data-testid="portal-user-suggestions"
+                  >
+                    {suggestions.map((s) => (
+                      <li key={s.userId} role="option" aria-selected={false}>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-start hover:bg-surface-muted focus-visible:bg-surface-muted focus-visible:outline-none"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                          }}
+                          onClick={() => {
+                            form.setValue('email', s.email, { shouldValidate: true });
+                            setShowSuggestions(false);
+                            void check(s.email);
+                          }}
+                          data-testid="portal-user-suggestion"
+                        >
+                          <Avatar name={s.name} src={publicAssetUrl(s.avatarPath)} size="sm" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium">{s.name}</span>
+                            <span className="block truncate text-xs text-subtle-foreground">
+                              <Bdi>{s.email}</Bdi>
+                            </span>
+                            {s.memberships.length ? (
+                              <span className="block truncate text-xs text-subtle-foreground">
+                                {f.list(s.memberships.filter((m) => m.status === 'active').map((m) => localized(m.clientName, locale)))}
+                              </span>
+                            ) : null}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+              {existing ? null : (
+                <Field label={t('common.name')} optional>
+                  {(p) => <Input {...p} {...form.register('fullName')} />}
+                </Field>
+              )}
             </div>
+            {lookup?.kind === 'agency_member' ? (
+              <p
+                className="rounded-lg border border-danger/30 bg-danger-soft p-3 text-sm text-danger"
+                role="alert"
+                data-testid="invite-team-member"
+              >
+                {t('clients.users.teamMember')}
+              </p>
+            ) : null}
+            {lookup?.kind === 'portal_user' && lookup.inClient ? (
+              <p
+                className="rounded-lg border border-warning/30 bg-warning-soft p-3 text-sm text-warning"
+                role="alert"
+                data-testid="invite-already-here"
+              >
+                {t('clients.users.alreadyHere')}
+              </p>
+            ) : null}
+            {existing ? (
+              <div className="flex gap-3 rounded-lg border border-info/30 bg-info-soft p-3 text-sm" data-testid="invite-existing">
+                <UserCheck className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
+                <div>
+                  <p className="font-medium">{t('clients.users.existingTitle')}</p>
+                  <p className="text-muted-foreground">
+                    {existingClients.length
+                      ? t('clients.users.existingBody', {
+                          name: existing.summary?.name ?? email,
+                          clients: f.list(existingClients),
+                          client: clientName,
+                        })
+                      : t('clients.users.existingBodyNoClients', { name: existing.summary?.name ?? email, client: clientName })}
+                  </p>
+                </div>
+              </div>
+            ) : null}
             <Field label={t('admin.users.jobTitle')} optional>
               {(p) => <Input {...p} {...form.register('jobTitle')} />}
             </Field>
@@ -134,22 +366,24 @@ function InviteClientUserDialog({ clientId, roles, clientName }: { clientId: str
                 </label>
               )}
             />
-            <Field label={t('admin.users.emailLanguage')}>
-              {(p) => (
-                <NativeSelect {...p} {...form.register('locale')}>
-                  <option value="ar">{languageNames.ar}</option>
-                  <option value="en">{languageNames.en}</option>
-                </NativeSelect>
-              )}
-            </Field>
+            {existing ? null : (
+              <Field label={t('admin.users.emailLanguage')}>
+                {(p) => (
+                  <NativeSelect {...p} {...form.register('locale')}>
+                    <option value="ar">{languageNames.ar}</option>
+                    <option value="en">{languageNames.en}</option>
+                  </NativeSelect>
+                )}
+              </Field>
+            )}
           </DialogBody>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={close}>
               {t('common.cancel')}
             </Button>
-            <Button type="submit" loading={form.formState.isSubmitting} data-testid="client-invite-submit">
-              <MailPlus />
-              {t('admin.users.sendInvite')}
+            <Button type="submit" loading={form.formState.isSubmitting} disabled={blocked} data-testid="client-invite-submit">
+              {existing ? <UserCheck /> : <MailPlus />}
+              {existing ? t('clients.users.addExisting', { client: clientName }) : t('admin.users.sendInvite')}
             </Button>
           </DialogFooter>
         </form>
@@ -171,7 +405,15 @@ export function ClientUsersManager({
   canManage,
   canDelete = false,
   meUserId,
+  side = 'agency',
+  canChangeEmail = false,
+  canDeactivateAccount = false,
 }: {
+  side?: 'agency' | 'client';
+  /** `client_users:update_email` (FR4.1). */
+  canChangeEmail?: boolean;
+  /** `users:deactivate`: the whole portal account, separate from this client's membership (FR4.2). */
+  canDeactivateAccount?: boolean;
   /** Agency side only: portal users go to the Trash (ADR-080). */
   canDelete?: boolean;
   clientId: string;
@@ -190,6 +432,14 @@ export function ClientUsersManager({
   const revoke = useAction(revokeInvitationAction, { successMessage: t('admin.users.inviteRevoked') });
   const [confirm, setConfirm] = useState<ClientPortalUser | null>(null);
   const [deleting, setDeleting] = useState<ClientPortalUser | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [drawerUserId, setDrawerUserId] = useState<string | null>(null);
+  const [emailTarget, setEmailTarget] = useState<ChangeEmailTarget | null>(null);
+  const addExistingInstead = (address: string) => {
+    setInviteEmail(address);
+    setInviteOpen(true);
+  };
   const roleName = (key: string) => localized(roles.find((r) => r.key === key)?.name, locale);
 
   const change = (u: ClientPortalUser, patch: Partial<{ roleKey: ClientRoleKey; canApprove: boolean; status: 'active' | 'deactivated' }>) =>
@@ -209,7 +459,29 @@ export function ClientUsersManager({
           <h2 className="font-semibold">{t('clients.users.title')}</h2>
           <p className="text-sm text-muted-foreground">{t('clients.users.description')}</p>
         </div>
-        {canManage ? <InviteClientUserDialog clientId={clientId} roles={roles} clientName={clientName} /> : null}
+        {canManage ? (
+          <>
+            <Button
+              onClick={() => {
+                setInviteEmail('');
+                setInviteOpen(true);
+              }}
+              data-testid="invite-client-user"
+            >
+              <UserPlus />
+              {t('clients.users.invite')}
+            </Button>
+            <InviteClientUserDialog
+              clientId={clientId}
+              roles={roles}
+              clientName={clientName}
+              side={side}
+              open={inviteOpen}
+              onOpenChange={setInviteOpen}
+              initialEmail={inviteEmail}
+            />
+          </>
+        ) : null}
       </div>
 
       <Card className="divide-y divide-border">
@@ -229,7 +501,18 @@ export function ClientUsersManager({
                   <Avatar name={u.name} src={publicAssetUrl(u.avatarPath)} size="md" />
                   <div className="min-w-0">
                     <p className="flex items-center gap-2 truncate font-medium">
-                      {u.name}
+                      {canManage ? (
+                        <button
+                          type="button"
+                          className="truncate text-start hover:underline focus-visible:underline focus-visible:outline-none"
+                          onClick={() => setDrawerUserId(u.userId)}
+                          data-testid="client-user-open"
+                        >
+                          {u.name}
+                        </button>
+                      ) : (
+                        u.name
+                      )}
                       {self ? <Badge>{t('common.you')}</Badge> : null}
                       {u.status === 'deactivated' ? <Badge tone="neutral">{t('common.deactivated')}</Badge> : null}
                     </p>
@@ -237,6 +520,11 @@ export function ClientUsersManager({
                       <Bdi>{u.email}</Bdi>
                       {u.jobTitle ? ` · ${u.jobTitle}` : ''}
                     </p>
+                    {u.pendingEmail ? (
+                      <div className="mt-1">
+                        <PendingEmailNotice userId={u.userId} email={u.pendingEmail} canCancel={canChangeEmail} />
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -276,11 +564,27 @@ export function ClientUsersManager({
                   {(canManage || canDelete) && !self ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon-sm" aria-label={t('common.moreActions')}>
+                        <Button variant="ghost" size="icon-sm" aria-label={t('common.moreActions')} data-testid="client-user-menu">
                           <MoreHorizontal />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
+                        {canManage ? (
+                          <DropdownMenuItem onSelect={() => setDrawerUserId(u.userId)} data-testid="client-user-details">
+                            <Info />
+                            {t('clients.users.details')}
+                          </DropdownMenuItem>
+                        ) : null}
+                        {canChangeEmail ? (
+                          <DropdownMenuItem
+                            onSelect={() => setEmailTarget({ kind: 'user', userId: u.userId, name: u.name, email: u.email, clientId })}
+                            data-testid="client-user-change-email"
+                          >
+                            <Pencil />
+                            {t('clients.users.changeEmail')}
+                          </DropdownMenuItem>
+                        ) : null}
+                        {canManage || canChangeEmail ? <DropdownMenuSeparator /> : null}
                         {u.status === 'active' ? (
                           <DropdownMenuItem destructive onSelect={() => setConfirm(u)}>
                             <XCircle />
@@ -328,7 +632,18 @@ export function ClientUsersManager({
                   {inv.status === 'expired' ? t('common.expired') : t('admin.users.expiresIn', { when: f.relative(inv.expiresAt) })}
                 </Badge>
                 {canManage ? (
-                  <div className="flex gap-1">
+                  <div className="flex flex-wrap gap-1">
+                    {canChangeEmail ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEmailTarget({ kind: 'invitation', invitationId: inv.id, email: inv.email, clientId })}
+                        data-testid="invitation-change-email"
+                      >
+                        <Pencil />
+                        {t('clients.users.changeEmail')}
+                      </Button>
+                    ) : null}
                     <Button variant="ghost" size="sm" onClick={() => void resend.run({ invitationId: inv.id })} loading={resend.pending}>
                       <RotateCw />
                       {t('admin.users.resend')}
@@ -345,6 +660,21 @@ export function ClientUsersManager({
         </section>
       ) : null}
 
+      <ChangeEmailDialog
+        target={emailTarget}
+        onOpenChange={(o) => !o && setEmailTarget(null)}
+        onAddExisting={canManage ? addExistingInstead : undefined}
+      />
+      {canManage ? (
+        <PortalUserDrawer
+          userId={drawerUserId}
+          onOpenChange={(o) => !o && setDrawerUserId(null)}
+          side={side}
+          canChangeEmail={canChangeEmail}
+          canDeactivateAccount={canDeactivateAccount}
+          meUserId={meUserId}
+        />
+      ) : null}
       <ConfirmDialog
         open={Boolean(confirm)}
         onOpenChange={(o) => !o && setConfirm(null)}
