@@ -836,3 +836,55 @@ assistant on production replaces the page with the generic error screen after th
   shown inline for all three questions (no crash, no page errors)
 - [ ] FR3.7 Answers with citations on production — waits for Anthropic credit on the owner's account
 - [ ] Deferred: streaming answers (the reply appears when complete); per-tool result caching across turns
+
+## Feedback Round 4 (portal users: email change, several clients per user)
+
+Focused improvement round, no new phase. Builds on invitations (ADR-005), client roles per client (ADR-018), the admin
+email change (ADR-087) and the outbox (ADR-088). Verified first: `client_users` is unique per `(client_id, user_id)`,
+the portal has a cookie-based client switcher, and RLS (`app.member_client_ids()` / `app.is_client_member()`) gives a
+portal user every client they belong to. The gap is in the flows (`already_member` on a second client) and in scoping.
+
+### FR4.1 Change a portal user's email (ADR-092)
+- "Change email" in the row actions of client page → Portal users and Admin → Users (portal users). New permission
+  `client_users:update_email` (Super Admin, Admin, Account Manager — AM only for their clients, by RLS); Client Owners
+  can't change other people's email.
+- Pending invitation: update the address, revoke the old link, send a new invitation.
+- Active user, two modes: **change directly** (GoTrue admin API, notice to the old address naming the admin, info to the
+  new one, other sessions signed out) or **ask the user to confirm** (single-use hashed token to the new address; the
+  email changes when it is opened).
+- Validation: invalid email, an agency team member (not editable here), an address already used in the organization →
+  explain and offer "add that person to this client" (FR4.2). Audit (old → new, who) and a domain event; mirrors stay in
+  sync (`profiles` by the auth trigger, pending invitations, contact lists).
+
+### FR4.2 One portal user, several clients (ADR-093)
+- **Add existing**: "Add portal user" searches existing portal users of the organization (name, email, current clients);
+  picking one adds a membership for this client with role + can-approve, plus a notification and an email "You now
+  have access to <Client>". A new email keeps the invite flow; an existing one shows "already has a portal account
+  (clients: …) — add them?"; agency team members stay blocked with a clear message.
+- **Portal user drawer** (client page and Admin → Users): every client of the user with role, can-approve, status and
+  date added; add a client, change role / approval per client, remove from one client; deactivating the whole account
+  is a separate, labelled action. Client Owners see and manage only their own client's membership.
+
+### FR4.3 Portal scoping and switching (ADR-091)
+- The selected client is enforced **in the database**: `withRls` sets `app.active_client` from a server-validated cookie,
+  and `app.is_client_member()` / `app.member_client_ids()` (behind every portal policy and `app.has_client_permission`)
+  only honour that client — a user in A + B reads and approves in A only while A is selected.
+- `/portal/switch?client=…&next=…` validates membership, sets the cookie, remembers the client
+  (`client_users.last_used_at`); after login: the last used client, or a "Choose an account" screen the first time.
+- Switcher in the header and mobile menu: logos, the current client, a pending-approvals badge per client.
+- Notifications carry `client_id`; for multi-client users the subject is prefixed "[Client]" and links go through the
+  switch route, so a click opens the right client. Notification preferences: global with per-client overrides.
+
+### FR4.4 Seed, tests, deploy
+- Seed: one portal user in 2–3 clients with different roles (Owner in one, Viewer in another).
+- Unit/DB: membership and email-change rules; RLS with the active client (A selected sees only A, can't approve in B
+  without B's can-approve, removal from B is immediate, an Owner of A can't see the membership in B).
+- E2E: pending invite email change (Mailpit), direct change then sign-in with the new email, add an existing user to a
+  second client and switch with separate data, a notification click switches client.
+- Deploy to production and verify there.
+
+**Status**
+- [ ] FR4.1 Email change for portal users (pending + active, direct + confirm), permission, validation, audit
+- [ ] FR4.2 Add existing portal user to more clients; portal user drawer with per-client memberships
+- [ ] FR4.3 Active client enforced by RLS, switch route, last used / choose account, switcher badges, per-client notifications
+- [ ] FR4.4 Seed multi-client user; tests; deploy and verify
