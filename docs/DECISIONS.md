@@ -949,6 +949,70 @@ The assistant now works with only an Anthropic key. Claude gets five read-only t
 "overdue tasks today", "summarize a client's month") are lists and aggregates that top-k snippets answer poorly.
 It would also need a second index kept in sync without an embedder.
 
+### ADR-091 — The selected portal client is enforced in the database (`app.active_client`)
+2026-10-02 · Accepted (Feedback Round 4)
+
+A portal user can belong to several clients (one `client_users` row per client, with its own role and can-approve).
+Before this round RLS gave them every client at once; the switcher only changed what the UI asked for.
+
+- `withRls` resolves the portal scope (`getPortalScope`, React `cache`d): the `active_client` cookie if it is one of
+  the user's active memberships, else the last used client (`portal_client_visits`), else the first one. It sets
+  `app.active_client` for the transaction.
+- `app.is_client_member()`, `app.member_client_ids()` and `app.visible_profile_ids()` honour it. They sit behind
+  `app.has_client_permission`, `app.can_approve_for` and every portal policy, so with A selected the user reads,
+  writes and approves in A only. An empty setting (agency users, service paths) changes nothing.
+- `app.my_portal_clients()` (security definer, own rows) lists every membership with pending approvals for the
+  switcher and ignores the selection. `app.touch_portal_client()` records the last used client and refuses a client
+  the caller doesn't belong to.
+- `/portal/switch?client&next` validates the membership, sets the httpOnly cookie, records the visit and redirects to
+  a portal path only (`safePortalPath`). Switch links are plain `<a>`: App Router layouts persist across `<Link>`.
+- Several clients and none chosen or used → `/portal/choose`. Client-data pages call `requirePortal()`; the layout and
+  the settings pages don't force a choice.
+- Last used lives in its own table, not on `client_users`: that table is audited, and a visit is not an audit event.
+
+*Known limit*: browser Realtime subscriptions run on the plain JWT (no `app.active_client`). They see the user's own
+memberships in every client, which RLS already allowed before this round; the pages render through `withRls`.
+
+*Rejected*: the client in the URL (`/portal/<client>/…`, a rewrite of every portal route and link for no extra
+safety); filtering only in queries (one missed `where` would leak the other client).
+
+### ADR-092 — Admins change a portal user's sign-in email (direct or ask to confirm)
+2026-10-02 · Accepted (Feedback Round 4)
+
+- Permission `client_users:update_email` (Super Admin, Admin, Account Manager). `app.can_update_portal_email(user)`
+  decides: the permission, the target is a portal user, and Account Managers only for people in one of their
+  clients. Client Owners can't change other people's email.
+- **Pending invitation**: the invitation is revoked (its link stops working) and a new one with the same client,
+  role and can-approve goes to the new address (`invitation.email_changed`).
+- **Direct**: GoTrue's admin API sets the email (confirmed) after the RLS-checked lookup. Every other session ends
+  (`auth.sessions` delete). An `activity_log` row records old → new and the admin. `user.email_set_by_admin` lets
+  the email-change consumer tell the old address who made the change; the new address gets the confirmation.
+- **Ask to confirm**: `portal_email_changes` holds a SHA-256 hashed, single-use token valid 48 hours (a newer request
+  cancels the older one). The public `/email-change/confirm` page applies the change only when the person presses
+  the button (mail scanners open links). Reading the table needs the permission; `token_hash` is never granted.
+- Validation, inline in the dialog: an invalid address; an agency team member (`email_used_by_team_member`); another
+  portal user of the organization (`email_used_by_portal_user`, with "Add that user to this client instead"); another
+  tenant's account (`email_in_use`).
+
+### ADR-093 — Existing portal users are added to more clients; notifications per client
+2026-10-02 · Accepted (Feedback Round 4)
+
+- "Add portal user" searches the organization's portal users by name or email (agency side). It checks a typed
+  address on blur on both sides (`lookupPortalEmail`). For an existing portal user it offers "Add them?" instead of an
+  invitation: `addExistingPortalUserAction` inserts or re-activates the membership with its own role and can-approve
+  and emits `client_user.added`. The person gets an in-app notification and the email "You now have access to
+  <Client>". A Client Owner learns only that the address has an account, never the person's other clients: existence
+  is a service read, the details come through RLS.
+- The portal user drawer (client page, Admin → Users → Portal users) lists the memberships the caller can see, with
+  role, approval, status and date added. Each can be changed or removed per client. Deactivating the whole account
+  (`organization_members.status`, `users:deactivate`) is a separate, labelled action.
+- Notifications carry `client_id` (from the input or the event). For someone in more than one client, the email
+  subject starts with "[Client]", the list shows a client badge, and portal links go through `/portal/switch`, so a
+  click opens that client.
+- Preferences: the organization-wide choice is the default, and `notification_client_preferences` holds per-client
+  overrides (own rows, own clients only). Settings → Notifications shows "All clients" plus one entry per client,
+  with "Use the default for this client".
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

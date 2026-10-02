@@ -19,6 +19,7 @@ Last updated: 2026-10-01 (Feedback Round 3) · Branch: `claude/sharp-euler-zr273
 | Feedback Round 3 | **Built and deployed (2026-10-01).** Assistant crash fixed (an effect returned Chrome's scroll Promise — ADR-089), every AI failure is an inline reason with "Fix in AI settings", the assistant answers with only an Anthropic key through read-only tools that run as the user (ADR-090), index health + background re-index, "Test assistant" in `/admin/ai`, model check on key save |
 | Feedback Round 2 | **Built and deployed (2026-10-01).** Settings → Mail (Gmail / Workspace / Outlook / Zoho / Resend / SMTP) with tests, one outbox for app and auth emails (retries, fallback, daily limit, 90-day log at `/admin/mail/log`), email change through the configured sender (ADR-088) |
 
+**Feedback Round 4, verified on a fresh seed**: 277 unit, 262 DB, 57 Playwright e2e tests, `pnpm build` (not deployed yet).
 **Feedback Round 2, verified on a fresh seed**: `pnpm check` (243 unit tests), 239 DB tests, `pnpm build`. Feedback Round 1: 229 unit tests, 231 DB tests, 46 Playwright e2e tests,
 `pnpm build`. Earlier (Phase 8): `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 220 unit tests, 187 DB tests
 (RLS, dispatcher, approval state machine, reminders, campaign sweep, SLA calendar parity, SLA triggers/RLS, SLA sweep,
@@ -388,79 +389,49 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
    background; Test assistant's embedder step passes.
 8. Repeat the screens in AR / EN × light / dark × mobile / desktop.
 
-## Feedback Round 4 — IN PROGRESS (resume here)
+## Feedback Round 4 — manual test checklist (local: `pnpm db:reset`, password `Passw0rd!`; Mailpit at http://localhost:54324)
 
-Plan: `docs/ROADMAP.md` → "Feedback Round 4". Branch: `claude/blissful-hawking-7crr14`. Nothing deployed yet.
-The owner's rules still hold: deploy only when they say so in the session, never store the Vercel token, end with a report and wait.
+Built on branch `claude/blissful-hawking-7crr14` (ADR-091…093). **Not deployed yet** — the production migrations
+`20261002142836_portal_multi_client` and `…142900_portal_multi_client_security` and the multi-client seed user
+(`scripts/seed-multi-client-standalone.ts`, run by `deploy-db.ts`) go out with the next deploy.
 
-**Done (backend + portal switching; lint, typecheck and i18n are green):**
-- Migrations `20261002142836_portal_multi_client.sql` (tables `portal_client_visits`, `portal_email_changes`,
-  `notification_client_preferences`, `notifications.client_id`) and `20261002142900_portal_multi_client_security.sql`
-  (permission `client_users:update_email` for super_admin/admin/account_manager, `app.active_client()`, which now
-  narrows `is_client_member` / `member_client_ids` / `visible_profile_ids`; also `app.my_portal_clients()`,
-  `app.touch_portal_client()`, `app.can_update_portal_email()` and the RLS for the new tables).
-- Active client (planned ADR-091): `withRls` sets `app.active_client` from `getPortalScope` (`src/lib/db/rls.ts`), which
-  picks cookie → last used → first. `requirePortal()` sends users to `/portal/choose` when they must choose.
-  `/portal/switch?client&next` sets the cookie. The switcher in `portal-shell.tsx` shows logos, the current client and
-  pending-approval badges. Switch links must be plain `<a>` (layouts persist across `<Link>`).
-- Server functions:
-  - `src/modules/clients/server/portal-users.ts` (list/search/lookup).
-  - `portal-email.ts` (direct change via the GoTrue admin API, ending sessions, audit row, `user.email_set_by_admin`;
-    confirm token, 48h).
-  - `portal-user-actions.ts`: search, lookup, add existing, change invitation email, change email (direct/confirm),
-    cancel, confirm.
-  - `createClientInvitation` returns `existing_portal_user` / `email_used_by_team_member`.
-- Notifications:
-  - `notify()` takes `clientId`, applies per-client overrides, adds the "[Client]" email prefix for multi-client
-    recipients and rewrites portal links through `/portal/switch`.
-  - The list shows a client badge.
-  - The `client_user.added` consumer sends "You now have access to <Client>".
-- Seed: `hala@group.test` / `Passw0rd!`. Owner in Darb Coffee, Member in Future Smile, Viewer in Najd Heritage
-  (`scripts/seed-multi-client.ts`; `deploy-db.ts` runs the standalone version).
-- Verified in the browser as Hala: choose screen → scoped data; the switcher switches.
+Multi-client login: **`hala@group.test`** (هالة القحطاني) is Owner of Darb Coffee (can approve), Member of Future Smile
+(can approve) and Viewer of Najd Heritage.
 
-**Left to build:**
-1. FR4.1 UI:
-   - A "Change email" row action on client page → Portal users (active users and pending invitations) and in
-     Admin → Users for portal users.
-   - The dialog: direct (default) / confirm toggle, error messages, an "add the existing user instead" offer, a
-     pending-email indicator and cancel.
-   - A public page `src/app/(auth)/email-change/confirm/page.tsx` calling `confirmPortalEmailChangeAction`. Check that
-     the proxy allows this public path.
-2. FR4.2 UI:
-   - `InviteClientUserDialog` becomes autocomplete (`searchPortalUsersAction`, plus `lookupPortalEmailAction` on blur).
-     For an existing user, ask "Add them?", then call `addExistingPortalUserAction`.
-   - A portal user drawer with a Clients section: add, change role/approval, remove per client, and deactivate the
-     account separately. An Owner sees only their own client.
-   - A "Portal users" tab in Admin → Users (`listPortalUsers`).
-3. FR4.3:
-   - Per-client notification preferences in portal settings (table `notification_client_preferences`).
-   - The switcher in the mobile menu.
-4. Tests:
-   - DB:
-     - data of A only while A is selected;
-     - no approval in B;
-     - removal is immediate;
-     - an Owner of A can't see the membership in B;
-     - email-change rules.
-   - Unit: `safePortalPath`, `clientLink`.
-   - e2e:
-     - pending-invite email change (Mailpit);
-     - direct change, then login with the new address;
-     - add an existing user to a second client, then switch;
-     - a notification click switches client.
-   - Then `pnpm check`, `pnpm db:reset && pnpm test:db`, `pnpm test:e2e`, `pnpm build`.
-5. Docs:
-   - ADR-091 (active client in RLS; note that browser realtime has no active client, so it sees all of the user's
-     own memberships), ADR-092 (portal email change), ADR-093 (multi-client memberships, per-client notifications).
-   - The CLAUDE.md FR4 row and the service-role list.
-   - ROADMAP checkboxes and a manual checklist here.
-6. Deploy only when the owner says so, verify on https://centralteam.vercel.app, then report and wait.
+1. Sign in as Hala → "Choose an account" with 3 cards (role, can-approve, pending approvals). Pick Darb → home and
+   requests show only Darb (DARB-…). Sign out/in → straight to Darb (last used).
+2. Header switcher → logos, current client ticked, approval badges, a dot when approvals wait elsewhere → switch to
+   Najd: only NAJD-… data, and approving isn't offered (Viewer). Phone width: the same list is under "More".
+3. Settings → Notifications as Hala → "Notifications for" Najd → switch a toggle → "Customized"; "Use the default for
+   this client" resets it.
+4. As `faisal@ofoq.test`: Clients → Gulf Vision → Portal users → "Invite user" → type "hala" → pick her → "already
+   has a portal account (clients: …). Add them?" → Add. Hala gets the in-app notice (with a client badge) and the
+   "You now have access" email; clicking the notice opens Gulf Vision.
+5. Same dialog with `noura@ofoq.test` → "agency team member" and the button is disabled.
+6. Invite a new address, then "Change email" on the invitation row → the old link says invalid, the new address
+   gets a fresh invitation.
+7. A portal user's ⋯ → "Change email":
+   - **Change it now** → sign in with the new address. The old address gets a notice naming Faisal, and other sessions
+     end.
+   - **Ask them to confirm** → the row shows "Waiting for … to confirm" (cancel available). The Mailpit link →
+     `/email-change/confirm` → "Confirm new email" → done; the link is single use.
+   - The address of another portal user → the error plus "Add that user to this client instead".
+8. A user's name (or ⋯ → Details) → drawer: every client with role, approval, status and date added. Change the
+   role or approval per client, "Remove from this client", "Add to a client", and the separate "Deactivate account".
+9. Admin → Users → **Portal users** tab: every portal user with their clients; a row opens the same drawer.
+10. As `yasser@darb.test` (Owner of Darb) → Company → Team → Hala's drawer shows only Darb.
+
+Gotchas:
+- Portal links that change the client must be plain `<a>` (full navigation). With `<Link>` the persisted layout
+  keeps the old client's shell (ADR-091).
+- `app.active_client` narrows membership functions inside policies too. A policy that must accept any of the user's
+  own clients (e.g. `notification_client_preferences` inserts) uses `app.my_portal_clients()`, not `client_users`.
+- In the Playwright mobile viewport the Next.js dev badge covers the bottom-bar "More" button (dev only).
 
 ## Starting a new session
 
-1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md` (latest: "Feedback Round 3"), and `docs/DECISIONS.md` (next ADR:
-   **091**). Work on branch `claude/sharp-euler-zr273f` unless the owner names another; Conventional Commits with a
+1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md` (latest: "Feedback Round 4"), and `docs/DECISIONS.md` (next ADR:
+   **094**). Work on the branch the session names (Round 4: `claude/blissful-hawking-7crr14`); Conventional Commits with a
    lowercase subject (commitlint); push after each logical step.
 2. Local stack (cloud sandboxes lose it on every container restart):
    - `rm -f /var/run/docker.pid; dockerd > /tmp/dockerd.log 2>&1 &` (wait for `docker info`).
@@ -469,7 +440,7 @@ The owner's rules still hold: deploy only when they say so in the session, never
    - `pnpm db:reset` → `pnpm dev` in the background (first compile of a route can take minutes in the sandbox).
    - Playwright: `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`. Clear login limits with
      `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c "delete from public.rate_limits"`.
-3. Verify: `pnpm check` (243 unit), `pnpm test:db` after a fresh `db:reset` (239), `pnpm test:e2e` (49; re-run a spec
+3. Verify: `pnpm check` (277 unit), `pnpm test:db` after a fresh `db:reset` (262), `pnpm test:e2e` (57; re-run a spec
    that timed out on a cold route before calling it a failure), `pnpm build`.
 4. Deploy only when the owner says so and gives a Vercel token in that session (never store it) — see "Production".
 5. Never commit secrets: GitHub push protection rejects even the local Supabase CLI keys; tests read them from the

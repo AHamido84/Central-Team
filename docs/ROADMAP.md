@@ -870,7 +870,7 @@ portal user every client they belong to. The gap is in the flows (`already_membe
   and `app.is_client_member()` / `app.member_client_ids()` (behind every portal policy and `app.has_client_permission`)
   only honour that client — a user in A + B reads and approves in A only while A is selected.
 - `/portal/switch?client=…&next=…` validates membership, sets the cookie, remembers the client
-  (`client_users.last_used_at`); after login: the last used client, or a "Choose an account" screen the first time.
+  (`portal_client_visits`); after login: the last used client, or a "Choose an account" screen the first time.
 - Switcher in the header and mobile menu: logos, the current client, a pending-approvals badge per client.
 - Notifications carry `client_id`; for multi-client users the subject is prefixed "[Client]" and links go through the
   switch route, so a click opens the right client. Notification preferences: global with per-client overrides.
@@ -884,7 +884,8 @@ portal user every client they belong to. The gap is in the flows (`already_membe
 - Deploy to production and verify there.
 
 **Status**
-- [ ] FR4.1 Email change for portal users (pending + active, direct + confirm), permission, validation, audit
-- [ ] FR4.2 Add existing portal user to more clients; portal user drawer with per-client memberships
-- [ ] FR4.3 Active client enforced by RLS, switch route, last used / choose account, switcher badges, per-client notifications
-- [ ] FR4.4 Seed multi-client user; tests; deploy and verify
+- [x] FR4.1 Email change for portal users (pending + active, direct + confirm), permission, validation, audit
+- [x] FR4.2 Add existing portal user to more clients; portal user drawer with per-client memberships
+- [x] FR4.3 Active client enforced by RLS, switch route, last used / choose account, switcher badges, per-client notifications
+- [x] FR4.4 Seed multi-client user; tests (unit, DB/RLS, e2e)
+- [ ] FR4.4 Deploy to production and verify there (waits for the owner's go-ahead)

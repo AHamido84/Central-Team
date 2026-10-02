@@ -37,6 +37,7 @@ Built single-agency first, but **multi-tenant ready**: every tenant-scoped row c
 | 8 — AI Intelligence | Campaign insights (code-computed anomalies + pacing) with recommendations → tasks, AI explanations, AI-drafted report text (AR/EN), assistant with permission-aware retrieval (pgvector) and citations; `AiProvider` (Claude + Voyage) with a mock | **Done** |
 | FR1 — Feedback Round 1 | Edit/delete everywhere with Trash and data reset, tasks performance + drawer, reviewed convert-to-tasks, per-field task permissions, AI keys in `/admin/ai`, personal connected accounts (Meta, TikTok, Snapchat, Google Ads, X, LinkedIn), email change fix (ADR-080…087) | **Done** |
 | FR3 — Feedback Round 3 | Assistant reliability: crash fix (effects never return values), inline failure reasons with "Fix in AI settings", Anthropic-only assistant through read-only tools that run as the user (Voyage optional), index health with background re-index, "Test assistant", model check on key save (ADR-089/090) | **Done** (deployed; live answers wait for Anthropic credit) |
+| FR4 — Feedback Round 4 | Portal users: admins change a portal user's email (pending invite, direct, or ask to confirm), existing portal users added to more clients with a per-client role, portal user drawer, the selected client enforced in RLS (`app.active_client`) with a choose-account screen and switcher, notifications labelled and opened per client with per-client preferences (ADR-091…093) | **Built** (deploy waits for the owner) |
 | FR2 — Feedback Round 2 | Settings → Mail (Gmail App Password, Workspace, Outlook, Zoho, Resend, SMTP) with tests and status, one outbox for app and auth emails (retries, fallback, daily limit, 90-day log), email change through the configured sender (ADR-088) | **Done** |
 
 Current state & gotchas: `docs/HANDOFF.md` (read first in a new session). Details: `docs/ROADMAP.md`. Architecture: `docs/ARCHITECTURE.md`. Data: `docs/DATA_MODEL.md`.
@@ -136,7 +137,7 @@ Rules:
   assistant indexer, scheduled-report auto-drafts, index status — ADR-073/075), Storage cleanup after a Trash purge, the
   data reset job and the Super Admin backup export (ADR-080/081), decrypting AI provider keys in `getAIClient` (ADR-085),
   an admin setting a member's login email through GoTrue's admin API after an RLS-checked lookup (ADR-087), the email outbox
-  (queueing, the worker, the sender's Vault secret, auth links from `generateLink` after an active-member lookup — ADR-088), and the seed. Every use needs a comment why.
+  (queueing, the worker, the sender's Vault secret, auth links from `generateLink` after an active-member lookup — ADR-088), the portal email change (GoTrue admin update, session sign-out, the confirm-token table, the address lookup that tells whether an email already has an account — ADR-092/093), and the seed. Every use needs a comment why.
 - **Errors**: actions return `{ ok: true, data } | { ok: false, error: { code, message?, fieldErrors? } }`;
   error `code`s are translated in the UI. Never leak DB error text to users.
 - **Commits**: Conventional Commits (`feat(auth): …`, `fix(rbac): …`, `docs: …`). One logical change per commit.
