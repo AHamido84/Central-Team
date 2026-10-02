@@ -19,7 +19,7 @@ Last updated: 2026-10-01 (Feedback Round 3) · Branch: `claude/sharp-euler-zr273
 | Feedback Round 3 | **Built and deployed (2026-10-01).** Assistant crash fixed (an effect returned Chrome's scroll Promise — ADR-089), every AI failure is an inline reason with "Fix in AI settings", the assistant answers with only an Anthropic key through read-only tools that run as the user (ADR-090), index health + background re-index, "Test assistant" in `/admin/ai`, model check on key save |
 | Feedback Round 2 | **Built and deployed (2026-10-01).** Settings → Mail (Gmail / Workspace / Outlook / Zoho / Resend / SMTP) with tests, one outbox for app and auth emails (retries, fallback, daily limit, 90-day log at `/admin/mail/log`), email change through the configured sender (ADR-088) |
 
-**Feedback Round 4, verified on a fresh seed**: 277 unit, 262 DB, 57 Playwright e2e tests, `pnpm build` (not deployed yet).
+**Feedback Round 4, verified on a fresh seed**: 277 unit, 262 DB, 57 Playwright e2e tests, `pnpm build` deployed 2026-10-02.
 **Feedback Round 2, verified on a fresh seed**: `pnpm check` (243 unit tests), 239 DB tests, `pnpm build`. Feedback Round 1: 229 unit tests, 231 DB tests, 46 Playwright e2e tests,
 `pnpm build`. Earlier (Phase 8): `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 220 unit tests, 187 DB tests
 (RLS, dispatcher, approval state machine, reminders, campaign sweep, SLA calendar parity, SLA triggers/RLS, SLA sweep,
@@ -144,8 +144,8 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 |---|---|
 | URL | https://centralteam.vercel.app (Vercel project `centralteam`, Hobby plan) |
 | Database | Supabase project `udqhetkwsqpyyuurajcb` (created through the Vercel ↔ Supabase integration) |
-| Deployed from | branch `claude/sharp-euler-zr273f`, commit `903d7f1` (Phases 0–8 + Feedback Rounds 1–3), deployment `dpl_7sv3yYVW78eNhVwMbH3BqVDQHAE7` on 2026-10-01 — all 35 migrations applied (last: `20261001164811_assistant_reasons`, applied by `dpl_3gXJii5JbRSyWr3cyKTNH8tuajRV`); demo data already present, seeds skipped |
-| Data | the demo seed (agency "Ofoq", 5 clients, 25 users incl. `majed@` / `ruba@ofoq.test`, password `Passw0rd!` for all) + demo campaigns, SLA data and sales pipeline |
+| Deployed from | branch `claude/blissful-hawking-7crr14`, commit `0cff900` (Phases 0–8 + Feedback Rounds 1–4), deployment `dpl_A7zPRh6SKeoNTf3oFgZSts9Dxeap` on 2026-10-02 — all 37 migrations applied (last: `20261002142900_portal_multi_client_security`, applied by `dpl_6K7ghntagyyw5a7GtgzP333tpybt`, whose build then stopped in the campaign top-up) |
+| Data | **the owner's own data**: the demo clients were cleared (data reset, ADR-081) and the demo sign-ins no longer work (`faisal@` is refused, `sara@`'s password was changed). Deploys now skip every demo top-up once the demo clients are gone, so `hala@group.test` is **not** seeded on production |
 
 How it works:
 - **Deploy** = a Vercel production build of the branch (`POST /v13/deployments` with `gitSource` {repoId `1393530120`,
@@ -391,9 +391,11 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
 
 ## Feedback Round 4 — manual test checklist (local: `pnpm db:reset`, password `Passw0rd!`; Mailpit at http://localhost:54324)
 
-Built on branch `claude/blissful-hawking-7crr14` (ADR-091…093). **Not deployed yet** — the production migrations
-`20261002142836_portal_multi_client` and `…142900_portal_multi_client_security` and the multi-client seed user
-(`scripts/seed-multi-client-standalone.ts`, run by `deploy-db.ts`) go out with the next deploy.
+Built on branch `claude/blissful-hawking-7crr14` (ADR-091…093) and **deployed** on 2026-10-02 (`0cff900`). On production,
+I checked health, the public `/email-change/confirm` page (a bogus token is refused) and that `/portal/switch` and
+`/portal/choose` require sign-in. The signed-in flows were verified locally only: production has the owner's data
+and no demo accounts. The checklist below uses the local seed. On production, repeat it with a real portal user who
+belongs to two clients.
 
 Multi-client login: **`hala@group.test`** (هالة القحطاني) is Owner of Darb Coffee (can approve), Member of Future Smile
 (can approve) and Viewer of Najd Heritage.

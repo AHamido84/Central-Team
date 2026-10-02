@@ -888,4 +888,4 @@ portal user every client they belong to. The gap is in the flows (`already_membe
 - [x] FR4.2 Add existing portal user to more clients; portal user drawer with per-client memberships
 - [x] FR4.3 Active client enforced by RLS, switch route, last used / choose account, switcher badges, per-client notifications
 - [x] FR4.4 Seed multi-client user; tests (unit, DB/RLS, e2e)
-- [ ] FR4.4 Deploy to production and verify there (waits for the owner's go-ahead)
+- [x] FR4.4 Deployed to production (2026-10-02, `0cff900`); public routes verified there, signed-in flows verified locally (production has the owner's data, no demo accounts)
