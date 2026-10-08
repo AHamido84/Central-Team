@@ -147,6 +147,7 @@ export const agencyNav: NavSection[] = [
           'files:delete',
           'deliverables:delete',
           'messages:delete',
+          'leads:delete',
         ],
       },
       { key: 'dataManagement', href: '/admin/data', icon: DatabaseBackup, superAdminOnly: true },

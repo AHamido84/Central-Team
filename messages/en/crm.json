@@ -117,8 +117,6 @@
     "convertTitle": "Create a deal from this lead",
     "convertBody": "The deal starts in the pipeline's first stage, with the lead as its primary contact.",
     "dealTitle": "Deal name",
-    "deleteLead": "Delete lead",
-    "deleteConfirm": "Delete “⁨{name}⁩” and its activities? This can't be undone.",
     "details": "Details",
     "contact": "Contact",
     "externalRef": "External id",

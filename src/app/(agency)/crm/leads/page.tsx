@@ -27,6 +27,7 @@ export default async function LeadsPage() {
         me={ctx.session.userId}
         canManage={can(ctx.permissions, 'leads:manage')}
         canManageAll={can(ctx.permissions, 'crm:manage_all')}
+        canDelete={can(ctx.permissions, 'leads:delete')}
       />
     </>
   );

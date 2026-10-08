@@ -32,7 +32,8 @@
       "file": "The file disappears for the agency and the client.",
       "deliverable": "The deliverable and all its versions disappear.",
       "deliverable_version": "This version disappears; earlier versions stay.",
-      "comment": "The message disappears from the conversation."
+      "comment": "The message disappears from the conversation.",
+      "lead": "The lead disappears from the leads list, search, follow-ups and the sales dashboard, with its activities. Deals that came from it stay."
     },
     "count": {
       "requests": "{count, plural, one {# request} other {# requests}}",
@@ -46,7 +47,8 @@
       "campaigns": "{count, plural, one {# campaign} other {# campaigns}}",
       "reports": "{count, plural, one {# report} other {# reports}}",
       "portal_users": "{count, plural, one {# portal user} other {# portal users}}",
-      "messages": "{count, plural, one {# message} other {# messages}}"
+      "messages": "{count, plural, one {# message} other {# messages}}",
+      "activities": "{count, plural, one {# activity} other {# activities}}"
     },
     "blocker": {
       "requests": "{count, plural, one {# request uses} other {# requests use}} this type — turn it off instead, or delete them first.",
@@ -78,7 +80,7 @@
     "title": "Trash",
     "description": "Deleted items stay here until someone restores them or deletes them for good.",
     "empty": "The Trash is empty",
-    "emptyHint": "Deleted clients, requests, tasks, files and more show up here.",
+    "emptyHint": "Deleted clients, leads, requests, tasks, files and more show up here.",
     "filterType": "Type",
     "all": "All types",
     "deletedBy": "Deleted by {name} · {when}",
@@ -107,7 +109,8 @@
       "file": "File",
       "deliverable": "Deliverable",
       "deliverable_version": "Deliverable version",
-      "comment": "Message"
+      "comment": "Message",
+      "lead": "Lead"
     }
   },
   "reset": {

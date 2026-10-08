@@ -49,6 +49,7 @@ export default async function LeadPage({ params }: { params: Promise<{ leadId: s
         options={options}
         me={ctx.session.userId}
         canManageAll={can(ctx.permissions, 'crm:manage_all')}
+        canDelete={can(ctx.permissions, 'leads:delete')}
         canCreateDeal={can(ctx.permissions, 'deals:manage') && lead.canWrite}
       />
       {whatsapp ? <WhatsAppPanel subject={{ leadId: leadId }} data={whatsapp} canSend /> : null}
