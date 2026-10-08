@@ -889,3 +889,36 @@ portal user every client they belong to. The gap is in the flows (`already_membe
 - [x] FR4.3 Active client enforced by RLS, switch route, last used / choose account, switcher badges, per-client notifications
 - [x] FR4.4 Seed multi-client user; tests (unit, DB/RLS, e2e)
 - [x] FR4.4 Deployed to production (2026-10-02, `0cff900`); public routes verified there, signed-in flows verified locally (production has the owner's data, no demo accounts)
+
+## Feedback Round 5 (delete leads)
+
+Owner's ask: "I want the option to delete leads (العملاء المحتملين)". Found first: a delete already exists but is easy to
+miss. It is only a trash icon in the lead page header, only for `crm:manage_all` (Super Admin, Admin, Sales Manager),
+and it deletes **permanently**: no Trash, no undo, no domain event. Activities go with the lead; linked deals,
+WhatsApp messages and webhook events keep their rows with the link cleared. The leads list has no delete at all.
+
+### FR5.1 Leads join the Trash (ADR-094)
+- New Trash type `lead` (`leads.deleted_at`, `deleted_by`, `delete_batch`). Its activities go with it. Deals that
+  came from the lead stay and keep their link, so restoring brings the lead back intact.
+- Permissions `leads:delete` / `leads:purge`, mirroring the other Trash types. Defaults: Super Admin, Admin and Sales
+  Manager delete; Super Admin and Admin purge. A Sales Rep can't delete (they can mark a lead "lost" or
+  "disqualified").
+- Every lead read (list, detail, search, dashboard counts, follow-ups, duplicate check, assistant tools and index)
+  hides deleted leads. Restore and permanent delete from Admin → Trash.
+
+### FR5.2 Delete from where people work
+- Leads list: a ⋯ row action → "Delete", plus bulk delete for selected rows (the existing `BulkDelete` pattern).
+- Lead page: the header icon becomes a labelled "Delete" in the actions menu. The dialog shows what goes with it
+  (activities) and that deals stay.
+- AR/EN, RTL/LTR, mobile; a toast with "Undo" (restore) right after a delete.
+
+### FR5.3 Tests, docs, deploy
+- DB: delete/restore/purge allowed and denied by role; deleted leads invisible everywhere; intake dedup ignores
+  deleted leads (a new lead from the same email is created fresh).
+- E2E: delete from the list → gone → restore from Trash; bulk delete; a Sales Rep sees no delete.
+- ADR-094, HANDOFF checklist, deploy when the owner says so.
+
+**Status**
+- [ ] FR5.1 Leads in the Trash (soft delete, permissions, hidden everywhere, restore/purge)
+- [ ] FR5.2 Delete in the leads list (row + bulk) and on the lead page, with undo
+- [ ] FR5.3 Tests, docs; deploy and verify
