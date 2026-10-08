@@ -22,6 +22,11 @@ export type CsvParseResult = {
   /** Data rows skipped because the date column wasn't a date (totals, blank lines). */
   skipped: number;
   errors: { line: number; code: 'invalid_number' | 'too_many_rows' }[];
+  /**
+   * Set when rows are totals for a period (start ≠ end), e.g. an Ads Manager export without "Breakdown → Day". Their
+   * numbers are not daily, so nothing is imported (ADR-095); the preview explains how to export by day.
+   */
+  period: { from: string; to: string; rows: number; totals: Record<BaseMetric, number> } | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -110,6 +115,9 @@ const synonyms: Synonyms = {
     'الإيرادات',
   ],
 };
+
+/** The end of a row's period, next to its start ("Reporting starts / ends", "Start / End time"). */
+const endSynonyms: readonly (string | RegExp)[] = ['reporting ends', 'end time', 'end date', 'stat time end', /^end\b/, 'تاريخ الانتهاء'];
 
 /** Headers that only one platform uses. */
 const distinctive: Record<Exclude<ImportPreset, 'custom'>, readonly (string | RegExp)[]> = {
@@ -260,6 +268,18 @@ export function detectDateOrder(values: readonly string[], preset: ImportPreset)
 
 const moneyKeys: readonly BaseMetric[] = ['spend', 'revenue'];
 
+const zeroMetrics = (): Record<BaseMetric, number> => ({
+  impressions: 0,
+  reach: 0,
+  clicks: 0,
+  spend: 0,
+  conversions: 0,
+  leads: 0,
+  video_views: 0,
+  engagements: 0,
+  revenue: 0,
+});
+
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
@@ -277,6 +297,9 @@ export function parseMetricsCsv(text: string, override?: { mapping?: ColumnMappi
   const body = table.slice(headerIdx + 1);
   const dateCol = mapping.date;
   const dateOrder = override?.dateOrder ?? detectDateOrder(dateCol === undefined ? [] : body.map((r) => r[dateCol] ?? ''), preset);
+  const normalized = headers.map(norm);
+  const endCol = endSynonyms.map((p) => normalized.findIndex((h, i) => i !== dateCol && matches(h, p))).find((i) => i >= 0);
+  let period: CsvParseResult['period'] = null;
 
   const byDay = new Map<string, ParsedMetricRow>();
   const errors: CsvParseResult['errors'] = [];
@@ -288,20 +311,17 @@ export function parseMetricsCsv(text: string, override?: { mapping?: ColumnMappi
       skipped++;
       return;
     }
-    const row =
-      byDay.get(date) ??
-      ({
-        date,
-        impressions: 0,
-        reach: 0,
-        clicks: 0,
-        spend: 0,
-        conversions: 0,
-        leads: 0,
-        video_views: 0,
-        engagements: 0,
-        revenue: 0,
-      } as ParsedMetricRow);
+    const end = endCol === undefined ? null : parseDate(cells[endCol] ?? '', dateOrder);
+    const isPeriod = end !== null && end !== date;
+    if (isPeriod) {
+      period ??= { from: date, to: end, rows: 0, totals: zeroMetrics() };
+      period.rows++;
+      if (date < period.from) period.from = date;
+      if (end > period.to) period.to = end;
+    }
+    const row = isPeriod
+      ? ({ date, ...period!.totals } as ParsedMetricRow)
+      : (byDay.get(date) ?? ({ date, ...zeroMetrics() } as ParsedMetricRow));
     let bad = false;
     for (const key of Object.keys(mapping) as (keyof ColumnMapping)[]) {
       if (key === 'date') continue;
@@ -314,6 +334,11 @@ export function parseMetricsCsv(text: string, override?: { mapping?: ColumnMappi
       row[key] += moneyKeys.includes(key) ? Math.round(value * 100) : Math.round(value);
     }
     if (bad) errors.push({ line, code: 'invalid_number' });
+    if (isPeriod) {
+      const { date: _start, ...totals } = row;
+      period!.totals = totals;
+      return;
+    }
     byDay.set(date, row);
   });
 
@@ -322,5 +347,7 @@ export function parseMetricsCsv(text: string, override?: { mapping?: ColumnMappi
     errors.push({ line: 0, code: 'too_many_rows' });
     rows = rows.slice(0, IMPORT_MAX_ROWS);
   }
-  return { preset, headers, mapping, dateOrder, rows, skipped, errors };
+  // Period totals can't be split into days: nothing from this file is imported (the preview explains why).
+  if (period) rows = [];
+  return { preset, headers, mapping, dateOrder, rows, skipped, errors, period };
 }
