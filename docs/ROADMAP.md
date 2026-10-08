@@ -923,3 +923,41 @@ WhatsApp messages and webhook events keep their rows with the link cleared. The 
 - [x] FR5.2 Delete in the leads list (row + bulk) and on the lead page, with undo
 - [x] FR5.3 Tests (9 DB, 4 e2e) and docs
 - [x] FR5.3 Deployed 2026-10-08 (`8511e83`); migrations applied, health and sign-in guards checked on production, signed-in flows verified locally
+
+## Feedback Round 6 (CSV import: numbers don't show in the grid)
+
+Owner's report: after importing a Meta file, the daily grid stays empty. Root cause (verified in `campaigns/csv.ts`):
+- The file `Campaigns-Sep-5-2026-Oct-4-2026.csv` is an Ads Manager export **without a daily breakdown**. Every row is
+  a campaign total for the whole period, with Reporting starts = 2026-09-05 and Reporting ends = 2026-10-04.
+- The importer takes "Reporting starts" as the day, so it adds up all rows and stores **a month of totals on
+  5 September**. The import history says so ("one day · 5 Sep").
+- The grid opens on the latest week and can't go before the campaign's start week, so that day never shows. It
+  also inflates 5 September in charts, pacing and reports.
+
+### FR6.1 Period-total files are recognised, not stored on one day (ADR-095)
+- When a file has a start and an end column (Meta "Reporting starts/ends", TikTok/Snapchat/Google equivalents) and
+  they differ, the preview stops with a clear message. It shows the file's totals and period and explains how to
+  export one row per day: Ads Manager → Breakdown → By time → Day (and the equivalent per platform). Daily exports,
+  where start = end, import as today.
+
+### FR6.2 Days outside the campaign's dates
+- The preview counts days before the start or after the end of the campaign. The choice: extend the campaign dates,
+  or skip those days. The server re-checks. Nothing lands where the grid can't show it.
+
+### FR6.3 See and undo an import
+- After an import the grid jumps to the newest imported week, with a "Show" on each import-history row.
+- "Undo import" on each history row removes the days that still hold that import's numbers (`metric_imports` +
+  `metrics_daily.import_id`). That cleans up the 5 September totals already imported on production. Audited, with
+  a domain event, `metrics:manage`.
+
+### FR6.4 Tests, docs, deploy
+- Unit: the parser with a Meta period-total file (blocked) and a daily file (imported); out-of-range days.
+- DB: undo removes only that import's rows, and only for people with `metrics:manage`.
+- E2E: import → numbers visible in the grid; period-total file shows the message; undo import.
+- ADR-095, HANDOFF checklist, deploy when the owner says so.
+
+**Status**
+- [ ] FR6.1 Period-total files recognised, with export instructions
+- [ ] FR6.2 Days outside the campaign: extend or skip
+- [ ] FR6.3 Jump to imported week; Show / Undo import in the history
+- [ ] FR6.4 Tests, docs; deploy and verify
