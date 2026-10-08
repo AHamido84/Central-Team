@@ -144,7 +144,7 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 |---|---|
 | URL | https://centralteam.vercel.app (Vercel project `centralteam`, Hobby plan) |
 | Database | Supabase project `udqhetkwsqpyyuurajcb` (created through the Vercel ↔ Supabase integration) |
-| Deployed from | branch `claude/blissful-hawking-7crr14`, commit `0cff900` (Phases 0–8 + Feedback Rounds 1–4), deployment `dpl_A7zPRh6SKeoNTf3oFgZSts9Dxeap` on 2026-10-02 — all 37 migrations applied (last: `20261002142900_portal_multi_client_security`, applied by `dpl_6K7ghntagyyw5a7GtgzP333tpybt`, whose build then stopped in the campaign top-up) |
+| Deployed from | branch `claude/blissful-hawking-7crr14`, commit `8511e83` (Phases 0–8 + Feedback Rounds 1–5), deployment `dpl_8BrpWJumuYzoXMb2QpDUSXbKVjh2` on 2026-10-08 — all 39 migrations applied (last: `20261008104500_leads_trash_security`) |
 | Data | **the owner's own data**: the demo clients were cleared (data reset, ADR-081) and the demo sign-ins no longer work (`faisal@` is refused, `sara@`'s password was changed). Deploys now skip every demo top-up once the demo clients are gone, so `hala@group.test` is **not** seeded on production |
 
 How it works:
@@ -392,7 +392,7 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
 ## Feedback Round 5 — manual test checklist (local: `pnpm db:reset`, password `Passw0rd!`)
 
 Built on `claude/blissful-hawking-7crr14` (ADR-094); migrations `20261008104404_leads_trash` and
-`20261008104500_leads_trash_security`. Deploy waits for the owner.
+`20261008104500_leads_trash_security`. **Deployed** 2026-10-08 (`8511e83`); on production only health and the sign-in guards were checked (no usable accounts there for me).
 
 1. As `majed@ofoq.test` (Sales Manager): Sales → Leads → ⋯ on a row → Delete. The dialog says what goes with it
    (activities) and that deals stay. → "moved to Trash" with **Undo**; the lead is gone from the list, search,

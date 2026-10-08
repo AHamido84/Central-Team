@@ -922,4 +922,4 @@ WhatsApp messages and webhook events keep their rows with the link cleared. The 
 - [x] FR5.1 Leads in the Trash (soft delete, permissions, hidden everywhere, restore/purge)
 - [x] FR5.2 Delete in the leads list (row + bulk) and on the lead page, with undo
 - [x] FR5.3 Tests (9 DB, 4 e2e) and docs
-- [ ] FR5.3 Deploy and verify (when the owner says so)
+- [x] FR5.3 Deployed 2026-10-08 (`8511e83`); migrations applied, health and sign-in guards checked on production, signed-in flows verified locally
