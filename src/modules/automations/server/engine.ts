@@ -109,7 +109,8 @@ export async function loadRuleContext(event: AnyEvent): Promise<RuleContext | nu
         .select()
         .from(leads)
         .where(eq(leads.id, String(p.leadId)));
-      if (!l) return null;
+      // Rules don't act on a lead in the Trash (FR5).
+      if (!l || l.deletedAt) return null;
       return ctx({
         subject: 'lead',
         subjectId: l.id,

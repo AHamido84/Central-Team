@@ -15,6 +15,7 @@ export const trashTypes = [
   'deliverable',
   'deliverable_version',
   'comment',
+  'lead',
 ] as const;
 export type TrashType = (typeof trashTypes)[number];
 
@@ -33,6 +34,7 @@ export const trashResource: Record<TrashType, string> = {
   deliverable: 'deliverables',
   deliverable_version: 'deliverables',
   comment: 'messages',
+  lead: 'leads',
 };
 
 export const deletePermission = (type: TrashType) => `${trashResource[type]}:delete` as Permission;

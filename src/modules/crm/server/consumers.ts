@@ -29,7 +29,7 @@ export const crmNotifications = defineConsumer({
     switch (event.type) {
       case 'lead.assigned': {
         const [lead] = await dbAdmin.select().from(leads).where(eq(leads.id, event.payload.leadId));
-        if (!lead?.ownerId || lead.ownerId !== event.payload.ownerId) return;
+        if (!lead?.ownerId || lead.ownerId !== event.payload.ownerId || lead.deletedAt) return;
         await notify({
           organizationId: event.organizationId,
           actorId: event.actorId,
@@ -48,7 +48,8 @@ export const crmNotifications = defineConsumer({
           .leftJoin(deals, eq(deals.id, crmActivities.dealId))
           .leftJoin(leads, eq(leads.id, crmActivities.leadId))
           .where(eq(crmActivities.id, event.payload.activityId));
-        if (!row || row.a.completedAt || !row.a.ownerId) return;
+        // A follow-up in the Trash (with its lead, FR5) isn't announced.
+        if (!row || row.a.completedAt || !row.a.ownerId || row.a.deletedAt) return;
         await notify({
           organizationId: event.organizationId,
           actorId: null,

@@ -39,6 +39,7 @@ export async function runCrmSweep(now = new Date()): Promise<CrmSweepResult> {
             isNotNull(crmActivities.ownerId),
             sql`${crmActivities.dueAt} < ${endOfToday}::timestamptz`,
             isNull(crmActivities.remindedAt),
+            isNull(crmActivities.deletedAt),
           ),
         )
         .returning({

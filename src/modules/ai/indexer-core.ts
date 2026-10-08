@@ -215,7 +215,7 @@ export async function buildChunks(
         select l.id, l.organization_id, l.full_name, l.company, l.source, l.source_detail, l.services, l.budget_range, l.city,
           l.status, l.notes, l.tags, l.updated_at, p.full_name as owner
         from public.leads l left join public.profiles p on p.id = l.owner_id
-        where l.id = any(${idList}) and l.merged_into_id is null`);
+        where l.id = any(${idList}) and l.merged_into_id is null and l.deleted_at is null`);
       return rows.map((r) =>
         finish(kit, label, base(r, 'lead', null, String(r.full_name), `/crm/leads/${r.id}`), [
           line(L('company'), r.company),
@@ -388,7 +388,7 @@ export async function staleSources(
       left join public.ai_chunks c on c.source_type = ${type} and c.source_id = s.id
       where s.organization_id = ${organizationId}
         ${type === 'request' ? sql`and s.status <> 'draft'` : sql``}
-        ${type === 'lead' ? sql`and s.merged_into_id is null` : sql``}
+        ${type === 'lead' ? sql`and s.merged_into_id is null and s.deleted_at is null` : sql``}
         and (c.id is null or c.embedding_model <> ${model} or s.updated_at > c.indexed_at)`,
   );
   const rows = await tx.execute<{ type: SourceType; id: string }>(sql`${sql.join(parts, sql` union all `)} limit ${limit}`);

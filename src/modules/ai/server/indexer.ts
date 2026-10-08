@@ -40,6 +40,11 @@ export function targetsOf(event: StoredEvent): Target[] {
       return pick('lead', 'leadId', 'mergedId');
     case 'deal':
       return pick('deal', 'dealId');
+    case 'trash': {
+      // A lead in the Trash leaves the index; restored, it comes back (FR5). Other types follow their own events.
+      if (p.entityType !== 'lead') return [];
+      return typeof p.entityId === 'string' ? [{ type: 'lead', id: p.entityId }] : [];
+    }
     case 'ai_insight':
       // The campaign's chunk carries its open-insight count.
       return [...pick('insight', 'insightId'), ...pick('campaign', 'campaignId')];

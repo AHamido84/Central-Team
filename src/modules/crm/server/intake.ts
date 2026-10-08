@@ -2,7 +2,7 @@ import 'server-only';
 
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-import { and, asc, eq, ne, or, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, ne, or, sql } from 'drizzle-orm';
 
 import { dbAdmin, type Tx } from '@/lib/db/client';
 import { crmActivities, crmWebhookTokens, leadAssignmentRules, leadForms, leads, organizations } from '@/lib/db/schema';
@@ -40,20 +40,31 @@ export async function findDuplicateLeads(
     contact.email ? sql`lower(${leads.email}) = ${contact.email.toLowerCase()}` : undefined,
   ].filter(Boolean);
   if (!match.length) return [];
-  return tx
-    .select({
-      id: leads.id,
-      number: leads.number,
-      fullName: leads.fullName,
-      status: leads.status,
-      ownerId: leads.ownerId,
-      phone: leads.phone,
-      email: leads.email,
-    })
-    .from(leads)
-    .where(and(eq(leads.organizationId, orgId), ne(leads.status, 'merged'), excludeId ? ne(leads.id, excludeId) : undefined, or(...match)))
-    .orderBy(sql`${leads.createdAt} desc`)
-    .limit(10);
+  return (
+    tx
+      .select({
+        id: leads.id,
+        number: leads.number,
+        fullName: leads.fullName,
+        status: leads.status,
+        ownerId: leads.ownerId,
+        phone: leads.phone,
+        email: leads.email,
+      })
+      .from(leads)
+      // A lead in the Trash isn't a duplicate: a new submission from that contact starts a fresh lead (FR5).
+      .where(
+        and(
+          eq(leads.organizationId, orgId),
+          ne(leads.status, 'merged'),
+          isNull(leads.deletedAt),
+          excludeId ? ne(leads.id, excludeId) : undefined,
+          or(...match),
+        ),
+      )
+      .orderBy(sql`${leads.createdAt} desc`)
+      .limit(10)
+  );
 }
 
 /** Assignment rules → owner (round-robin cursor advanced through `app.crm_advance_rule`). */

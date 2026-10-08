@@ -201,18 +201,6 @@ export const mergeLeadsAction = defineAction({
   revalidate: (i) => [...leadPaths(i.primaryId), `/crm/leads/${i.otherId}`],
 });
 
-export const deleteLeadAction = defineAction({
-  input: idSchema,
-  side: 'agency',
-  permission: 'crm:manage_all',
-  async handler({ input, tx }) {
-    const [row] = await tx.delete(leads).where(eq(leads.id, input.id)).returning({ id: leads.id });
-    if (!row) throw new ActionFailure('not_found');
-    return { leadId: row.id };
-  },
-  revalidate: () => leadPaths(),
-});
-
 /** Column mapping and parsing happen in the browser; every row is re-validated and normalised here. */
 export const importLeadsAction = defineAction({
   input: importLeadsSchema,

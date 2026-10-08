@@ -14,7 +14,7 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
-import { createdAt, id, isDemo, localized, updatedAt } from '@/lib/db/columns';
+import { createdAt, id, isDemo, localized, softDelete, updatedAt } from '@/lib/db/columns';
 import { clients, packages } from '@/modules/clients/db/schema';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
 import { requestTypes } from '@/modules/requests/db/schema';
@@ -80,6 +80,8 @@ export const leads = pgTable(
     lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).notNull().defaultNow(),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
     isDemo: isDemo(),
+    // Trash (FR5, ADR-094).
+    ...softDelete(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -248,6 +250,8 @@ export const crmActivities = pgTable(
     ownerId: uuid('owner_id').references(() => profiles.id, { onDelete: 'set null' }),
     remindedAt: timestamp('reminded_at', { withTimezone: true }),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+    // A lead's own activities go to the Trash with it (FR5, ADR-094).
+    ...softDelete(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

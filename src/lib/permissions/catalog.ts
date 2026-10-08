@@ -56,6 +56,8 @@ export const agencyPermissions = [
   'sla:manage',
   'leads:read',
   'leads:manage',
+  'leads:delete',
+  'leads:purge',
   'deals:read',
   'deals:manage',
   'crm:manage_all',

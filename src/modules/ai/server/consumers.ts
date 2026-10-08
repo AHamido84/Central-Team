@@ -84,6 +84,9 @@ export const aiIndexer = defineConsumer({
     'lead.created',
     'lead.updated',
     'lead.merged',
+    // Leads in and out of the Trash (FR5); targetsOf ignores the other Trash types.
+    'trash.deleted',
+    'trash.restored',
     'deal.created',
     'deal.updated',
     'deal.stage_changed',

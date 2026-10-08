@@ -32,7 +32,7 @@ export const trashItems = pgTable(
     index('trash_items_entity_idx').on(t.entityType, t.entityId),
     check(
       'trash_items_type_check',
-      sql`${t.entityType} in ('client','client_user','member','package','request_type','workflow_template','request','task','folder','file','deliverable','deliverable_version','comment')`,
+      sql`${t.entityType} in ('client','client_user','member','package','request_type','workflow_template','request','task','folder','file','deliverable','deliverable_version','comment','lead')`,
     ),
   ],
 );
