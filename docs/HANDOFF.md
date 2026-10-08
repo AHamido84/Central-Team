@@ -389,6 +389,22 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
    background; Test assistant's embedder step passes.
 8. Repeat the screens in AR / EN × light / dark × mobile / desktop.
 
+## Feedback Round 5 — manual test checklist (local: `pnpm db:reset`, password `Passw0rd!`)
+
+Built on `claude/blissful-hawking-7crr14` (ADR-094); migrations `20261008104404_leads_trash` and
+`20261008104500_leads_trash_security`. Deploy waits for the owner.
+
+1. As `majed@ofoq.test` (Sales Manager): Sales → Leads → ⋯ on a row → Delete. The dialog says what goes with it
+   (activities) and that deals stay. → "moved to Trash" with **Undo**; the lead is gone from the list, search,
+   follow-ups and the sales dashboard.
+2. Admin → Trash: the lead is listed as "Lead"; Restore brings it back with its activities. Majed has no "Delete
+   forever"; `faisal@ofoq.test` (Admin) does.
+3. Select two leads → "Delete 2" → type 2 → both go to the Trash as separate entries.
+4. Open a lead that has a deal → Delete → the deal stays in the pipeline. Restore the lead → the deal still points to it.
+5. As `ruba@ofoq.test` (Sales Rep): no ⋯ menu on lead rows, no Delete on the lead page.
+6. Delete a lead, then submit the website form with its email → a new lead is created (not merged into the deleted
+   one).
+
 ## Feedback Round 4 — manual test checklist (local: `pnpm db:reset`, password `Passw0rd!`; Mailpit at http://localhost:54324)
 
 Built on branch `claude/blissful-hawking-7crr14` (ADR-091…093) and **deployed** on 2026-10-02 (`0cff900`). On production,
@@ -432,8 +448,8 @@ Gotchas:
 
 ## Starting a new session
 
-1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md` (latest: "Feedback Round 4"), and `docs/DECISIONS.md` (next ADR:
-   **094**). Work on the branch the session names (Round 4: `claude/blissful-hawking-7crr14`); Conventional Commits with a
+1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md` (latest: "Feedback Round 5"), and `docs/DECISIONS.md` (next ADR:
+   **095**). Work on the branch the session names (Round 4: `claude/blissful-hawking-7crr14`); Conventional Commits with a
    lowercase subject (commitlint); push after each logical step.
 2. Local stack (cloud sandboxes lose it on every container restart):
    - `rm -f /var/run/docker.pid; dockerd > /tmp/dockerd.log 2>&1 &` (wait for `docker info`).
@@ -442,7 +458,7 @@ Gotchas:
    - `pnpm db:reset` → `pnpm dev` in the background (first compile of a route can take minutes in the sandbox).
    - Playwright: `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`. Clear login limits with
      `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c "delete from public.rate_limits"`.
-3. Verify: `pnpm check` (277 unit), `pnpm test:db` after a fresh `db:reset` (262), `pnpm test:e2e` (57; re-run a spec
+3. Verify: `pnpm check` (277 unit), `pnpm test:db` after a fresh `db:reset` (271), `pnpm test:e2e` (61; re-run a spec
    that timed out on a cold route before calling it a failure), `pnpm build`.
 4. Deploy only when the owner says so and gives a Vercel token in that session (never store it) — see "Production".
 5. Never commit secrets: GitHub push protection rejects even the local Supabase CLI keys; tests read them from the

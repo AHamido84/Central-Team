@@ -19,6 +19,8 @@ import { LeadImportDialog } from '@/modules/crm/components/lead-import';
 import { crmServices, leadReference, leadSources, leadStatuses } from '@/modules/crm/constants';
 import { assignLeadsAction } from '@/modules/crm/server/actions';
 import type { LeadListItem } from '@/modules/crm/server/queries';
+import { BulkDeleteButton } from '@/modules/data/components/bulk-delete';
+import { RowActions } from '@/modules/data/components/row-actions';
 
 export function LeadsTable({
   leads,
@@ -26,12 +28,15 @@ export function LeadsTable({
   me,
   canManage,
   canManageAll,
+  canDelete = false,
 }: {
   leads: LeadListItem[];
   owners: { id: string; name: string }[];
   me: string;
   canManage: boolean;
   canManageAll: boolean;
+  /** `leads:delete`: moves leads to the Trash (FR5, ADR-094). */
+  canDelete?: boolean;
 }) {
   const t = useTranslations();
   const f = useFormat();
@@ -130,9 +135,24 @@ export function LeadsTable({
         accessorFn: (l) => l.lastActivityAt,
         cell: ({ row }) => <span className="text-xs text-muted-foreground">{f.relative(row.original.lastActivityAt)}</span>,
       },
+      ...(canDelete
+        ? [
+            {
+              id: 'actions',
+              header: () => <span className="sr-only">{t('data.actions.column')}</span>,
+              enableSorting: false,
+              enableHiding: false,
+              cell: ({ row }) => (
+                <div className="flex justify-end">
+                  <RowActions label={row.original.fullName} del={{ type: 'lead', id: row.original.id }} testId="lead-row-actions" />
+                </div>
+              ),
+            } satisfies ColumnDef<LeadListItem, unknown>,
+          ]
+        : []),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [canDelete],
   );
 
   const filters = [
@@ -176,33 +196,40 @@ export function LeadsTable({
           ) : null
         }
         bulkActions={
-          canManage
+          canManage || canDelete
             ? (rows, clear) => (
-                <div className="flex items-center gap-2">
-                  <NativeSelect
-                    value={assignTo}
-                    onChange={(e) => setAssignTo(e.target.value)}
-                    aria-label={t('crm.leads.assignTo')}
-                    className="h-8 min-w-40"
-                  >
-                    <option value="">{t('crm.leads.unassigned')}</option>
-                    {(canManageAll ? owners : owners.filter((o) => o.id === me)).map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.name}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                  <Button
-                    size="sm"
-                    loading={assign.pending}
-                    onClick={async () => {
-                      const res = await assign.run({ leadIds: rows.map((r) => r.id), ownerId: assignTo || null });
-                      if (res.ok) clear();
-                    }}
-                  >
-                    <UserPlus />
-                    {t('crm.leads.assignSelected')}
-                  </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {canManage ? (
+                    <>
+                      <NativeSelect
+                        value={assignTo}
+                        onChange={(e) => setAssignTo(e.target.value)}
+                        aria-label={t('crm.leads.assignTo')}
+                        className="h-8 min-w-40"
+                      >
+                        <option value="">{t('crm.leads.unassigned')}</option>
+                        {(canManageAll ? owners : owners.filter((o) => o.id === me)).map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.name}
+                          </option>
+                        ))}
+                      </NativeSelect>
+                      <Button
+                        size="sm"
+                        loading={assign.pending}
+                        onClick={async () => {
+                          const res = await assign.run({ leadIds: rows.map((r) => r.id), ownerId: assignTo || null });
+                          if (res.ok) clear();
+                        }}
+                      >
+                        <UserPlus />
+                        {t('crm.leads.assignSelected')}
+                      </Button>
+                    </>
+                  ) : null}
+                  {canDelete ? (
+                    <BulkDeleteButton type="lead" items={rows.map((r) => ({ id: r.id, name: r.fullName }))} onDone={clear} />
+                  ) : null}
                 </div>
               )
             : undefined
@@ -222,6 +249,7 @@ export function LeadsTable({
                 <ScoreMeter score={l.score} />
               </div>
             </div>
+            {canDelete ? <RowActions label={l.fullName} del={{ type: 'lead', id: l.id }} testId="lead-row-actions" /> : null}
           </div>
         )}
         emptyState={

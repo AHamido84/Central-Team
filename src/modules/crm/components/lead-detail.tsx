@@ -28,7 +28,8 @@ import { ActivityPanel } from '@/modules/crm/components/activity-panel';
 import { DealStatusBadge, LeadStatusBadge, ScoreMeter } from '@/modules/crm/components/badges';
 import { LeadDialog } from '@/modules/crm/components/lead-dialog';
 import { dealReference, leadReference, leadStatuses, type CrmService, type LeadStatus } from '@/modules/crm/constants';
-import { convertLeadAction, deleteLeadAction, mergeLeadsAction, setLeadStatusAction } from '@/modules/crm/server/actions';
+import { convertLeadAction, mergeLeadsAction, setLeadStatusAction } from '@/modules/crm/server/actions';
+import { DeleteDialog } from '@/modules/data/components/delete-dialog';
 import type { CrmOptions, LeadDetail } from '@/modules/crm/server/queries';
 
 function ConvertDialog({
@@ -141,12 +142,15 @@ export function LeadDetailView({
   options,
   me,
   canManageAll,
+  canDelete = false,
   canCreateDeal,
 }: {
   lead: LeadDetail;
   options: CrmOptions;
   me: string;
   canManageAll: boolean;
+  /** `leads:delete` (FR5): moves the lead to the Trash. */
+  canDelete?: boolean;
   canCreateDeal: boolean;
 }) {
   const t = useTranslations();
@@ -157,7 +161,7 @@ export function LeadDetailView({
   const [converting, setConverting] = useState(false);
   const setStatus = useAction(setLeadStatusAction, { successMessage: t('common.saved') });
   const merge = useAction(mergeLeadsAction, { successMessage: t('crm.leads.merged') });
-  const remove = useAction(deleteLeadAction);
+  const [deleting, setDeleting] = useState(false);
   const waNumber = lead.phone?.replace(/^\+/, '');
   const row = (label: string, value: React.ReactNode) => (
     <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-3 py-1.5 text-sm">
@@ -168,6 +172,9 @@ export function LeadDetailView({
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]" data-testid="lead-detail">
+      {deleting ? (
+        <DeleteDialog type="lead" id={lead.id} open onOpenChange={setDeleting} onDeleted={() => router.push('/crm/leads')} />
+      ) : null}
       <div className="min-w-0 space-y-6">
         {lead.status === 'merged' && lead.mergedIntoId ? (
           <Card className="flex flex-wrap items-center justify-between gap-3 border-warning/40 p-4 text-sm">
@@ -210,23 +217,11 @@ export function LeadDetailView({
               {t('crm.leads.convert')}
             </Button>
           ) : null}
-          {canManageAll ? (
-            <ConfirmDialog
-              trigger={
-                <Button variant="ghost" size="icon" aria-label={t('crm.leads.deleteLead')}>
-                  <Trash2 />
-                </Button>
-              }
-              title={t('crm.leads.deleteLead')}
-              description={t('crm.leads.deleteConfirm', { name: lead.fullName })}
-              confirmLabel={t('common.delete')}
-              cancelLabel={t('common.cancel')}
-              destructive
-              onConfirm={async () => {
-                const res = await remove.run({ id: lead.id });
-                if (res.ok) router.push('/crm/leads');
-              }}
-            />
+          {canDelete ? (
+            <Button variant="ghost" className="text-danger" onClick={() => setDeleting(true)} data-testid="lead-delete">
+              <Trash2 />
+              {t('common.delete')}
+            </Button>
           ) : null}
         </div>
 

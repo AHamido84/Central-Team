@@ -1013,6 +1013,30 @@ safety); filtering only in queries (one missed `where` would leak the other clie
   overrides (own rows, own clients only). Settings → Notifications shows "All clients" plus one entry per client,
   with "Use the default for this client".
 
+### ADR-094 — Leads go to the Trash; only the Trash deletes them for good
+2026-10-08 · Accepted (Feedback Round 5)
+
+Before this round a lead was deleted permanently from a bare icon on its page (`crm:manage_all` only), with no undo
+and no event. Now leads are a Trash type like the others (ADR-080):
+
+- `leads` and `crm_activities` carry `deleted_at` / `deleted_by` / `delete_batch`. Both tables have the restrictive
+  "not deleted" select and update policies. Deleted rows show only in the Trash view, to people with `leads:delete`.
+- `app.trash_delete('lead')` takes the lead and its own activities (`deal_id is null`). Deals that came from the lead
+  stay and keep `lead_id`, so a restore brings everything back as it was. A purge first detaches activities shared
+  with a deal (they stay in the deal's history), then deletes the lead; the deal's `lead_id` becomes null.
+- Permissions `leads:delete` (Super Admin, Admin, Sales Manager) and `leads:purge` (Super Admin, Admin). A Sales Rep
+  can't delete; they mark a lead lost or disqualified. The old `leads_delete` policy and `deleteLeadAction` are gone,
+  so nothing bypasses the Trash. `app.can_write_lead` refuses a deleted lead.
+- Service paths that bypass RLS skip deleted leads:
+  - intake dedup: a new submission from a deleted lead's contact starts a fresh lead. A replayed `external_ref`
+    still maps to the deleted lead, so platform retries don't resurrect it;
+  - follow-up reminders, the lead-assigned notification and automation rules;
+  - the AI index, which follows `trash.deleted` / `trash.restored` for leads.
+- UI: ⋯ → Delete on each row of the leads list (and the mobile card), bulk delete of selected rows, and a labelled
+  "Delete" on the lead page. All go through the shared delete dialog (what goes with it, Undo in the toast).
+
+*Rejected*: keeping the permanent delete for admins next to the Trash (two ways to delete, one without undo).
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

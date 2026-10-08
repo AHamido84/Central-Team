@@ -919,6 +919,7 @@ WhatsApp messages and webhook events keep their rows with the link cleared. The 
 - ADR-094, HANDOFF checklist, deploy when the owner says so.
 
 **Status**
-- [ ] FR5.1 Leads in the Trash (soft delete, permissions, hidden everywhere, restore/purge)
-- [ ] FR5.2 Delete in the leads list (row + bulk) and on the lead page, with undo
-- [ ] FR5.3 Tests, docs; deploy and verify
+- [x] FR5.1 Leads in the Trash (soft delete, permissions, hidden everywhere, restore/purge)
+- [x] FR5.2 Delete in the leads list (row + bulk) and on the lead page, with undo
+- [x] FR5.3 Tests (9 DB, 4 e2e) and docs
+- [ ] FR5.3 Deploy and verify (when the owner says so)
