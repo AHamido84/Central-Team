@@ -1037,6 +1037,30 @@ and no event. Now leads are a Trash type like the others (ADR-080):
 
 *Rejected*: keeping the permanent delete for admins next to the Trash (two ways to delete, one without undo).
 
+### ADR-095 — CSV imports: period totals are refused, days outside the campaign extend or skip, imports can be undone
+2026-10-08 · Accepted (Feedback Round 6)
+
+An Ads Manager export without a daily breakdown has one row per campaign with Reporting starts and Reporting ends
+spanning the whole range. The importer read "Reporting starts" as the day and stored a month of totals on 5 September,
+before the campaign's start week, where the grid can't show it.
+
+- The parser reads a period end column next to the date: "Reporting ends", "End time", "End date". A campaign's
+  "Ends" column doesn't count. Any row whose end differs from its start makes the file a period-total file
+  (`period`). Its totals and period are shown, nothing is imported, and the preview explains how to export one row
+  per day on each platform. Totals are never spread across days: invented daily numbers would mislead pacing,
+  anomalies and reports.
+- Days outside the campaign's dates: the preview counts them. "Extend the campaign dates" is the default when the
+  person has `campaigns:manage`, since the platform reports spend on those days. Otherwise those days are left out.
+  The server repeats the check and emits `campaign.updated` when it moves the dates.
+- After an import the grid opens on the newest imported week and channel. "Show" on a history row does the same.
+- "Undo import" (`metrics:manage`) deletes the days still holding that import's numbers (`metrics_daily.import_id`).
+  Days replaced since then by another import or a manual edit stay. The entry is marked `undone_at` / `undone_by`
+  (a column-limited update policy) and `metrics.import_undone` is emitted. This is also how imports made before this
+  fix are cleaned up.
+
+*Rejected*: spreading period totals evenly over the days (looks like real data, isn't); letting the grid browse
+outside the campaign's dates (the numbers would still be outside every analysis).
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

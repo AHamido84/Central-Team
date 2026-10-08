@@ -957,7 +957,8 @@ Owner's report: after importing a Meta file, the daily grid stays empty. Root ca
 - ADR-095, HANDOFF checklist, deploy when the owner says so.
 
 **Status**
-- [ ] FR6.1 Period-total files recognised, with export instructions
-- [ ] FR6.2 Days outside the campaign: extend or skip
-- [ ] FR6.3 Jump to imported week; Show / Undo import in the history
-- [ ] FR6.4 Tests, docs; deploy and verify
+- [x] FR6.1 Period-total files recognised, with export instructions
+- [x] FR6.2 Days outside the campaign: extend or skip
+- [x] FR6.3 Jump to imported week; Show / Undo import in the history
+- [x] FR6.4 Tests (4 unit, 3 DB, 4 e2e) and docs
+- [ ] FR6.4 Deploy and verify (when the owner says so)

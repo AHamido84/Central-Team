@@ -389,6 +389,22 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
    background; Test assistant's embedder step passes.
 8. Repeat the screens in AR / EN × light / dark × mobile / desktop.
 
+## Feedback Round 6 — manual test checklist (local: `pnpm db:reset`, password `Passw0rd!`)
+
+Built on `claude/blissful-hawking-7crr14` (ADR-095); migrations `20261008123900_metric_import_undo` and
+`20261008124000_metric_import_undo_security`. Deploy waits for the owner.
+
+1. As `faisal@ofoq.test`: Campaigns → any campaign → Daily numbers → Import CSV → choose an Ads Manager export
+   **without** a daily breakdown (Reporting starts ≠ Reporting ends). The preview shows "totals for … – …, not one row
+   per day", the totals and the Ads Manager steps; the button says "Nothing to import".
+2. Export with Breakdown → By time → Day and import it. The grid jumps to the newest imported week and shows the numbers.
+3. A file with days after the campaign's end: "N days are outside the campaign's dates". With "Change the campaign
+   dates…" (default) the end date moves and the days are kept. With "Leave those days out" they are skipped.
+4. Recent imports → "Show" opens that week. "Undo import" → confirm → the days are cleared and the entry shows
+   "Undone".
+5. **Production cleanup**: the four imports of `Campaigns-Sep-5-2026-Oct-4-2026*.csv` (owner's screenshot, 2026-10-05…08) put a
+   month's totals on 5 Sep 2026. Use "Undo import" on each of those entries after this deploy, then import a daily export.
+
 ## Feedback Round 5 — manual test checklist (local: `pnpm db:reset`, password `Passw0rd!`)
 
 Built on `claude/blissful-hawking-7crr14` (ADR-094); migrations `20261008104404_leads_trash` and
@@ -448,8 +464,8 @@ Gotchas:
 
 ## Starting a new session
 
-1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md` (latest: "Feedback Round 5"), and `docs/DECISIONS.md` (next ADR:
-   **095**). Work on the branch the session names (Round 4: `claude/blissful-hawking-7crr14`); Conventional Commits with a
+1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md` (latest: "Feedback Round 6"), and `docs/DECISIONS.md` (next ADR:
+   **096**). Work on the branch the session names (Round 4: `claude/blissful-hawking-7crr14`); Conventional Commits with a
    lowercase subject (commitlint); push after each logical step.
 2. Local stack (cloud sandboxes lose it on every container restart):
    - `rm -f /var/run/docker.pid; dockerd > /tmp/dockerd.log 2>&1 &` (wait for `docker info`).
@@ -458,7 +474,7 @@ Gotchas:
    - `pnpm db:reset` → `pnpm dev` in the background (first compile of a route can take minutes in the sandbox).
    - Playwright: `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`. Clear login limits with
      `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c "delete from public.rate_limits"`.
-3. Verify: `pnpm check` (277 unit), `pnpm test:db` after a fresh `db:reset` (271), `pnpm test:e2e` (61; re-run a spec
+3. Verify: `pnpm check` (281 unit), `pnpm test:db` after a fresh `db:reset` (274), `pnpm test:e2e` (64; re-run a spec
    that timed out on a cold route before calling it a failure), `pnpm build`.
 4. Deploy only when the owner says so and gives a Vercel token in that session (never store it) — see "Production".
 5. Never commit secrets: GitHub push protection rejects even the local Supabase CLI keys; tests read them from the
