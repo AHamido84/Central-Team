@@ -18,11 +18,19 @@ export async function login(page: Page, email: string, password = PASSWORD) {
   } finally {
     await db.end();
   }
-  await page.goto('/login');
-  await page.getByTestId('login-email').fill(email);
-  await page.getByTestId('login-password').fill(password);
-  await page.getByTestId('login-submit').click();
-  await page.waitForURL((url) => !url.pathname.startsWith('/login'));
+  // In dev a cold route can hydrate after the fields were filled and clear them: try again from a fresh page.
+  for (let attempt = 1; ; attempt++) {
+    await page.goto('/login');
+    await page.getByTestId('login-email').fill(email);
+    await page.getByTestId('login-password').fill(password);
+    await page.getByTestId('login-submit').click();
+    try {
+      await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: attempt < 3 ? 25_000 : 60_000 });
+      return;
+    } catch (error) {
+      if (attempt >= 3) throw error;
+    }
+  }
 }
 
 type MailpitMessage = { ID: string; Subject: string; To: { Address: string }[]; Created: string };
