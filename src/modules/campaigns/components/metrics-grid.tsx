@@ -37,7 +37,10 @@ export function MetricsGrid({
   startDate,
   endDate,
   today,
+  focus,
 }: {
+  /** Open on this day's week and channel (after an import, or "Show" in the import history — FR6.3). */
+  focus?: { date: string; channelId: string } | null;
   campaignId: string;
   channels: ChannelItem[];
   rows: MetricRow[];
@@ -47,9 +50,12 @@ export function MetricsGrid({
 }) {
   const t = useTranslations('campaigns');
   const f = useFormat();
-  const [channelId, setChannelId] = useState(channels[0]?.id ?? '');
+  const [channelId, setChannelId] = useState(
+    focus && channels.some((c) => c.id === focus.channelId) ? focus.channelId : (channels[0]?.id ?? ''),
+  );
   const lastDay = [addDays(today, -1), endDate].sort()[0]!;
-  const initial = weekStart(lastDay < startDate ? startDate : lastDay);
+  const target = focus?.date ?? lastDay;
+  const initial = weekStart(target < startDate ? startDate : target > endDate ? endDate : target);
   const [week, setWeek] = useState(initial);
   const [edits, setEdits] = useState<Record<string, string>>({});
   const save = useAction(saveMetricsAction, { successMessage: t('metrics.saved'), onSuccess: () => setEdits({}) });
@@ -113,7 +119,7 @@ export function MetricsGrid({
   };
 
   return (
-    <Card className="flex flex-col gap-4 p-4" data-testid="metrics-grid">
+    <Card id="metrics-grid" className="flex scroll-mt-20 flex-col gap-4 p-4" data-testid="metrics-grid">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('fields.channels')}>
           {channels.map((ch) => (

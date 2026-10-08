@@ -18,6 +18,7 @@ import {
   requests,
 } from '@/lib/db/schema';
 import { emitEvent } from '@/lib/events/emit';
+import { can } from '@/lib/permissions/can';
 import { dayInZone } from '@/modules/tasks/constants';
 import { defaultReportSections, firstRunOn } from '@/modules/campaigns/periods';
 import {
@@ -33,6 +34,7 @@ import {
   saveReportSchema,
   saveScheduleSchema,
   scheduleIdSchema,
+  undoImportSchema,
 } from '@/modules/campaigns/schemas';
 import { buildReportSnapshot, refreshCampaignHealth } from '@/modules/campaigns/server/analysis';
 
@@ -327,7 +329,33 @@ export const importMetricsAction = defineAction({
       .from(campaignChannels)
       .where(and(eq(campaignChannels.id, input.channelId), eq(campaignChannels.campaignId, c.id)));
     if (!channel) throw new ActionFailure('not_found');
-    const dates = input.rows.map((r) => r.date).sort();
+    // Days outside the campaign's dates would be stored where no view shows them (FR6.2, ADR-095).
+    const outside = input.rows.filter((r) => r.date < c.startDate || r.date > c.endDate);
+    let rows = input.rows;
+    let extended: { startDate: string; endDate: string } | null = null;
+    if (outside.length && input.outside === 'skip') {
+      rows = input.rows.filter((r) => r.date >= c.startDate && r.date <= c.endDate);
+      if (rows.length === 0) throw new ActionFailure('import_outside_campaign');
+    } else if (outside.length) {
+      // Moving the dates edits the campaign, so it needs that right too (RLS checks it again).
+      if (!can(ctx.permissions, 'campaigns:manage')) throw new ActionFailure('forbidden');
+      const all = input.rows.map((r) => r.date).sort();
+      extended = {
+        startDate: all[0]! < c.startDate ? all[0]! : c.startDate,
+        endDate: all[all.length - 1]! > c.endDate ? all[all.length - 1]! : c.endDate,
+      };
+      const [moved] = await tx.update(campaigns).set(extended).where(eq(campaigns.id, c.id)).returning({ id: campaigns.id });
+      if (!moved) throw new ActionFailure('forbidden');
+      await emitEvent(tx, {
+        type: 'campaign.updated',
+        organizationId: ctx.organization.id,
+        actorId: ctx.session.userId,
+        aggregate: { type: 'campaign', id: c.id },
+        clientId: c.clientId,
+        payload: { campaignId: c.id, clientId: c.clientId, fields: ['start_date', 'end_date'] },
+      });
+    }
+    const dates = rows.map((r) => r.date).sort();
     const [log] = await tx
       .insert(metricImports)
       .values({
@@ -337,17 +365,17 @@ export const importMetricsAction = defineAction({
         channelId: channel.id,
         fileName: input.fileName,
         preset: input.preset,
-        rowCount: input.rows.length,
+        rowCount: rows.length,
         dateFrom: dates[0]!,
         dateTo: dates[dates.length - 1]!,
       })
       .returning({ id: metricImports.id });
     // Batches keep each statement well under Postgres' parameter limit.
-    for (let i = 0; i < input.rows.length; i += 500) {
+    for (let i = 0; i < rows.length; i += 500) {
       await tx
         .insert(metricsDaily)
         .values(
-          input.rows.slice(i, i + 500).map((r) => ({
+          rows.slice(i, i + 500).map((r) => ({
             ...toColumns(r),
             channelId: channel.id,
             date: r.date,
@@ -366,12 +394,54 @@ export const importMetricsAction = defineAction({
       actorId: ctx.session.userId,
       aggregate: { type: 'campaign', id: c.id },
       clientId: c.clientId,
-      payload: { campaignId: c.id, clientId: c.clientId, importId: log!.id, rows: input.rows.length, preset: input.preset },
+      payload: { campaignId: c.id, clientId: c.clientId, importId: log!.id, rows: rows.length, preset: input.preset },
     });
     const analysis = await refreshCampaignHealth(tx, c.id, ctx.session.userId);
-    return { campaignId: c.id, importId: log!.id, rows: input.rows.length, health: analysis?.health ?? c.health };
+    return {
+      campaignId: c.id,
+      importId: log!.id,
+      rows: rows.length,
+      skipped: input.rows.length - rows.length,
+      extended,
+      dateFrom: dates[0]!,
+      dateTo: dates[dates.length - 1]!,
+      health: analysis?.health ?? c.health,
+    };
   },
   revalidate: (input) => campaignPaths(input.campaignId),
+});
+
+/**
+ * Undo an import (FR6.3, ADR-095): removes the days that still hold this import's numbers (a later import or a manual
+ * edit of a day replaced its import id), and marks the entry undone so the history stays truthful.
+ */
+export const undoImportAction = defineAction({
+  input: undoImportSchema,
+  side: 'agency',
+  permission: 'metrics:manage',
+  async handler({ input, tx, ctx }) {
+    const [imp] = await tx.select().from(metricImports).where(eq(metricImports.id, input.importId));
+    if (!imp) throw new ActionFailure('not_found');
+    if (imp.undoneAt) throw new ActionFailure('conflict');
+    const removed = await tx.delete(metricsDaily).where(eq(metricsDaily.importId, imp.id)).returning({ id: metricsDaily.id });
+    const [marked] = await tx
+      .update(metricImports)
+      .set({ undoneAt: new Date(), undoneBy: ctx.session.userId })
+      .where(eq(metricImports.id, imp.id))
+      .returning({ id: metricImports.id });
+    if (!marked) throw new ActionFailure('forbidden');
+    await emitEvent(tx, {
+      type: 'metrics.import_undone',
+      organizationId: ctx.organization.id,
+      actorId: ctx.session.userId,
+      aggregate: { type: 'campaign', id: imp.campaignId },
+      clientId: imp.clientId,
+      payload: { campaignId: imp.campaignId, clientId: imp.clientId, importId: imp.id, days: removed.length },
+    });
+    await refreshCampaignHealth(tx, imp.campaignId, ctx.session.userId);
+    return { campaignId: imp.campaignId, days: removed.length };
+  },
+  revalidate: (_input, r) => campaignPaths(r.campaignId),
 });
 
 // ---------------------------------------------------------------------------

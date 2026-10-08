@@ -183,7 +183,13 @@
     "noImports": "No imports yet.",
     "cell": "{metric} — {channel} — {date}",
     "noChannels": "Add a channel to the campaign first.",
-    "discard": "Discard changes"
+    "discard": "Discard changes",
+    "showImport": "Show",
+    "undoImport": "Undo import",
+    "undoTitle": "Undo this import?",
+    "undoBody": "The days that still hold numbers from {file} are cleared for this channel. Days edited or imported again since then stay.",
+    "undone": "Import undone ({days, plural, one {# day} other {# days}} cleared)",
+    "undoneBadge": "Undone"
   },
   "import": {
     "title": "Import numbers from a file",
@@ -218,9 +224,27 @@
     "tooMany": "The file has more days than the limit; we imported the first {max} only.",
     "noDate": "We couldn't find a date column. Pick it below.",
     "replaceNote": "Days this channel already has numbers for will be replaced by the file's.",
-    "confirm": "Import {rows, plural, one {# day} other {# days}}",
+    "confirm": "{rows, plural, =0 {Nothing to import} one {Import # day} other {Import # days}}",
     "done": "Imported {rows, plural, one {# day} other {# days}}",
-    "back": "Another file"
+    "back": "Another file",
+    "periodTitle": "This file has totals for {from} – {to}, not one row per day",
+    "periodBody": "Every row in it covers the whole period, so its numbers can't be placed on days. Nothing from this file will be imported. Export the same report with one row per day and import that file instead.",
+    "periodTotals": "Totals in the file ({rows, plural, one {# row} other {# rows}})",
+    "periodHowTitle": "How to export one row per day",
+    "periodHow": {
+      "meta": "Ads Manager → Reports (or the campaigns table) → Breakdown → By time → Day → Export → CSV.",
+      "tiktok": "TikTok Ads Manager → Reporting → choose the dimension “Day” (By day) → Export → CSV.",
+      "snapchat": "Snapchat Ads Manager → Reports → set “Breakdown by day” → Export → CSV.",
+      "google": "Google Ads → Campaigns → Segment → Time → Day → Download → CSV.",
+      "custom": "In the platform's report, add the day (date) as a row dimension, then export as CSV."
+    },
+    "outsideTitle": "{count, plural, one {# day is} other {# days are}} outside the campaign's dates ({start} – {end})",
+    "outsideExtend": "Change the campaign dates to {from} – {to}",
+    "outsideExtendHint": "The platform reports spend on those days, so the campaign ran then.",
+    "outsideSkip": "Leave those days out",
+    "outsideNoRight": "You can't change the campaign dates, so those days will be left out.",
+    "doneExtended": "Campaign dates changed to {from} – {to}",
+    "doneSkipped": "{count, plural, one {# day outside the campaign was} other {# days outside the campaign were}} left out"
   },
   "creatives": {
     "title": "Creatives",

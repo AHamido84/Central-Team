@@ -87,5 +87,6 @@
   "email_used_by_team_member": "This email belongs to an agency team member and can't be used for a portal user.",
   "email_used_by_portal_user": "This email is already used by another portal account in your agency. You can add that person to this client instead.",
   "existing_portal_user": "This person already has a portal account. Add them to this client instead of inviting them.",
-  "not_portal_user": "This user is on the agency team; change their email in Admin → Users."
+  "not_portal_user": "This user is on the agency team; change their email in Admin → Users.",
+  "import_outside_campaign": "Every day in the file is outside the campaign's dates."
 }

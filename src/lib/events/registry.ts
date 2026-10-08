@@ -113,6 +113,7 @@ export type DomainEventPayloads = {
   'campaign.metrics_stale': { campaignId: string; clientId: string; lastDate: string | null; days: number };
   'metrics.recorded': { campaignId: string; clientId: string; days: number };
   'metrics.imported': { campaignId: string; clientId: string; importId: string; rows: number; preset: string };
+  'metrics.import_undone': { campaignId: string; clientId: string; importId: string; days: number };
   'report.created': { reportId: string; clientId: string; scheduleId: string | null };
   'report.updated': { reportId: string; clientId: string };
   /** A scheduled report was generated as a draft and waits for the team. */

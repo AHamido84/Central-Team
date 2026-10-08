@@ -166,6 +166,9 @@ export const metricImports = pgTable(
     dateFrom: date('date_from').notNull(),
     dateTo: date('date_to').notNull(),
     importedBy: uuid('imported_by').references(() => profiles.id, { onDelete: 'set null' }),
+    /** "Undo import" (FR6.3): the days still holding this import's numbers were removed; the entry stays as history. */
+    undoneAt: timestamp('undone_at', { withTimezone: true }),
+    undoneBy: uuid('undone_by').references(() => profiles.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
   },
   (t) => [

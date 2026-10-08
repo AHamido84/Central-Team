@@ -1,10 +1,11 @@
 'use client';
 
-import { ChevronDown, FilePlus2, ImageIcon, Link2, Pencil, Trash2, Unlink, Upload } from 'lucide-react';
+import { ChevronDown, FilePlus2, ImageIcon, Link2, Pencil, Trash2, Undo2, Unlink, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState, type ReactNode } from 'react';
+import { toast } from 'sonner';
 
 import { useFormat } from '@/components/providers';
 import { EmptyState, PageHeader } from '@/components/patterns';
@@ -35,7 +36,7 @@ import { MetricsImportDialog } from '@/modules/campaigns/components/metrics-impo
 import { ReportCreateDialog } from '@/modules/campaigns/components/report-create-dialog';
 import { ReportList } from '@/modules/campaigns/components/report-list';
 import { campaignStatuses } from '@/modules/campaigns/constants';
-import { deleteCampaignAction, linkDeliverableAction, setCampaignStatusAction } from '@/modules/campaigns/server/actions';
+import { deleteCampaignAction, linkDeliverableAction, setCampaignStatusAction, undoImportAction } from '@/modules/campaigns/server/actions';
 import type { CampaignDetail, CampaignOption } from '@/modules/campaigns/server/queries';
 import type { DeliverableSummary } from '@/modules/deliverables/server/queries';
 
@@ -176,6 +177,18 @@ export function CampaignWorkspace({
     onSuccess: () => router.push('/campaigns'),
   });
   const unlink = useAction(linkDeliverableAction, { successMessage: t('creatives.unlinked') });
+  // The grid opens on this week after an import or "Show" (FR6.3); `n` remounts it on the new week.
+  const [focus, setFocus] = useState<{ date: string; channelId: string; n: number } | null>(null);
+  const showWeek = (date: string, channelId: string) => {
+    setFocus((prev) => ({ date, channelId, n: (prev?.n ?? 0) + 1 }));
+    document.getElementById('metrics-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const [undoing, setUndoing] = useState<CampaignDetail['imports'][number] | null>(null);
+  const undo = useAction(undoImportAction, {
+    onSuccess: (data) => {
+      toast.success(t('metrics.undone', { days: data.days }));
+    },
+  });
   const deletable = campaign.status === 'draft' || campaign.status === 'archived';
 
   const onTab = (value: string) => {
@@ -322,11 +335,17 @@ export function CampaignWorkspace({
                 campaignId={campaign.id}
                 channels={campaign.channels}
                 currency={campaign.currency}
+                startDate={campaign.startDate}
+                endDate={campaign.endDate}
+                canExtend={can.manage}
+                onImported={showWeek}
               />
             ) : null}
           </div>
           {can.metrics ? (
             <MetricsGrid
+              key={focus?.n ?? 0}
+              focus={focus}
               campaignId={campaign.id}
               channels={campaign.channels}
               rows={campaign.rows}
@@ -355,14 +374,54 @@ export function CampaignWorkspace({
                         })}
                       </span>
                     </span>
-                    <span className="text-xs text-subtle-foreground">
+                    <span className="flex flex-wrap items-center gap-2 text-xs text-subtle-foreground">
                       {[i.importedBy?.name, f.relative(i.createdAt)].filter(Boolean).join(' · ')}
+                      {i.undoneAt ? (
+                        <Badge tone="neutral" data-testid="import-undone">
+                          {t('metrics.undoneBadge')}
+                        </Badge>
+                      ) : can.metrics ? (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={() => showWeek(i.dateTo, i.channelId)}
+                            data-testid="import-show"
+                          >
+                            {t('metrics.showImport')}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-danger"
+                            onClick={() => setUndoing(i)}
+                            data-testid="import-undo"
+                          >
+                            <Undo2 aria-hidden />
+                            {t('metrics.undoImport')}
+                          </Button>
+                        </>
+                      ) : null}
                     </span>
                   </li>
                 ))}
               </ul>
             )}
           </Card>
+          <ConfirmDialog
+            open={Boolean(undoing)}
+            onOpenChange={(o) => !o && setUndoing(null)}
+            title={t('metrics.undoTitle')}
+            description={t('metrics.undoBody', { file: undoing?.fileName ?? '' })}
+            confirmLabel={t('metrics.undoImport')}
+            cancelLabel={tc('cancel')}
+            destructive
+            onConfirm={async () => {
+              if (undoing) await undo.run({ importId: undoing.id });
+              setUndoing(null);
+            }}
+          />
         </TabsContent>
         <TabsContent value="creatives" className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-2">

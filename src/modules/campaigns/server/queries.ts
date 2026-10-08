@@ -185,6 +185,8 @@ export type ImportItem = {
   dateTo: string;
   importedBy: Person | null;
   createdAt: string;
+  /** "Undo import" (FR6.3). */
+  undoneAt: string | null;
 };
 
 export type CampaignDetail = CampaignSummary & {
@@ -294,6 +296,7 @@ export async function getCampaign(campaignId: string, side: 'agency' | 'client' 
       dateTo: i.dateTo,
       importedBy: by?.id ? by : null,
       createdAt: i.createdAt.toISOString(),
+      undoneAt: i.undoneAt?.toISOString() ?? null,
     })),
   };
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { FileUp, Upload } from 'lucide-react';
+import { CalendarRange, FileUp, TriangleAlert, Upload } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState, type DragEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
@@ -34,11 +34,22 @@ export function MetricsImportDialog({
   campaignId,
   channels,
   currency,
+  startDate,
+  endDate,
+  canExtend,
+  onImported,
 }: {
   trigger: ReactNode;
   campaignId: string;
   channels: ChannelItem[];
   currency: string;
+  /** The campaign's dates: days outside them are extended into or left out (FR6.2). */
+  startDate: string;
+  endDate: string;
+  /** `campaigns:manage` — moving the campaign dates edits the campaign. */
+  canExtend: boolean;
+  /** The grid jumps to the imported week (FR6.3). */
+  onImported?: (lastDate: string, channelId: string) => void;
 }) {
   const t = useTranslations('campaigns');
   const tc = useTranslations('common');
@@ -49,11 +60,20 @@ export function MetricsImportDialog({
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [channelId, setChannelId] = useState(channels[0]?.id ?? '');
   const [dragging, setDragging] = useState(false);
+  const [outsideChoice, setOutsideChoice] = useState<'extend' | 'skip'>(canExtend ? 'extend' : 'skip');
+  const day = (iso: string) => f.date(`${iso}T12:00:00Z`);
   const run = useAction(importMetricsAction, {
     onSuccess: (data) => {
-      toast.success(t('import.done', { rows: data.rows }));
+      toast.success(t('import.done', { rows: data.rows }), {
+        description: data.extended
+          ? t('import.doneExtended', { from: day(data.extended.startDate), to: day(data.extended.endDate) })
+          : data.skipped
+            ? t('import.doneSkipped', { count: data.skipped })
+            : undefined,
+      });
       setOpen(false);
       setLoaded(null);
+      onImported?.(data.dateTo, channelId);
     },
   });
 
@@ -94,6 +114,16 @@ export function MetricsImportDialog({
 
   const r = loaded?.result;
   const rows = r?.rows ?? [];
+  const outside = rows.filter((row) => row.date < startDate || row.date > endDate);
+  const extendTo =
+    rows.length > 0
+      ? {
+          from: rows[0]!.date < startDate ? rows[0]!.date : startDate,
+          to: rows[rows.length - 1]!.date > endDate ? rows[rows.length - 1]!.date : endDate,
+        }
+      : null;
+  const choice = canExtend ? outsideChoice : 'skip';
+  const importable = outside.length && choice === 'skip' ? rows.length - outside.length : rows.length;
   const totals = rows.reduce(
     (acc, row) => {
       for (const m of baseMetrics) acc[m] += row[m];
@@ -213,7 +243,38 @@ export function MetricsImportDialog({
                 </div>
               </details>
 
-              {r!.mapping.date === undefined ? (
+              {r!.period ? (
+                <section
+                  role="alert"
+                  className="flex flex-col gap-3 rounded-lg border border-warning/40 bg-warning-soft/40 p-4 text-sm"
+                  data-testid="import-period"
+                >
+                  <p className="flex items-start gap-2 font-medium">
+                    <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+                    {t('import.periodTitle', { from: day(r!.period.from), to: day(r!.period.to) })}
+                  </p>
+                  <p className="text-muted-foreground">{t('import.periodBody')}</p>
+                  <div>
+                    <p className="mb-1 text-xs font-medium">{t('import.periodTotals', { rows: r!.period.rows })}</p>
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-3">
+                      {baseMetrics
+                        .filter((m) => r!.mapping[m] !== undefined)
+                        .map((m) => (
+                          <div key={m} className="flex justify-between gap-2">
+                            <dt className="text-muted-foreground">{t(`metric.${m}`)}</dt>
+                            <dd className="tabular font-medium">{value(m, r!.period!.totals[m], { compact: true })}</dd>
+                          </div>
+                        ))}
+                    </dl>
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs font-medium">{t('import.periodHowTitle')}</p>
+                    <p className="text-xs" data-testid="import-period-how">
+                      {t(`import.periodHow.${r!.preset}`)}
+                    </p>
+                  </div>
+                </section>
+              ) : r!.mapping.date === undefined ? (
                 <p role="alert" className="text-sm font-medium text-danger">
                   {t('import.noDate')}
                 </p>
@@ -263,6 +324,41 @@ export function MetricsImportDialog({
                       </tbody>
                     </table>
                   </div>
+                  {outside.length && extendTo ? (
+                    <fieldset className="flex flex-col gap-2 rounded-lg border border-border p-3" data-testid="import-outside">
+                      <legend className="flex items-center gap-2 px-1 text-sm font-medium">
+                        <CalendarRange className="size-4 text-subtle-foreground" aria-hidden />
+                        {t('import.outsideTitle', { count: outside.length, start: day(startDate), end: day(endDate) })}
+                      </legend>
+                      {canExtend ? (
+                        (['extend', 'skip'] as const).map((o) => (
+                          <label key={o} className="flex cursor-pointer items-start gap-2 text-sm">
+                            <input
+                              type="radio"
+                              name="importOutside"
+                              value={o}
+                              checked={outsideChoice === o}
+                              onChange={() => setOutsideChoice(o)}
+                              className="mt-1 accent-[var(--primary)]"
+                              data-testid={`import-outside-${o}`}
+                            />
+                            <span>
+                              <span className="block">
+                                {o === 'extend'
+                                  ? t('import.outsideExtend', { from: day(extendTo.from), to: day(extendTo.to) })
+                                  : t('import.outsideSkip')}
+                              </span>
+                              {o === 'extend' ? (
+                                <span className="block text-xs text-subtle-foreground">{t('import.outsideExtendHint')}</span>
+                              ) : null}
+                            </span>
+                          </label>
+                        ))
+                      ) : (
+                        <p className="text-xs text-muted-foreground">{t('import.outsideNoRight')}</p>
+                      )}
+                    </fieldset>
+                  ) : null}
                   <p className="text-xs text-subtle-foreground">{t('import.replaceNote')}</p>
                 </section>
               )}
@@ -280,7 +376,7 @@ export function MetricsImportDialog({
             </Button>
           )}
           <Button
-            disabled={!loaded || rows.length === 0 || !channelId || r?.mapping.date === undefined}
+            disabled={!loaded || importable === 0 || !channelId || r?.mapping.date === undefined || Boolean(r?.period)}
             loading={run.pending}
             onClick={() =>
               loaded &&
@@ -290,12 +386,13 @@ export function MetricsImportDialog({
                 fileName: loaded.name.slice(0, 255) || 'import.csv',
                 preset: loaded.result.preset,
                 rows: rows.map(({ date, ...m }) => ({ date, ...m })),
+                outside: choice,
               })
             }
             data-testid="import-confirm"
           >
             <Upload aria-hidden />
-            {t('import.confirm', { rows: rows.length })}
+            {t('import.confirm', { rows: importable })}
           </Button>
         </DialogFooter>
       </DialogContent>

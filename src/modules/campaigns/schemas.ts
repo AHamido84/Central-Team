@@ -90,7 +90,11 @@ export const importMetricsSchema = z.object({
     .min(1, { message: 'import_empty' })
     .max(IMPORT_MAX_ROWS)
     .refine((rows) => new Set(rows.map((r) => r.date)).size === rows.length, { message: 'duplicate_date' }),
+  /** Days before the campaign's start or after its end (FR6.2): move the dates to fit, or leave those days out. */
+  outside: z.enum(['extend', 'skip']).default('skip'),
 });
+
+export const undoImportSchema = z.object({ importId: z.uuid() });
 
 export const linkDeliverableSchema = z.object({ deliverableId: z.uuid(), campaignId: z.uuid().nullable() });
 export const linkRequestSchema = z.object({ requestId: z.uuid(), campaignId: z.uuid().nullable() });

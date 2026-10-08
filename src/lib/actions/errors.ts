@@ -42,6 +42,7 @@ export const actionErrorCodes = [
   'invalid_file',
   'report_published',
   'import_empty',
+  'import_outside_campaign',
   'campaign_not_deletable',
   'channel_has_metrics',
   'invalid_stage',
