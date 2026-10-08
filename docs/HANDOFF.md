@@ -144,7 +144,7 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 |---|---|
 | URL | https://centralteam.vercel.app (Vercel project `centralteam`, Hobby plan) |
 | Database | Supabase project `udqhetkwsqpyyuurajcb` (created through the Vercel ↔ Supabase integration) |
-| Deployed from | branch `claude/blissful-hawking-7crr14`, commit `8511e83` (Phases 0–8 + Feedback Rounds 1–5), deployment `dpl_8BrpWJumuYzoXMb2QpDUSXbKVjh2` on 2026-10-08 — all 39 migrations applied (last: `20261008104500_leads_trash_security`) |
+| Deployed from | branch `claude/blissful-hawking-7crr14`, commit `358fa42` (Phases 0–8 + Feedback Rounds 1–6), deployment `dpl_DNPfumW9sLXiMocjisqHu8hy18Fd` on 2026-10-08 — all 41 migrations applied (last: `20261008124000_metric_import_undo_security`) |
 | Data | **the owner's own data**: the demo clients were cleared (data reset, ADR-081) and the demo sign-ins no longer work (`faisal@` is refused, `sara@`'s password was changed). Deploys now skip every demo top-up once the demo clients are gone, so `hala@group.test` is **not** seeded on production |
 
 How it works:
@@ -392,7 +392,7 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
 ## Feedback Round 6 — manual test checklist (local: `pnpm db:reset`, password `Passw0rd!`)
 
 Built on `claude/blissful-hawking-7crr14` (ADR-095); migrations `20261008123900_metric_import_undo` and
-`20261008124000_metric_import_undo_security`. Deploy waits for the owner.
+`20261008124000_metric_import_undo_security`. **Deployed** 2026-10-08 (`358fa42`); on production only health and the sign-in guard were checked.
 
 1. As `faisal@ofoq.test`: Campaigns → any campaign → Daily numbers → Import CSV → choose an Ads Manager export
    **without** a daily breakdown (Reporting starts ≠ Reporting ends). The preview shows "totals for … – …, not one row

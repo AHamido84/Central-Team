@@ -961,4 +961,4 @@ Owner's report: after importing a Meta file, the daily grid stays empty. Root ca
 - [x] FR6.2 Days outside the campaign: extend or skip
 - [x] FR6.3 Jump to imported week; Show / Undo import in the history
 - [x] FR6.4 Tests (4 unit, 3 DB, 4 e2e) and docs
-- [ ] FR6.4 Deploy and verify (when the owner says so)
+- [x] FR6.4 Deployed 2026-10-08 (`358fa42`); migrations applied, health checked on production, signed-in flows verified locally
