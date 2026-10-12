@@ -244,6 +244,8 @@ type AssistantProps = {
   usable: boolean;
   /** `ai:manage`: failures that settings can fix link to `/admin/ai`. */
   canManage: boolean;
+  /** Executives (FR7) get board-level question chips; their answers can use the Executive Center's KPIs. */
+  executive?: boolean;
 };
 
 /**
@@ -287,7 +289,7 @@ export function Assistant(props: AssistantProps) {
   );
 }
 
-function AssistantPanel({ conversations, conversation, usable, canManage }: AssistantProps) {
+function AssistantPanel({ conversations, conversation, usable, canManage, executive }: AssistantProps) {
   const t = useTranslations('ai.assistant');
   const f = useFormat();
   const router = useRouter();
@@ -334,7 +336,9 @@ function AssistantPanel({ conversations, conversation, usable, canManage }: Assi
     router.refresh();
   };
 
-  const suggestions = (['one', 'two', 'three', 'four'] as const).map((k) => t(`suggestions.${k}`));
+  const suggestions = (['one', 'two', 'three', 'four'] as const).map((k) =>
+    executive ? t(`executiveSuggestions.${k}`) : t(`suggestions.${k}`),
+  );
 
   return (
     <div className="grid min-h-[calc(100dvh-12rem)] grid-cols-1 gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">

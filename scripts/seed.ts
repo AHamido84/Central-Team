@@ -20,6 +20,7 @@ import { artworkPng, simplePdf } from './seed-assets';
 import { seedAiData } from './seed-ai';
 import { seedCampaignsData } from './seed-campaigns';
 import { seedCrmData } from './seed-crm';
+import { seedExecutiveData } from './seed-executive';
 import { seedIntegrationsData } from './seed-integrations';
 import { seedSlaData } from './seed-sla';
 import { seedRequestsData } from './seed-requests';
@@ -912,6 +913,17 @@ async function main() {
   await seedAiData({
     db,
     ids,
+    orgId: ORG_ID,
+    today: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+      new Date(),
+    ),
+  });
+
+  // Feedback Round 7: twelve months of history for the Executive Center.
+  await seedExecutiveData({
+    db,
+    ids,
+    clientIds,
     orgId: ORG_ID,
     today: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(
       new Date(),

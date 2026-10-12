@@ -179,7 +179,8 @@
       "report": "Report",
       "lead": "Lead",
       "deal": "Deal",
-      "insight": "Insight"
+      "insight": "Insight",
+      "kpi": "Executive KPI"
     },
     "reason": {
       "ai_disabled": "AI is switched off for your agency. An admin can turn it on in AI settings.",
@@ -196,7 +197,13 @@
     "fixInSettings": "Fix in AI settings",
     "panelErrorTitle": "The conversation couldn't be shown",
     "panelErrorBody": "Something went wrong in the assistant panel. The rest of the page works; try again.",
-    "panelRetry": "Try again"
+    "panelRetry": "Try again",
+    "executiveSuggestions": {
+      "one": "How is revenue this quarter compared with last year?",
+      "two": "Which clients are at risk, and why?",
+      "three": "Are we on track for this month’s targets?",
+      "four": "Where is the team over capacity in the coming weeks?"
+    }
   },
   "admin": {
     "title": "AI settings",

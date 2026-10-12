@@ -1,6 +1,6 @@
 import type { Locale } from '@/lib/i18n/localized';
 import type { AiFailureCode } from '@/modules/ai/errors';
-import type { SourceType } from '@/modules/ai/types';
+import type { CitationType } from '@/modules/ai/types';
 
 export type AiPurpose = 'assistant' | 'report_draft' | 'insight_explain' | 'executive_brief';
 
@@ -23,7 +23,7 @@ export type AiTurn = {
 };
 
 /** A retrieved source as the model sees it: numbered, so the answer can cite `[n]`. */
-export type GroundingSource = { n: number; sourceType: SourceType; title: string; content: string };
+export type GroundingSource = { n: number; sourceType: CitationType; title: string; content: string };
 
 /**
  * What a prompt was built from. Live adapters rely on the prompt text (which contains all of it); the mock composes its

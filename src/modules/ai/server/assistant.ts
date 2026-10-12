@@ -9,6 +9,8 @@ import { withRls } from '@/lib/db/rls';
 import { dbAdmin } from '@/lib/db/client';
 import { aiChunks, aiConversations, aiMessages } from '@/lib/db/schema';
 import type { Locale } from '@/lib/i18n/localized';
+import { can } from '@/lib/permissions/can';
+import { EXECUTIVE_TOOL } from '@/modules/ai/assistant-tools';
 import { isAiFailureCode, type AiFailureCode } from '@/modules/ai/errors';
 import { textKit } from '@/modules/ai/kit';
 import { ASSISTANT_HISTORY, assistantToolsPrompt, resolveCitations } from '@/modules/ai/prompts';
@@ -17,11 +19,17 @@ import { runTool, SourceRegistry } from '@/modules/ai/server/assistant-tools';
 import { getAIClient } from '@/modules/ai/server/client';
 import { assertAiReady, embedTexts, generate } from '@/modules/ai/server/runtime';
 import type { Citation, SourceType } from '@/modules/ai/types';
+import { runExecutiveTool } from '@/modules/executive/server/assistant-tool';
 import { dayInZone } from '@/modules/tasks/constants';
 
 export const RETRIEVAL_K = 8;
 
-export type RetrievedChunk = GroundingSource & { sourceId: string; url: string; similarity: number };
+export type RetrievedChunk = Omit<GroundingSource, 'sourceType'> & {
+  sourceType: SourceType;
+  sourceId: string;
+  url: string;
+  similarity: number;
+};
 
 /**
  * Nearest chunks to a query vector **as the caller** (ADR-075): runs in the user's RLS transaction, so the chunk
@@ -163,7 +171,9 @@ export async function runAssistant(
   const today = dayInZone(new Date(), ctx.organization.defaultTimezone);
   const kit = textKit(locale, ctx.organization.defaultTimezone);
   const sources = new SourceRegistry();
-  const base = assistantToolsPrompt(locale, question, history, today);
+  // Executives (FR7) also get the Executive Center's KPIs as a tool.
+  const canUseExecutive = can(ctx.permissions, 'executive:view');
+  const base = assistantToolsPrompt(locale, question, history, today, { executive: canUseExecutive });
   const turns: AiTurn[] = [...base.messages];
   const usage = { input: 0, output: 0 };
   const toolsUsed: string[] = [];
@@ -208,9 +218,28 @@ export async function runAssistant(
         }
       }
     }
+    // The Executive Center tool reads through the Center's own loader (its own RLS transactions), so it runs first.
+    const executive = new Map<string, AiToolResult>();
+    for (const call of calls) {
+      if (call.name !== EXECUTIVE_TOOL) continue;
+      executive.set(
+        call.id,
+        canUseExecutive
+          ? await runExecutiveTool(ctx, locale, call, sources).catch((error) => {
+              console.error('[ai] executive tool failed', error);
+              return { toolUseId: call.id, content: 'The tool failed; say the numbers could not be read.', isError: true };
+            })
+          : { toolUseId: call.id, content: 'This tool is not available to this user.', isError: true },
+      );
+    }
     const results = await withRls(async (tx) => {
       const out: AiToolResult[] = [];
       for (const call of calls) {
+        const done = executive.get(call.id);
+        if (done) {
+          out.push(done);
+          continue;
+        }
         const vector = vectors.get(call.id);
         out.push(
           await runTool(

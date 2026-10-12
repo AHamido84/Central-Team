@@ -28,7 +28,11 @@ export function Section({
   testId?: string;
 }) {
   return (
-    <Card className={cn('min-w-0 space-y-3 p-5', className)} data-testid={testId}>
+    // A chart brings its own title: the card's heading then stays for screen readers only (no visual duplicate).
+    <Card
+      className={cn('min-w-0 space-y-3 p-5 [&:has(figcaption,[data-testid=chart-table-toggle])>h3]:sr-only', className)}
+      data-testid={testId}
+    >
       <h3 className="text-sm font-semibold">{title}</h3>
       {children}
     </Card>

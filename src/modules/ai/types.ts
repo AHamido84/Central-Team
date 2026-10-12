@@ -54,7 +54,7 @@ export type RecommendationFacts = {
 
 export type Citation = {
   n: number;
-  sourceType: SourceType;
+  sourceType: CitationType;
   sourceId: string;
   title: string;
   url: string;
@@ -62,3 +62,6 @@ export type Citation = {
 
 export const sourceTypes = ['client', 'campaign', 'request', 'task', 'report', 'lead', 'deal', 'insight'] as const;
 export type SourceType = (typeof sourceTypes)[number];
+/** What an answer can cite: indexed records, plus Executive Center KPIs (computed, never indexed — FR7). */
+export const citationTypes = [...sourceTypes, 'kpi'] as const;
+export type CitationType = (typeof citationTypes)[number];

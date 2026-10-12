@@ -35,7 +35,15 @@ export const toolInputs = {
     campaign: z.string().trim().max(120).optional(),
     days: z.number().int().min(1).max(90).default(30),
   }),
+  executive_kpis: z.object({
+    period: z.enum(['this_month', 'last_month', 'qtd', 'ytd', 'last_12m']).default('this_month'),
+    compare: z.enum(['previous', 'last_year']).default('previous'),
+    area: z.enum(['overview', 'clients', 'operations', 'team', 'marketing', 'sales', 'risks']).default('overview'),
+  }),
 } as const;
+
+/** Only offered to people who can open the Executive Center (FR7). */
+export const EXECUTIVE_TOOL = 'executive_kpis';
 
 export type ToolName = keyof typeof toolInputs;
 export const toolNames = Object.keys(toolInputs) as ToolName[];
@@ -111,6 +119,32 @@ export const toolSpecs: AiToolSpec[] = [
         client: clientParam,
         campaign: { type: 'string', description: 'A campaign name (partial is fine).' },
         days: { type: 'integer', minimum: 1, maximum: 90 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'executive_kpis',
+    description:
+      'The Executive Center: agency-wide KPIs for a period with the change vs a comparison period and progress to target — revenue, clients gained/lost, retention, on-time delivery, SLA, utilization, ad spend, ROAS/CPA, leads, win rate, pipeline and forecast — plus what needs attention and the risk register. Use it for questions about overall performance, targets, trends, risks or "how are we doing". Numbers are computed by the platform; quote them as given.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        period: {
+          type: 'string',
+          enum: ['this_month', 'last_month', 'qtd', 'ytd', 'last_12m'],
+          description: 'qtd = quarter to date, ytd = year to date.',
+        },
+        compare: {
+          type: 'string',
+          enum: ['previous', 'last_year'],
+          description: 'previous = the same number of days right before; last_year = the same dates a year earlier.',
+        },
+        area: {
+          type: 'string',
+          enum: ['overview', 'clients', 'operations', 'team', 'marketing', 'sales', 'risks'],
+          description: 'Which group of KPIs (overview = the top line).',
+        },
       },
       additionalProperties: false,
     },
@@ -266,14 +300,24 @@ const TASKS = /مهم|مهام|task|todo/i;
 const OVERDUE = /متأخر|متاخر|overdue|late|past due/i;
 const TODAY = /اليوم|النهارد|today/i;
 const CAMPAIGNS = /حمل|campaign|اعلان|إعلان|ads?\b|spend|leads?\b/i;
+const EXECUTIVE =
+  /إيراد|ايراد|مستهدف|هدف|أهداف|مجلس|أداء الوكالة|مخاطر|استغلال|نسبة الفوز|revenue|target|board|kpi|risk|utili[sz]ation|win rate|how are we doing/i;
 const CLIENT_SUMMARY = /(?:summari[sz]e|overview|ملخص|لخ[ّ]?ص)\s+(?:client\s+|العميل\s+|عميل\s+)?([^\s'’?؟]+)/i;
 
 /**
  * The mock's tool plan for a question (ADR-073/090): deterministic keyword rules so demos and tests exercise the same
  * loop, tools and RLS as the live model. The live model plans for itself.
  */
-export function planMockTools(question: string): AiToolCall[] {
+export function planMockTools(question: string, available: readonly string[] = []): AiToolCall[] {
   const calls: Omit<AiToolCall, 'id'>[] = [];
+  if (available.includes(EXECUTIVE_TOOL) && EXECUTIVE.test(question))
+    calls.push({
+      name: EXECUTIVE_TOOL,
+      input: {
+        period: /ربع|quarter/i.test(question) ? 'qtd' : /سن[ةه]|year/i.test(question) ? 'ytd' : 'this_month',
+        area: /مخاطر|risk/i.test(question) ? 'risks' : 'overview',
+      },
+    });
   const summary = CLIENT_SUMMARY.exec(question);
   if (summary && /client|عميل|العميل/i.test(question))
     calls.push({ name: 'client_overview', input: { client: summary[1], period: 'this_month' } });

@@ -25,7 +25,13 @@ export default async function AssistantPage() {
   return (
     <>
       <PageHeader title={t('title')} description={t('description')} />
-      <Assistant conversations={conversations} conversation={null} usable={ai.usable} canManage={can(ctx.permissions, 'ai:manage')} />
+      <Assistant
+        conversations={conversations}
+        conversation={null}
+        usable={ai.usable}
+        canManage={can(ctx.permissions, 'ai:manage')}
+        executive={can(ctx.permissions, 'executive:view')}
+      />
     </>
   );
 }

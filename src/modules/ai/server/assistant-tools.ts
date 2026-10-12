@@ -9,7 +9,7 @@ import { isToolName, searchTerms, SQL_NORMALIZE_FROM, SQL_NORMALIZE_TO, toolInpu
 import { buildChunks, type ChunkDraft } from '@/modules/ai/indexer-core';
 import type { TextKit } from '@/modules/ai/insight-text';
 import type { AiToolCall, AiToolResult, GroundingSource } from '@/modules/ai/providers/types';
-import type { SourceType } from '@/modules/ai/types';
+import type { CitationType, SourceType } from '@/modules/ai/types';
 import { addDays } from '@/modules/tasks/constants';
 
 export type ToolSource = GroundingSource & { sourceId: string; url: string };
@@ -19,7 +19,7 @@ export class SourceRegistry {
   private readonly byKey = new Map<string, ToolSource>();
   static readonly MAX = 40;
 
-  add(d: Pick<ChunkDraft, 'sourceType' | 'sourceId' | 'title' | 'url' | 'content'>): ToolSource | null {
+  add(d: Pick<ChunkDraft, 'sourceId' | 'title' | 'url' | 'content'> & { sourceType: CitationType }): ToolSource | null {
     const key = `${d.sourceType}:${d.sourceId}`;
     const known = this.byKey.get(key);
     if (known) return known;
@@ -420,6 +420,9 @@ export async function runTool(c: ToolContext, call: AiToolCall): Promise<AiToolR
           return clientOverview(sc, parsed.data as z.infer<(typeof toolInputs)['client_overview']>);
         case 'campaign_metrics':
           return campaignMetrics(sc, parsed.data as z.infer<(typeof toolInputs)['campaign_metrics']>);
+        case 'executive_kpis':
+          // Answered by `runExecutiveTool` before the transaction (FR7); never reaches here.
+          return { text: 'Not available here.', isError: true };
       }
     });
     return { toolUseId: call.id, content: out.text, isError: out.isError };

@@ -54,7 +54,10 @@ export const mockCompleter: AiCompleter = {
     const usage = (text: string) => ({ input: approxTokens(prompt), output: approxTokens(text) });
     // Tool loop (ADR-090): plan once from the question, then answer from what the tools returned.
     if (input.tools?.length && input.grounding.kind === 'assistant' && !input.messages.some((m) => m.toolResults?.length)) {
-      const toolCalls = planMockTools(input.grounding.question);
+      const toolCalls = planMockTools(
+        input.grounding.question,
+        input.tools.map((t) => t.name),
+      );
       return { text: '', stop: 'tool_use', model: MOCK_MODEL, usage: usage(''), toolCalls };
     }
     const text = composeMock(input);

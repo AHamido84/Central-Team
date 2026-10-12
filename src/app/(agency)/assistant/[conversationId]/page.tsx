@@ -42,6 +42,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ c
         conversation={conversation}
         usable={ai.usable}
         canManage={can(ctx.permissions, 'ai:manage')}
+        executive={can(ctx.permissions, 'executive:view')}
       />
     </>
   );
