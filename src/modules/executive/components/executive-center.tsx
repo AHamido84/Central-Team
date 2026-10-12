@@ -12,10 +12,13 @@ import { tabKpis, type KpiKey } from '@/modules/executive/catalog';
 import type { ExecutiveReport } from '@/modules/executive/compute';
 import { viewSearch } from '@/modules/executive/config';
 import { ExecutiveBrief } from '@/modules/executive/components/executive-brief';
+import { ExportMenu, RefreshButton, ViewsMenu } from '@/modules/executive/components/executive-actions';
 import { ExecutiveControls } from '@/modules/executive/components/executive-controls';
 import { KpiTile } from '@/modules/executive/components/kpi-tile';
+import { NoteDialog, NotesPanel } from '@/modules/executive/components/notes';
 import { ClientsTab, MarketingTab, OperationsTab, RiskRow, RisksTab, SalesTab, TeamTab } from '@/modules/executive/components/tab-views';
 import { useExecKit } from '@/modules/executive/components/use-kit';
+import type { NoteRow, SavedView } from '@/modules/executive/server/queries';
 import type { ExecKit } from '@/modules/executive/text';
 import { executiveTabs, type ExecutiveTab } from '@/modules/executive/types';
 
@@ -92,12 +95,14 @@ function TabBody({
   tab,
   canUseAi,
   onNote,
+  notes,
 }: {
   kit: ExecKit;
   report: ExecutiveReport;
   tab: ExecutiveTab;
   canUseAi: boolean;
   onNote?: (k: KpiKey) => void;
+  notes?: ReactNode;
 }) {
   const views: Record<Exclude<ExecutiveTab, 'overview'>, ReactNode> = {
     clients: <ClientsTab kit={kit} report={report} />,
@@ -114,6 +119,7 @@ function TabBody({
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <Attention kit={kit} report={report} />
           <ExecutiveBrief kit={kit} report={report} canUseAi={canUseAi} />
+          {notes ? <div className="lg:col-span-2">{notes}</div> : null}
         </div>
       ) : (
         views[tab]
@@ -125,15 +131,19 @@ function TabBody({
 export function ExecutiveCenter({
   report,
   canUseAi,
-  actions,
-  onNote,
+  canExport,
+  views,
+  notes,
+  me,
   updatedAt,
 }: {
   report: ExecutiveReport;
   canUseAi: boolean;
-  /** Header actions (export, saved views, refresh) rendered by the page. */
-  actions?: ReactNode;
-  onNote?: (k: KpiKey) => void;
+  canExport: boolean;
+  views: SavedView[];
+  notes: NoteRow[];
+  /** The signed-in user (resolving notes). */
+  me: string;
   updatedAt: string;
 }) {
   const kit = useExecKit();
@@ -142,6 +152,11 @@ export function ExecutiveCenter({
   const [tab, setTab] = useState<ExecutiveTab>(report.config.tab);
   const [presenting, setPresenting] = useState(false);
   const stage = useRef<HTMLDivElement>(null);
+  const [noteKpi, setNoteKpi] = useState<KpiKey | null>(null);
+  const people = Object.entries(report.names)
+    .map(([id, name]) => ({ id, name }))
+    .filter((p) => p.name && p.id !== me)
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   // Tabs switch on the client (every tab is already computed) and keep the URL in sync for links and saved views.
   const selectTab = useCallback(
@@ -239,7 +254,9 @@ export function ExecutiveCenter({
           <div className="flex flex-wrap items-end justify-between gap-3">
             <ExecutiveControls kit={kit} config={report.config} options={report.options} />
             <div className="flex flex-wrap items-center gap-2 print:hidden">
-              {actions}
+              <RefreshButton kit={kit} />
+              <ViewsMenu kit={kit} config={{ ...report.config, tab }} views={views} />
+              {canExport ? <ExportMenu kit={kit} config={{ ...report.config, tab }} /> : null}
               <Button variant="outline" onClick={present} data-testid="executive-present">
                 <Presentation />
                 {t('controls.present')}
@@ -274,7 +291,23 @@ export function ExecutiveCenter({
           </nav>
         </>
       )}
-      <TabBody kit={kit} report={report} tab={tab} canUseAi={canUseAi} onNote={presenting ? undefined : onNote} />
+      <TabBody
+        kit={kit}
+        report={report}
+        tab={tab}
+        canUseAi={canUseAi}
+        onNote={presenting ? undefined : setNoteKpi}
+        notes={presenting ? null : <NotesPanel kit={kit} notes={notes} names={report.names} me={me} />}
+      />
+      <NoteDialog
+        key={noteKpi ?? 'closed'}
+        kit={kit}
+        kpi={noteKpi}
+        config={{ ...report.config, tab }}
+        people={people}
+        clients={report.options.clients}
+        onClose={() => setNoteKpi(null)}
+      />
       {presenting ? <p className="text-center text-xs text-subtle-foreground">{t('present.autoRefresh')}</p> : null}
     </div>
   );

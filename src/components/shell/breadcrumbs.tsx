@@ -27,8 +27,15 @@ export function BreadcrumbLabel({ segment, label }: { segment: string; label: st
   return null;
 }
 
+/** Whole paths whose last segment means something else than it does elsewhere. */
+const pathKeys: Record<string, string> = {
+  '/executive/reports': 'nav.boardReports',
+  '/executive/targets': 'nav.targets',
+};
+
 const segmentKeys: Record<string, string> = {
   dashboard: 'nav.dashboard',
+  executive: 'nav.executive',
   notifications: 'nav.inbox',
   clients: 'nav.clients',
   messages: 'nav.messages',
@@ -80,7 +87,7 @@ export function Breadcrumbs() {
   if (segments.length <= 1) return null;
   const crumbs = segments.map((segment, i) => {
     const href = `/${segments.slice(0, i + 1).join('/')}`;
-    const key = segmentKeys[segment];
+    const key = pathKeys[href] ?? segmentKeys[segment];
     const label = ctx?.labels[segment] ?? (key ? t(key as never) : null);
     return { href, label, segment };
   });

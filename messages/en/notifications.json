@@ -189,6 +189,10 @@
     "portal_access_granted": {
       "title": "You now have access to {client}",
       "body": "{actor} added you to {client} as {role}. Pick {client} from your accounts to switch."
+    },
+    "executive_note": {
+      "title": "{actor} left a note on {kpi}",
+      "body": "“{body}” — open the Executive Center to see the numbers it refers to."
     }
   }
 }

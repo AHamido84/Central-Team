@@ -14,6 +14,8 @@ export type EmailMessage = {
   from?: string;
   replyTo?: string;
   tags?: Record<string, string>;
+  /** Files sent with the message (board report PDFs, FR7). */
+  attachments?: { filename: string; contentType: string; content: Buffer }[];
 };
 
 /** Provider interface (ADR-006 / ADR-088). Callers never import a vendor SDK. */
@@ -69,6 +71,7 @@ export class SmtpEmailProvider implements EmailProvider {
       html: message.html,
       text: message.text,
       replyTo: message.replyTo,
+      attachments: message.attachments?.map((a) => ({ filename: a.filename, contentType: a.contentType, content: a.content })),
     });
     return { id: info.messageId };
   }
@@ -94,6 +97,7 @@ export class ResendEmailProvider implements EmailProvider {
       html: message.html,
       text: message.text,
       replyTo: message.replyTo,
+      attachments: message.attachments?.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })),
       tags: message.tags
         ? Object.entries(message.tags).map(([name, value]) => ({ name, value: value.replace(/[^\w-]/g, '_') }))
         : undefined,

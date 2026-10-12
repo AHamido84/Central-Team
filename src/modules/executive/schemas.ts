@@ -36,3 +36,37 @@ export const saveTargetsSchema = z.object({
     )
     .max(targetMetrics.length * 5),
 });
+
+export const saveViewSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  config: viewConfigSchema,
+  pinned: z.boolean().default(false),
+});
+export const viewIdSchema = z.object({ id: z.uuid() });
+export const pinViewSchema = z.object({ id: z.uuid(), pinned: z.boolean() });
+
+export const addNoteSchema = z
+  .object({
+    kpi: z.string().regex(/^[a-z0-9_]{1,40}$/),
+    body: z.string().trim().min(1).max(2000),
+    context: viewConfigSchema,
+    ownerId: z.uuid().nullable(),
+    asTask: z.boolean().default(false),
+    clientId: z.uuid().nullable().default(null),
+    dueDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .nullable()
+      .default(null),
+  })
+  .refine((v) => !v.asTask || (v.ownerId && v.clientId), { path: ['clientId'], message: 'required' });
+export const noteIdSchema = z.object({ id: z.uuid() });
+
+export const scheduleSchema = z.object({
+  id: z.uuid().nullish(),
+  cadence: z.enum(['weekly', 'monthly']),
+  locale: z.enum(['ar', 'en']),
+  recipients: z.array(z.email()).min(1).max(20),
+  isActive: z.boolean().default(true),
+});
+export const scheduleIdSchema = z.object({ id: z.uuid() });

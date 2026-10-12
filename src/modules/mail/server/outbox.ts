@@ -4,6 +4,7 @@ import { and, eq, inArray, lt, sql } from 'drizzle-orm';
 import { after } from 'next/server';
 
 import { dbAdmin } from '@/lib/db/client';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { emailOutbox, mailSettings } from '@/lib/db/schema';
 import { emitEvent } from '@/lib/events/emit';
 import { scheduleEventDispatch } from '@/lib/events/schedule';
@@ -18,6 +19,7 @@ import {
 } from '@/modules/mail/constants';
 import { classifyMailError, isTransient } from '@/modules/mail/server/errors';
 import { resolveSenders, type ResolvedSender } from '@/modules/mail/server/sender';
+import type { EmailAttachment } from '@/modules/executive/types';
 
 type OutboxRow = typeof emailOutbox.$inferSelect;
 
@@ -36,7 +38,12 @@ export type EnqueueInput = {
   sensitive?: boolean;
   createdBy?: string | null;
   resentFrom?: string | null;
+  /** Files in the private `exports` bucket, attached when the message is sent (FR7). */
+  attachments?: EmailAttachment[];
 };
+
+/** Bucket the outbox reads attachments from; files are server-written board reports (ADR-097). */
+export const EXPORTS_BUCKET = 'exports';
 
 /**
  * Service path (CLAUDE.md §6, ADR-088): every email goes through the outbox so a failing provider never breaks the
@@ -59,6 +66,7 @@ export async function enqueueEmail(input: EnqueueInput, opts: { deliver?: 'after
       sensitive: input.sensitive ?? false,
       createdBy: input.createdBy ?? null,
       resentFrom: input.resentFrom ?? null,
+      attachments: input.attachments ?? [],
     })
     .returning({ id: emailOutbox.id });
   if (opts.deliver !== 'none') scheduleEmailQueue([row!.id]);
@@ -163,9 +171,24 @@ export async function processEmailQueue(
   return result;
 }
 
+/** Service path: downloads the message's attachments from the private bucket (a missing file fails the attempt). */
+async function loadAttachments(row: OutboxRow) {
+  if (!row.attachments?.length) return undefined;
+  const storage = supabaseAdmin().storage.from(EXPORTS_BUCKET);
+  return Promise.all(
+    row.attachments.map(async (a) => {
+      const { data, error } = await storage.download(a.storagePath);
+      if (error || !data) throw Object.assign(new Error('attachment_missing'), { code: 'attachment_missing' });
+      return { filename: a.filename, contentType: a.contentType, content: Buffer.from(await data.arrayBuffer()) };
+    }),
+  );
+}
+
 async function attempt(row: OutboxRow, sender: ResolvedSender) {
   const locale: Locale = isLocale(row.locale) ? row.locale : 'ar';
+  const attachments = await loadAttachments(row);
   return sender.provider.send({
+    attachments,
     to: row.toEmail,
     subject: row.subject,
     html: row.html ?? '',
@@ -302,6 +325,12 @@ export async function runMailSweep(): Promise<{ sent: number; failed: number; de
   const purged = await dbAdmin
     .delete(emailOutbox)
     .where(lt(emailOutbox.createdAt, new Date(Date.now() - OUTBOX_RETENTION_DAYS * 86_400_000)))
-    .returning({ id: emailOutbox.id });
+    .returning({ id: emailOutbox.id, attachments: emailOutbox.attachments });
+  // Attachments live as long as their log row.
+  const files = [...new Set(purged.flatMap((r) => (r.attachments ?? []).map((a) => a.storagePath)))];
+  if (files.length) {
+    const { error } = await supabaseAdmin().storage.from(EXPORTS_BUCKET).remove(files);
+    if (error) console.error('[mail] attachment cleanup failed', error.message);
+  }
   return { ...total, purged: purged.length };
 }

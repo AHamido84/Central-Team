@@ -39,6 +39,7 @@ import {
   Zap,
   Sparkles,
   Building2,
+  MessageSquarePlus,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
@@ -95,6 +96,7 @@ const typeIcon: Record<NotificationType, typeof Bell> = {
   whatsapp_failed: MessageCircleX,
   automation_message: Zap,
   ai_insight: Sparkles,
+  executive_note: MessageSquarePlus,
 };
 
 export function NotificationRow({

@@ -8,6 +8,7 @@ import { can } from '@/lib/permissions/can';
 import { parseViewConfig, viewSearch } from '@/modules/executive/config';
 import { ExecutiveCenter } from '@/modules/executive/components/executive-center';
 import { getExecutiveReport } from '@/modules/executive/server/data';
+import { listNotes, listViews } from '@/modules/executive/server/queries';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('executive');
@@ -17,7 +18,12 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ExecutivePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const ctx = await requireAgency('executive:view');
   const config = parseViewConfig(await searchParams);
-  const [report, t] = await Promise.all([getExecutiveReport(ctx, config), getTranslations('executive')]);
+  const [report, views, notes, t] = await Promise.all([
+    getExecutiveReport(ctx, config),
+    listViews(),
+    listNotes(),
+    getTranslations('executive'),
+  ]);
   const readOnly = !can(ctx.permissions, 'tasks:update') && !can(ctx.permissions, 'clients:update');
   return (
     <div className="space-y-6">
@@ -28,6 +34,10 @@ export default async function ExecutivePage({ searchParams }: { searchParams: Pr
         key={viewSearch(config)}
         report={report}
         canUseAi={Boolean(ctx.flags['module.ai']) && can(ctx.permissions, 'ai:use')}
+        canExport={can(ctx.permissions, 'executive:export')}
+        views={views}
+        notes={notes}
+        me={ctx.session.userId}
         updatedAt={new Date().toISOString()}
       />
     </div>

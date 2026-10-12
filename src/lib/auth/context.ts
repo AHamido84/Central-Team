@@ -52,6 +52,14 @@ export type AppContext = AgencyContext | ClientContext;
 export const getAppContext = cache(async (): Promise<AppContext | null> => {
   const session = await getSession();
   if (!session) return null;
+  return loadAppContext(session);
+});
+
+/**
+ * The context for a given verified session. Requests use `getAppContext`; background jobs that act for a person
+ * (the scheduled board report runs as its owner, ADR-097) build the session themselves after a service-path check.
+ */
+export async function loadAppContext(session: Session): Promise<AppContext | null> {
   // The portal user's clients and the one this request is scoped to (ADR-091); empty for agency users.
   const scope = await getPortalScope(session);
 
@@ -116,7 +124,7 @@ export const getAppContext = cache(async (): Promise<AppContext | null> => {
       needsChoice: scope.needsChoice,
     } satisfies ClientContext;
   }, session);
-});
+}
 
 function homeFor(side: UserType) {
   return side === 'agency' ? '/dashboard' : '/portal';

@@ -26,6 +26,10 @@ function SidebarNav({ data, collapsed, onNavigate }: { data: ShellData; collapse
   const t = useTranslations('nav');
   const pathname = usePathname();
   const tooltipSide = useLocale() === 'ar' ? 'left' : 'right';
+  const activeHref = agencyNav
+    .flatMap((section) => section.items)
+    .filter((i) => isActive(pathname, i.href) && isNavItemVisible(i, data.permissions, data.flags, data.superAdmin))
+    .reduce<string | null>((best, i) => (!best || i.href.length > best.length ? i.href : best), null);
   return (
     <nav className="flex-1 overflow-y-auto px-3 py-2" aria-label={t('agencyWorkspace')}>
       {agencyNav.map((section) => {
@@ -40,7 +44,8 @@ function SidebarNav({ data, collapsed, onNavigate }: { data: ShellData; collapse
             )}
             <ul className="space-y-0.5">
               {items.map((item) => {
-                const active = isActive(pathname, item.href);
+                // The most specific match wins (/executive/reports doesn't also light up /executive).
+                const active = item.href === activeHref;
                 const link = (
                   <Link
                     href={item.href}

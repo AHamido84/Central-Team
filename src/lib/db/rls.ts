@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { AsyncLocalStorage } from 'node:async_hooks';
+
 import { sql } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
@@ -83,13 +85,24 @@ export const getPortalScope = cache(async (session: Session): Promise<PortalScop
   return { clients, activeClientId: active.id, needsChoice: !chosen && !lastUsed && clients.length > 1 };
 });
 
+const backgroundSession = new AsyncLocalStorage<Session>();
+
+/**
+ * Background work on behalf of a person (no request, no cookies): every `withRls` inside `fn` runs as `session`, so
+ * the module loaders it calls read exactly what that person may read. Only the scheduled board report uses it, after
+ * a service-path check that the owner is still an active member with the permission (ADR-097).
+ */
+export function runWithSession<T>(session: Session, fn: () => Promise<T>): Promise<T> {
+  return backgroundSession.run(session, fn);
+}
+
 /**
  * Runs `fn` in a transaction as Postgres role `authenticated` with the user's verified JWT claims,
  * so every query is filtered by RLS and `auth.uid()` works in policies and triggers (ADR-003).
  * Portal users are also scoped to their active client (`app.active_client`, ADR-091).
  */
 export async function withRls<T>(fn: (tx: Tx) => Promise<T>, session?: Session | null): Promise<T> {
-  const current = session ?? (await getSession());
+  const current = session ?? backgroundSession.getStore() ?? (await getSession());
   if (!current) throw new UnauthenticatedError();
   const scope = await getPortalScope(current);
   return runAs(current.claims, fn, scope.activeClientId);

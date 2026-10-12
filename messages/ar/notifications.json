@@ -189,6 +189,10 @@
     "portal_access_granted": {
       "title": "أصبح لديك وصول إلى {client}",
       "body": "أضافك {actor} إلى {client} بدور {role}. اختر {client} من قائمة الحسابات للتبديل."
+    },
+    "executive_note": {
+      "title": "ترك {actor} ملاحظة على {kpi}",
+      "body": "«{body}» — افتح مركز الإدارة العليا لترى الأرقام التي تشير إليها."
     }
   }
 }

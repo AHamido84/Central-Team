@@ -224,11 +224,15 @@ export type DomainEventPayloads = {
   'executive.view_saved': { viewId: string; name: string };
   'executive.view_deleted': { viewId: string };
   /** A note on a KPI, addressed to an owner (who is notified, or gets a task). */
-  'executive.note_added': { noteId: string; kpi: string; ownerId: string | null; taskId: string | null };
+  'executive.note_added': {
+    noteId: string;
+    kpi: string;
+    ownerId: string | null;
+    task: { clientId: string; dueDate: string | null } | null;
+  };
   'executive.note_resolved': { noteId: string };
   'executive.schedule_saved': { scheduleId: string; cadence: string };
   'executive.schedule_deleted': { scheduleId: string };
-  'executive.report_exported': { format: 'pdf' | 'pptx' | 'xlsx'; tab: string };
   'executive.report_sent': { scheduleId: string; recipients: number };
 };
 

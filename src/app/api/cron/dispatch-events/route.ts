@@ -6,12 +6,16 @@ import { runDispatcher } from '@/lib/events/schedule';
 import { runAiSweep } from '@/modules/ai/server/sweep';
 import { runCampaignSweep } from '@/modules/campaigns/server/sweep';
 import { runCrmSweep } from '@/modules/crm/server/sweep';
+import { runExecutiveSchedules } from '@/modules/executive/server/schedules';
+import { runKpiSnapshots } from '@/modules/executive/server/snapshots';
 import { runIntegrationSweep } from '@/modules/integrations/server/sweep';
 import { runMailSweep } from '@/modules/mail/server/outbox';
 import { runSlaSweep } from '@/modules/sla/server/sweep';
 import { runReminderSweep } from '@/modules/tasks/server/reminders';
 
 export const dynamic = 'force-dynamic';
+// The board report PDFs (headless Chromium) make this the longest job of the day.
+export const maxDuration = 300;
 
 function authorized(request: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -25,7 +29,7 @@ function authorized(request: NextRequest): boolean {
  * Safety net for the event dispatcher (retries, events left behind by a crashed process) and the time-based
  * reminder sweeps (due soon / overdue tasks, pending approvals; campaign status, health, stale metrics and scheduled
  * reports; SLA at-risk / breach detection; sales follow-ups due and stale deals; integration token health, the daily platform sync with retries, stuck
- * webhook events and WhatsApp retries; AI insights and the assistant index catch-up). Called by the platform scheduler (Vercel Cron sends
+ * webhook events and WhatsApp retries; AI insights and the assistant index catch-up; the executive KPI snapshot and scheduled board reports). Called by the platform scheduler (Vercel Cron sends
  * `Authorization: Bearer $CRON_SECRET`). Disabled when CRON_SECRET is unset.
  */
 export async function GET(request: NextRequest) {
@@ -37,8 +41,11 @@ export async function GET(request: NextRequest) {
   const integrations = await runIntegrationSweep();
   // After the sync: fresh numbers → insights; then the assistant index catches up.
   const ai = await runAiSweep();
+  // Executive Center (FR7): today's KPI snapshot, then the board reports due today (their emails go out below).
+  const snapshots = await runKpiSnapshots();
+  const boardReports = await runExecutiveSchedules();
   const result = await runDispatcher();
   // Last: notifications queued above go out, retries are due, and the log is trimmed to 90 days.
   const mail = await runMailSweep();
-  return NextResponse.json({ ...result, reminders, campaigns, sla, crm, integrations, ai, mail });
+  return NextResponse.json({ ...result, reminders, campaigns, sla, crm, integrations, ai, snapshots, boardReports, mail });
 }

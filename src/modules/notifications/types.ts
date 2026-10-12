@@ -62,6 +62,7 @@ export const notificationTypes = {
   whatsapp_failed: 'integrations',
   automation_message: 'automations',
   ai_insight: 'ai',
+  executive_note: 'tasks',
 } as const satisfies Record<string, NotificationCategory>;
 
 export type NotificationType = keyof typeof notificationTypes;

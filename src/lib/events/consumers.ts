@@ -13,6 +13,7 @@ import { invitationNotifications } from '@/modules/invitations/server/consumers'
 import { messageNotifications } from '@/modules/messaging/server/consumers';
 import { mailNotifications } from '@/modules/mail/server/consumers';
 import { emailChangeNotifications } from '@/modules/identity/server/consumers';
+import { executiveNotesConsumer } from '@/modules/executive/server/consumers';
 import { roleNotifications } from '@/modules/rbac/server/consumers';
 import { requestNotifications } from '@/modules/requests/server/consumers';
 import { slaNotifications } from '@/modules/sla/server/consumers';
@@ -44,4 +45,6 @@ export const consumers: readonly Consumer[] = [
   aiNotifications,
   aiIndexer,
   aiReportDrafts,
+  // Executive Center (FR7): notes reach their owner.
+  executiveNotesConsumer,
 ];
