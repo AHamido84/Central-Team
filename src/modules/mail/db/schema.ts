@@ -3,6 +3,7 @@ import { boolean, check, date, index, integer, jsonb, pgTable, smallint, text, t
 
 import { createdAt, id, updatedAt } from '@/lib/db/columns';
 import type { LocalizedText } from '@/lib/i18n/localized';
+import type { EmailAttachment } from '@/modules/executive/types';
 import { organizations, profiles } from '@/modules/organizations/db/schema';
 
 /**
@@ -77,6 +78,8 @@ export const emailOutbox = pgTable(
     providerMessageId: text('provider_message_id'),
     sentAt: timestamp('sent_at', { withTimezone: true }),
     resentFrom: uuid('resent_from'),
+    /** Files sent with the message (FR7 board reports), read from the private `exports` bucket at send time. */
+    attachments: jsonb('attachments').$type<EmailAttachment[]>().notNull().default([]),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

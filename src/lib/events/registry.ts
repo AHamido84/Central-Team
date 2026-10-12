@@ -219,6 +219,17 @@ export type DomainEventPayloads = {
   'trash.purged': { batch: string; entityType: string; entityId: string; files: number };
   'data.reset': { jobId: string; mode: 'demo' | 'operational' | 'factory'; counts: Record<string, number>; filesRemoved: number };
   'data.reset_lock_changed': { locked: boolean };
+  // Executive Center (FR7)
+  'executive.targets_updated': { year: number; count: number };
+  'executive.view_saved': { viewId: string; name: string };
+  'executive.view_deleted': { viewId: string };
+  /** A note on a KPI, addressed to an owner (who is notified, or gets a task). */
+  'executive.note_added': { noteId: string; kpi: string; ownerId: string | null; taskId: string | null };
+  'executive.note_resolved': { noteId: string };
+  'executive.schedule_saved': { scheduleId: string; cadence: string };
+  'executive.schedule_deleted': { scheduleId: string };
+  'executive.report_exported': { format: 'pdf' | 'pptx' | 'xlsx'; tab: string };
+  'executive.report_sent': { scheduleId: string; recipients: number };
 };
 
 export type DomainEventType = keyof DomainEventPayloads;

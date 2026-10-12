@@ -1,11 +1,13 @@
 import { ArrowUpRight, Briefcase, MailPlus, MessageCircleWarning, MessagesSquare, Sparkles, Users } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { DirIcon, EmptyState, PageHeader, SectionTitle, StatCard } from '@/components/patterns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarGroup, Badge, Card } from '@/components/ui/primitives';
+import { isExecutiveFocus } from '@/components/shell/nav';
 import { requireAgency } from '@/lib/auth/context';
 import { localized } from '@/lib/i18n/localized';
 import { getFormatters } from '@/lib/i18n/server-format';
@@ -28,6 +30,8 @@ function greetingKey(hour: number) {
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ scope?: string }> }) {
   const ctx = await requireAgency();
+  // Read-only executives start on the Executive Center (FR7); every sign-in lands on /dashboard first.
+  if (isExecutiveFocus(ctx.permissions)) redirect('/executive');
   const t = await getTranslations();
   const f = await getFormatters();
   const { scope: scopeParam } = await searchParams;

@@ -60,5 +60,9 @@
   "trash": "سلة المحذوفات",
   "dataManagement": "إدارة البيانات",
   "myConnections": "الحسابات المربوطة",
-  "mailSettings": "البريد"
+  "mailSettings": "البريد",
+  "sectionExecutive": "الإدارة العليا",
+  "executive": "مركز المعلومات التنفيذي",
+  "boardReports": "تقارير مجلس الإدارة",
+  "targets": "الأهداف"
 }

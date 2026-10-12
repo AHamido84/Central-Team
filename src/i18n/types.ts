@@ -29,6 +29,7 @@ import type automations from '@messages/ar/automations.json';
 import type ai from '@messages/ar/ai.json';
 import type data from '@messages/ar/data.json';
 import type mail from '@messages/ar/mail.json';
+import type executive from '@messages/ar/executive.json';
 
 /** Arabic (the default locale) is the source of truth for message keys; scripts/check-i18n.ts enforces parity. */
 export type AppMessages = {
@@ -63,6 +64,7 @@ export type AppMessages = {
   ai: typeof ai;
   data: typeof data;
   mail: typeof mail;
+  executive: typeof executive;
 };
 
 declare module 'next-intl' {

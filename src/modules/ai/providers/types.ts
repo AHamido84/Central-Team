@@ -2,7 +2,7 @@ import type { Locale } from '@/lib/i18n/localized';
 import type { AiFailureCode } from '@/modules/ai/errors';
 import type { SourceType } from '@/modules/ai/types';
 
-export type AiPurpose = 'assistant' | 'report_draft' | 'insight_explain';
+export type AiPurpose = 'assistant' | 'report_draft' | 'insight_explain' | 'executive_brief';
 
 /** A tool the model may call (assistant retrieval, ADR-090). The input schema is JSON Schema; inputs are re-validated. */
 export type AiToolSpec = { name: string; description: string; inputSchema: Record<string, unknown> };
@@ -32,7 +32,8 @@ export type GroundingSource = { n: number; sourceType: SourceType; title: string
 export type Grounding =
   | { kind: 'assistant'; question: string; sources: GroundingSource[] }
   | { kind: 'report_section'; section: 'commentary' | 'next_steps'; lines: string[] }
-  | { kind: 'insight'; lines: string[] };
+  | { kind: 'insight'; lines: string[] }
+  | { kind: 'executive_brief'; lines: { n: number; text: string }[] };
 
 export type CompleteInput = {
   purpose: AiPurpose;

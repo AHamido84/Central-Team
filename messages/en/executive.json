@@ -1,0 +1,526 @@
+{
+  "title": "Executive Center",
+  "description": "The whole agency at a glance: clients, revenue, delivery, team, marketing and sales.",
+  "readOnly": "Read-only view",
+  "updated": "Numbers as of {time}",
+  "periodRange": "{from} – {to}",
+  "incomplete": "In progress: day {elapsed} of {total}",
+  "versus": "Compared with {from} – {to}",
+  "filtersActive": "{count, plural, one {# filter} other {# filters}}",
+  "controls": {
+    "period": "Period",
+    "presets": {
+      "this_month": "This month",
+      "last_month": "Last month",
+      "qtd": "Quarter to date",
+      "ytd": "Year to date",
+      "last_12m": "Last 12 months",
+      "custom": "Custom"
+    },
+    "compare": "Compare with",
+    "comparisons": {
+      "previous": "Previous period",
+      "last_year": "Same period last year",
+      "none": "No comparison"
+    },
+    "from": "From",
+    "to": "To",
+    "apply": "Apply",
+    "filters": "Filters",
+    "client": "Client",
+    "department": "Department",
+    "accountManager": "Account manager",
+    "platform": "Platform",
+    "all": "All",
+    "reset": "Clear filters",
+    "refresh": "Refresh numbers",
+    "refreshed": "Numbers refreshed.",
+    "present": "Present",
+    "export": "Export"
+  },
+  "tabs": {
+    "overview": "Overview",
+    "clients": "Clients & revenue",
+    "operations": "Operations",
+    "team": "Team & capacity",
+    "marketing": "Marketing",
+    "sales": "Sales",
+    "risks": "Risks"
+  },
+  "tile": {
+    "previous": "was {value}",
+    "noBase": "new (no base to compare)",
+    "target": "Target {value}",
+    "progress": "{pct} of target",
+    "projection": "On pace for {value} by period end",
+    "small": "Small sample: based on {count}",
+    "parts": "{num} of {den}",
+    "sample": "Based on {count}",
+    "noData": "No data",
+    "definition": "Definition",
+    "formula": "Formula",
+    "source": "Source",
+    "about": "About {name}",
+    "drill": "Open the details",
+    "sparkline": "Last 12 months",
+    "note": "Add a note",
+    "deltaUp": "Up {pct}",
+    "deltaDown": "Down {pct}",
+    "deltaFlat": "No change"
+  },
+  "units": {
+    "days": "{value} d",
+    "hours": "{value} h",
+    "ratio": "{value}×",
+    "points": "{value} pts"
+  },
+  "kpi": {
+    "active_clients": {
+      "name": "Active clients",
+      "definition": "Clients with a package covering the last day of the period (or today, for a period still running).",
+      "formula": "count(clients with a package period covering the day)",
+      "source": "Client packages"
+    },
+    "new_clients": {
+      "name": "New clients",
+      "definition": "Clients whose first-ever package starts in the period.",
+      "formula": "count(first package start ∈ period)",
+      "source": "Client packages"
+    },
+    "churned_clients": {
+      "name": "Churned clients",
+      "definition": "Clients whose last package ended in the period with no later package.",
+      "formula": "count(last package end ∈ period, end < today)",
+      "source": "Client packages"
+    },
+    "revenue": {
+      "name": "Revenue",
+      "definition": "Recurring package revenue recognized in the period: each package's monthly price spread over the days it covers.",
+      "formula": "Σ monthly price × 12 ÷ 365 × days covered in the period",
+      "source": "Packages and client packages"
+    },
+    "retention_rate": {
+      "name": "Retention",
+      "definition": "Share of clients active on the first day of the period who are still active on its last day.",
+      "formula": "active at end and at start ÷ active at start",
+      "source": "Client packages"
+    },
+    "top5_share": {
+      "name": "Top-5 client share",
+      "definition": "Share of the period's revenue that comes from the five largest clients. One client above 30% is flagged as a concentration risk.",
+      "formula": "revenue of top 5 ÷ total revenue",
+      "source": "Packages"
+    },
+    "revenue_per_hour": {
+      "name": "Revenue per hour",
+      "definition": "Package revenue of the period divided by the hours the team logged — a profitability proxy.",
+      "formula": "revenue ÷ logged hours",
+      "source": "Packages, time entries"
+    },
+    "clv": {
+      "name": "Client lifetime value",
+      "definition": "Average monthly revenue per active client over the last 12 months × average client tenure in months.",
+      "formula": "(revenue₁₂ ÷ 12 ÷ active clients) × mean tenure (months)",
+      "source": "Packages, client packages"
+    },
+    "extra_requests": {
+      "name": "Extra requests",
+      "definition": "Requests submitted in the period outside the package allowance (billable extras).",
+      "formula": "count(is_extra ∧ submitted ∈ period)",
+      "source": "Requests"
+    },
+    "avg_health": {
+      "name": "Average client health",
+      "definition": "Mean health score (0–100) of all clients, from the same penalty score as the operations dashboard.",
+      "formula": "mean(client health score)",
+      "source": "Operations dashboard"
+    },
+    "requests_submitted": {
+      "name": "Requests submitted",
+      "definition": "Requests submitted by clients in the period.",
+      "formula": "count(submitted ∈ period)",
+      "source": "Requests"
+    },
+    "requests_delivered": {
+      "name": "Requests delivered",
+      "definition": "Requests delivered in the period.",
+      "formula": "count(delivered ∈ period)",
+      "source": "Requests"
+    },
+    "turnaround_median": {
+      "name": "Turnaround (median)",
+      "definition": "Median days from submission to delivery, for requests delivered in the period.",
+      "formula": "median(delivered − submitted)",
+      "source": "Requests"
+    },
+    "turnaround_p90": {
+      "name": "Turnaround (P90)",
+      "definition": "90% of requests delivered in the period took this many days or fewer.",
+      "formula": "90th percentile(delivered − submitted)",
+      "source": "Requests"
+    },
+    "on_time_rate": {
+      "name": "On-time delivery",
+      "definition": "Of requests submitted in the period and delivered with a due date, the share delivered by the end of the due day — the SLA monitor's resolution compliance.",
+      "formula": "delivered by due ÷ delivered with a due date",
+      "source": "SLA monitor (compliance)"
+    },
+    "sla_compliance": {
+      "name": "SLA compliance",
+      "definition": "Of requests submitted in the period whose reply target has passed or been answered, the share answered in time — the SLA monitor's response compliance.",
+      "formula": "answered in time ÷ (answered + past target)",
+      "source": "SLA monitor (compliance)"
+    },
+    "revision_rounds": {
+      "name": "Revision rounds",
+      "definition": "Average rounds of changes per deliverable approved in the period.",
+      "formula": "mean(revision rounds of deliverables approved ∈ period)",
+      "source": "Deliverables"
+    },
+    "first_time_approval": {
+      "name": "First-time approval",
+      "definition": "Share of deliverables approved in the period without any revision round.",
+      "formula": "approved with 0 rounds ÷ approved",
+      "source": "Deliverables"
+    },
+    "approval_wait": {
+      "name": "Client approval wait",
+      "definition": "Median days between sending a version to the client and the client's decision, for decisions in the period.",
+      "formula": "median(decided − sent to client)",
+      "source": "Deliverable versions"
+    },
+    "backlog_open": {
+      "name": "Open backlog",
+      "definition": "Requests submitted and not yet delivered, closed, cancelled or rejected (today).",
+      "formula": "count(open requests)",
+      "source": "Requests"
+    },
+    "backlog_aged": {
+      "name": "Aged backlog",
+      "definition": "Open requests submitted more than 14 days ago.",
+      "formula": "count(open ∧ age > 14 days)",
+      "source": "Requests"
+    },
+    "utilization": {
+      "name": "Team utilization",
+      "definition": "Hours logged by department members ÷ their available hours (hours per week × working days ÷ 5, minus holidays and time off) — the capacity planner's capacity.",
+      "formula": "logged hours ÷ available hours",
+      "source": "Time entries, capacity planning"
+    },
+    "tasks_done": {
+      "name": "Tasks completed",
+      "definition": "Tasks completed in the period.",
+      "formula": "count(completed ∈ period)",
+      "source": "Tasks"
+    },
+    "task_on_time_rate": {
+      "name": "Tasks on time",
+      "definition": "Of tasks completed in the period that had a due date, the share completed on or before it.",
+      "formula": "completed by due ÷ completed with a due date",
+      "source": "Tasks"
+    },
+    "overloaded_departments": {
+      "name": "Over-allocated departments",
+      "definition": "Departments whose demand exceeds capacity in at least one of the next four weeks (capacity planning, including weighted pipeline).",
+      "formula": "count(departments with an 'over' week in the next 4)",
+      "source": "Capacity planning"
+    },
+    "ad_spend": {
+      "name": "Ad spend managed",
+      "definition": "Total spend across all clients' campaigns in the period.",
+      "formula": "Σ daily spend",
+      "source": "Campaign daily numbers"
+    },
+    "conversions": {
+      "name": "Conversions",
+      "definition": "Conversions reported by the ad platforms in the period.",
+      "formula": "Σ daily conversions",
+      "source": "Campaign daily numbers"
+    },
+    "cpa": {
+      "name": "Blended CPA",
+      "definition": "Spend ÷ conversions across all campaigns.",
+      "formula": "Σ spend ÷ Σ conversions",
+      "source": "Campaign daily numbers"
+    },
+    "cpl": {
+      "name": "Cost per lead",
+      "definition": "Spend ÷ leads reported by the ad platforms.",
+      "formula": "Σ spend ÷ Σ leads",
+      "source": "Campaign daily numbers"
+    },
+    "roas": {
+      "name": "Blended ROAS",
+      "definition": "Revenue attributed by the ad platforms ÷ spend.",
+      "formula": "Σ revenue ÷ Σ spend",
+      "source": "Campaign daily numbers"
+    },
+    "ctr": {
+      "name": "CTR",
+      "definition": "Clicks ÷ impressions across all campaigns.",
+      "formula": "Σ clicks ÷ Σ impressions",
+      "source": "Campaign daily numbers"
+    },
+    "campaigns_at_risk": {
+      "name": "Campaigns at risk",
+      "definition": "Active campaigns whose pacing health is at risk or off track — the campaign analysis' health (today).",
+      "formula": "count(active ∧ health is at risk or off track)",
+      "source": "Campaign analysis"
+    },
+    "leads_new": {
+      "name": "New leads",
+      "definition": "Leads created in the period (merged and deleted leads excluded).",
+      "formula": "count(created ∈ period)",
+      "source": "CRM leads"
+    },
+    "win_rate": {
+      "name": "Win rate",
+      "definition": "Deals won ÷ deals won or lost in the period — the sales dashboard's win rate.",
+      "formula": "won ÷ (won + lost), closed ∈ period",
+      "source": "Sales dashboard"
+    },
+    "sales_cycle": {
+      "name": "Sales cycle",
+      "definition": "Average days from creating a deal to winning it, for deals won in the period (the sales dashboard's definition).",
+      "formula": "mean(won − created)",
+      "source": "Sales dashboard"
+    },
+    "avg_deal_size": {
+      "name": "Average deal size",
+      "definition": "Average value of deals won in the period.",
+      "formula": "Σ won value ÷ deals won",
+      "source": "CRM deals"
+    },
+    "bookings": {
+      "name": "Bookings",
+      "definition": "Value of deals won in the period.",
+      "formula": "Σ value of deals won ∈ period",
+      "source": "CRM deals"
+    },
+    "pipeline_value": {
+      "name": "Pipeline value",
+      "definition": "Value of all open deals (today).",
+      "formula": "Σ value of open deals",
+      "source": "Sales pipeline"
+    },
+    "weighted_forecast": {
+      "name": "Weighted forecast",
+      "definition": "Open deals' value × their probability (today).",
+      "formula": "Σ value × probability",
+      "source": "Sales pipeline"
+    },
+    "lead_response": {
+      "name": "Lead response time",
+      "definition": "Median hours from a lead's creation to the first activity on it, for leads created in the period.",
+      "formula": "median(first activity − created)",
+      "source": "CRM leads and activities"
+    },
+    "open_risks": {
+      "name": "Open risks",
+      "definition": "Items in the risk register today: at-risk clients, SLA breaches, overdue deliverables, over-allocated departments, revenue concentration, expiring integrations and the AI budget.",
+      "formula": "count(risk register items)",
+      "source": "Risk register"
+    }
+  },
+  "attention": {
+    "title": "Needs attention",
+    "description": "Ranked by severity, then impact.",
+    "empty": "Nothing needs attention",
+    "emptyBody": "No risks, stuck deals, off-pace campaigns or over-used packages right now.",
+    "owner": "Owner: {name}",
+    "noOwner": "No owner",
+    "open": "Open",
+    "more": "{count, plural, one {# more} other {# more}}"
+  },
+  "severity": {
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low"
+  },
+  "category": {
+    "client": "Client",
+    "delivery": "Delivery",
+    "capacity": "Capacity",
+    "financial": "Financial",
+    "integration": "Integration",
+    "ai": "AI",
+    "campaign": "Campaign",
+    "deal": "Deal",
+    "package": "Package"
+  },
+  "risk": {
+    "clientAtRisk": "{client}: client health {score}/100",
+    "slaBreaches": "{breaches, plural, =0 {No} other {#}} unacknowledged SLA breaches, {overdue, plural, one {# request} other {# requests}} past SLA",
+    "overdueDeliverables": "{count, plural, one {# deliverable} other {# deliverables}} past due",
+    "departmentOver": "{department} over capacity in {weeks, plural, one {# of the next 4 weeks} other {# of the next 4 weeks}}",
+    "concentration": "{client} brings {share}% of revenue",
+    "tokenExpired": "{name} connection has expired",
+    "tokenExpiring": "{name} connection expires in {days, plural, one {# day} other {# days}}",
+    "aiBudget": "AI use at {share}% of the monthly budget",
+    "campaignOffPace": "{name} is {health}",
+    "dealStuck": "{title}: no activity for {days, plural, one {# day} other {# days}}",
+    "packageOver": "{client} has used {pct}% of the package"
+  },
+  "brief": {
+    "title": "Executive brief",
+    "ai": "Written by AI from the numbers on this page",
+    "rules": "Computed from the numbers on this page (no AI)",
+    "generate": "Write with AI",
+    "regenerate": "Rewrite",
+    "writing": "Writing…",
+    "citations": "Sources",
+    "failed": "The AI brief couldn't be written: {reason}",
+    "line": {
+      "revenue": "Revenue {revenue} — {change}.",
+      "revenueNoCompare": "Revenue {revenue}.",
+      "clients": "{active} active clients ({new} new, {churned} churned).",
+      "delivery": "{onTime} delivered on time; SLA compliance {sla}.",
+      "team": "Team utilization {utilization}.",
+      "marketing": "Ad spend {spend} at ROAS {roas}.",
+      "sales": "Pipeline {pipeline}, weighted forecast {weighted}.",
+      "risks": "{count, plural, =0 {No open risks.} one {One open risk: {top}.} other {# open risks; the most severe: {top}.}}",
+      "up": "up {pct} vs the comparison",
+      "down": "down {pct} vs the comparison",
+      "flat": "unchanged vs the comparison",
+      "na": "n/a"
+    }
+  },
+  "charts": {
+    "revenueByMonth": "Revenue by month",
+    "movingAverage": "3-month average",
+    "revenue": "Revenue",
+    "revenueByClient": "Revenue by client",
+    "revenueByPackage": "Revenue by package",
+    "healthDistribution": "Client health today",
+    "healthTrend": "Average health by month",
+    "newVsLost": "New vs churned clients",
+    "added": "New",
+    "lost": "Churned",
+    "packageUsage": "Package use (current period)",
+    "concentration": "Concentration risk: one client brings more than 30% of revenue.",
+    "intakeVsDone": "Requests in vs delivered",
+    "submitted": "Submitted",
+    "delivered": "Delivered",
+    "turnaroundByType": "Turnaround by request type",
+    "complianceByClient": "On-time and SLA by client",
+    "complianceByType": "On-time and SLA by request type",
+    "bottlenecks": "Slowest workflow steps",
+    "backlogAging": "Open requests by age",
+    "ageBuckets": {
+      "0_7": "0–7 days",
+      "8_14": "8–14 days",
+      "15_30": "15–30 days",
+      "31_plus": "Over 30 days"
+    },
+    "byDepartment": "Utilization by department",
+    "byPerson": "Output and on-time rate by person",
+    "capacityForecast": "Capacity vs demand, next 8 weeks",
+    "capacity": "Capacity",
+    "demand": "Demand",
+    "hiring": "Hiring signal",
+    "hiringNone": "No department runs over capacity in the next 8 weeks.",
+    "hiringRow": "Over capacity from the week of {week}: {weeks, plural, one {# week} other {# weeks}}, {hours} hours short",
+    "byPlatform": "Results by platform",
+    "spendTrend": "Ad spend by month",
+    "spend": "Spend",
+    "cpaTrend": "CPA by month",
+    "roasTrend": "ROAS by month",
+    "ctrTrend": "CTR by month",
+    "best": "Best campaigns (ROAS)",
+    "worst": "Weakest campaigns (ROAS)",
+    "pacing": "Budget pacing of active campaigns",
+    "atRisk": "Campaigns at risk",
+    "anomalies": "Open AI insights",
+    "anomaliesBody": "{open, plural, =0 {No open insights.} other {# open: {high} high, {medium} medium, {low} low.}}",
+    "leadsBySource": "Leads by source",
+    "leadTrend": "New leads by month",
+    "leads": "Leads",
+    "funnel": "Stage-to-stage conversion",
+    "pipelineByStage": "Open pipeline by stage",
+    "byOwner": "By salesperson",
+    "forecast": "Forecast vs target, next 6 months",
+    "forecastValue": "Forecast",
+    "targetValue": "Target",
+    "lostReasons": "Lost reasons",
+    "riskRegister": "Risk register",
+    "riskTrend": "Open risks by month",
+    "noTrend": "History builds up from the daily snapshots.",
+    "empty": "No data for this period."
+  },
+  "col": {
+    "client": "Client",
+    "revenue": "Revenue",
+    "share": "Share",
+    "hours": "Hours",
+    "perHour": "Per hour",
+    "health": "Health",
+    "type": "Type",
+    "median": "Median",
+    "p90": "P90",
+    "count": "Count",
+    "onTime": "On time",
+    "sla": "SLA",
+    "step": "Step",
+    "department": "Department",
+    "person": "Person",
+    "utilization": "Utilization",
+    "logged": "Logged",
+    "available": "Available",
+    "open": "Open",
+    "done": "Done",
+    "platform": "Platform",
+    "spend": "Spend",
+    "conversions": "Conversions",
+    "cpa": "CPA",
+    "cpl": "CPL",
+    "roas": "ROAS",
+    "ctr": "CTR",
+    "campaign": "Campaign",
+    "budget": "Budget",
+    "spent": "Spent",
+    "elapsed": "Time elapsed",
+    "source": "Source",
+    "leads": "Leads",
+    "converted": "Converted",
+    "stage": "Stage",
+    "reached": "Reached",
+    "advanced": "Advanced",
+    "rate": "Rate",
+    "value": "Value",
+    "deals": "Deals",
+    "salesperson": "Salesperson",
+    "won": "Won",
+    "lostCount": "Lost",
+    "winRate": "Win rate",
+    "weighted": "Weighted",
+    "month": "Month",
+    "severity": "Severity",
+    "category": "Category",
+    "item": "Item",
+    "owner": "Owner",
+    "reason": "Reason",
+    "used": "Used",
+    "pct": "{value}"
+  },
+  "present": {
+    "label": "Presentation",
+    "next": "Next slide",
+    "previous": "Previous slide",
+    "exit": "Exit presentation",
+    "slide": "{n} of {total}",
+    "autoRefresh": "Numbers refresh every 5 minutes · ← → to move · Esc to exit"
+  },
+  "targets": {
+    "title": "KPI targets",
+    "description": "Yearly or quarterly targets the Executive Center measures progress against. Amounts are pro-rated over the days a period covers; rates use the quarter's target, else the year's.",
+    "year": "Year",
+    "metric": "Metric",
+    "fullYear": "Full year",
+    "quarter": "Q{q}",
+    "save": "Save targets",
+    "saved": "Targets saved.",
+    "hint": "Leave a cell empty for no target. Percentages are entered as 0–100; ROAS as a multiple (e.g. 3.5); revenue in SAR.",
+    "readOnly": "You can view the targets; changing them needs the schedule or organization permission.",
+    "invalid": "Enter a number of zero or more."
+  }
+}

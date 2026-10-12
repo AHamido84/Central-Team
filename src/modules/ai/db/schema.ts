@@ -83,7 +83,7 @@ export const aiUsage = pgTable(
   },
   (t) => [
     index('ai_usage_org_idx').on(t.organizationId, t.createdAt),
-    check('ai_usage_purpose_check', sql`${t.purpose} in ('assistant','report_draft','insight_explain','embedding')`),
+    check('ai_usage_purpose_check', sql`${t.purpose} in ('assistant','report_draft','insight_explain','executive_brief','embedding')`),
     check('ai_usage_provider_check', sql`${t.provider} in ('anthropic','voyage','mock')`),
   ],
 );

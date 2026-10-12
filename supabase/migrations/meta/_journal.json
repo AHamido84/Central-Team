@@ -113,6 +113,20 @@
       "when": 1791463140520,
       "tag": "20261008123900_metric_import_undo",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791838596555,
+      "tag": "20261012205636_executive",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791839963147,
+      "tag": "20261012211923_ai_executive_brief",
+      "breakpoints": true
     }
   ]
 }

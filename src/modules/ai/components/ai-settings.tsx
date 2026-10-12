@@ -17,7 +17,7 @@ import type { IndexHealth } from '@/modules/ai/server/indexer';
 import type { AiAdminView } from '@/modules/ai/server/queries';
 import { sourceTypes } from '@/modules/ai/types';
 
-const purposes = ['assistant', 'report_draft', 'insight_explain', 'embedding'] as const;
+const purposes = ['assistant', 'report_draft', 'insight_explain', 'executive_brief', 'embedding'] as const;
 
 function SwitchRow({
   id,

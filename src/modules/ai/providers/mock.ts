@@ -41,6 +41,8 @@ export function composeMock(input: CompleteInput): string {
         : [t('nextStepsIntro'), ...g.lines.map((l) => `- ${l}`)].join('\n');
     case 'insight':
       return [t('insightIntro'), ...g.lines].join(' ');
+    case 'executive_brief':
+      return [t('briefIntro'), ...g.lines.map((l) => `${l.text} [${l.n}]`)].join(' ');
   }
 }
 

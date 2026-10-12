@@ -60,5 +60,9 @@
   "trash": "Trash",
   "dataManagement": "Data management",
   "myConnections": "Connected accounts",
-  "mailSettings": "Mail"
+  "mailSettings": "Mail",
+  "sectionExecutive": "Executive",
+  "executive": "Executive Center",
+  "boardReports": "Board reports",
+  "targets": "Targets"
 }

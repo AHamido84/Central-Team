@@ -6,7 +6,12 @@ import { classifyProviderFailure } from '@/modules/ai/errors';
 import { AiProviderError, type AiCompleter, type AiPurpose, type AiTurn } from '@/modules/ai/providers/types';
 
 /** Effort per purpose: routine writing runs at `low`, the assistant (tools + synthesis) at `medium`. */
-const effort: Record<AiPurpose, 'low' | 'medium'> = { assistant: 'medium', report_draft: 'low', insight_explain: 'low' };
+const effort: Record<AiPurpose, 'low' | 'medium'> = {
+  assistant: 'medium',
+  report_draft: 'low',
+  insight_explain: 'low',
+  executive_brief: 'low',
+};
 
 /**
  * One request may take this long before we give up (ADR-089): with one retry the worst case stays well inside the

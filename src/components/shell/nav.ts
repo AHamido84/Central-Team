@@ -39,6 +39,9 @@ import {
   BrainCircuit,
   Trash2,
   DatabaseBackup,
+  Crown,
+  Presentation,
+  Target,
 } from 'lucide-react';
 
 import { can, type PermissionSet } from '@/lib/permissions/can';
@@ -57,32 +60,58 @@ export type NavItem = {
   flag?: string;
   /** Only the Super Admin sees it. */
   superAdminOnly?: boolean;
+  /** Kept in the reduced navigation of read-only executives (FR7): reports and read views, nothing operational. */
+  executive?: boolean;
 };
 
-export type NavSection = { key: 'sectionHome' | 'sectionClients' | 'sectionSales' | 'sectionAdmin'; items: NavItem[] };
+export type NavSection = {
+  key: 'sectionExecutive' | 'sectionHome' | 'sectionClients' | 'sectionSales' | 'sectionAdmin';
+  items: NavItem[];
+};
 
 export const agencyNav: NavSection[] = [
+  {
+    key: 'sectionExecutive',
+    items: [
+      { key: 'executive', href: '/executive', icon: Crown, anyOf: ['executive:view'], executive: true },
+      {
+        key: 'boardReports',
+        href: '/executive/reports',
+        icon: Presentation,
+        anyOf: ['executive:export', 'executive:schedule'],
+        executive: true,
+      },
+      { key: 'targets', href: '/executive/targets', icon: Target, anyOf: ['executive:schedule', 'organization:update'], executive: true },
+    ],
+  },
   {
     key: 'sectionHome',
     items: [
       { key: 'dashboard', href: '/dashboard', icon: LayoutDashboard },
       { key: 'myWork', href: '/my-work', icon: ListChecks, anyOf: ['tasks:read'], flag: 'module.tasks' },
-      { key: 'inbox', href: '/notifications', icon: Inbox },
-      { key: 'assistant', href: '/assistant', icon: Sparkles, anyOf: ['ai:use'], flag: 'module.ai' },
-      { key: 'team', href: '/team', icon: UsersRound, anyOf: ['operations:read'] },
+      { key: 'inbox', href: '/notifications', icon: Inbox, executive: true },
+      { key: 'assistant', href: '/assistant', icon: Sparkles, anyOf: ['ai:use'], flag: 'module.ai', executive: true },
+      { key: 'team', href: '/team', icon: UsersRound, anyOf: ['operations:read'], executive: true },
     ],
   },
   {
     key: 'sectionClients',
     items: [
       { key: 'requests', href: '/requests', icon: ClipboardList, anyOf: ['requests:read'], flag: 'module.requests' },
-      { key: 'slaMonitor', href: '/sla', icon: Gauge, anyOf: ['operations:read'], flag: 'module.requests' },
+      { key: 'slaMonitor', href: '/sla', icon: Gauge, anyOf: ['operations:read'], flag: 'module.requests', executive: true },
       { key: 'tasks', href: '/tasks', icon: KanbanSquare, anyOf: ['tasks:read'], flag: 'module.tasks' },
       { key: 'deliverables', href: '/deliverables', icon: FileCheck2, anyOf: ['tasks:read'], flag: 'module.tasks' },
-      { key: 'campaigns', href: '/campaigns', icon: Megaphone, anyOf: ['campaigns:read'], flag: 'module.campaigns' },
-      { key: 'reports', href: '/reports', icon: FileChartColumn, anyOf: ['campaigns:read'], flag: 'module.campaigns' },
-      { key: 'insights', href: '/insights', icon: Lightbulb, anyOf: ['campaigns:read'], flag: 'module.ai' },
-      { key: 'clients', href: '/clients', icon: Briefcase, anyOf: ['clients:read_all', 'clients:read_assigned'], flag: 'module.clients' },
+      { key: 'campaigns', href: '/campaigns', icon: Megaphone, anyOf: ['campaigns:read'], flag: 'module.campaigns', executive: true },
+      { key: 'reports', href: '/reports', icon: FileChartColumn, anyOf: ['campaigns:read'], flag: 'module.campaigns', executive: true },
+      { key: 'insights', href: '/insights', icon: Lightbulb, anyOf: ['campaigns:read'], flag: 'module.ai', executive: true },
+      {
+        key: 'clients',
+        href: '/clients',
+        icon: Briefcase,
+        anyOf: ['clients:read_all', 'clients:read_assigned'],
+        flag: 'module.clients',
+        executive: true,
+      },
       {
         key: 'messages',
         href: '/messages',
@@ -96,10 +125,10 @@ export const agencyNav: NavSection[] = [
     key: 'sectionSales',
     items: [
       { key: 'leads', href: '/crm/leads', icon: Contact, anyOf: ['leads:read'], flag: 'module.crm' },
-      { key: 'pipeline', href: '/crm/pipeline', icon: Columns3, anyOf: ['deals:read'], flag: 'module.crm' },
+      { key: 'pipeline', href: '/crm/pipeline', icon: Columns3, anyOf: ['deals:read'], flag: 'module.crm', executive: true },
       { key: 'followUps', href: '/crm/follow-ups', icon: CalendarCheck, anyOf: ['leads:manage', 'deals:manage'], flag: 'module.crm' },
-      { key: 'salesDashboard', href: '/crm/dashboard', icon: ChartSpline, anyOf: ['deals:read'], flag: 'module.crm' },
-      { key: 'capacity', href: '/capacity', icon: Gauge, anyOf: ['capacity:read'], flag: 'module.crm' },
+      { key: 'salesDashboard', href: '/crm/dashboard', icon: ChartSpline, anyOf: ['deals:read'], flag: 'module.crm', executive: true },
+      { key: 'capacity', href: '/capacity', icon: Gauge, anyOf: ['capacity:read'], flag: 'module.crm', executive: true },
     ],
   },
   {
@@ -130,7 +159,7 @@ export const agencyNav: NavSection[] = [
       { key: 'mailSettings', href: '/admin/mail', icon: Mail, anyOf: ['mail:manage'] },
       { key: 'packages', href: '/admin/packages', icon: Package, anyOf: ['packages:manage'], flag: 'module.clients' },
       { key: 'features', href: '/admin/features', icon: Blocks, anyOf: ['feature_flags:manage'] },
-      { key: 'audit', href: '/admin/audit', icon: ScrollText, anyOf: ['audit_log:read'] },
+      { key: 'audit', href: '/admin/audit', icon: ScrollText, anyOf: ['audit_log:read'], executive: true },
       {
         key: 'trash',
         href: '/admin/trash',
@@ -167,6 +196,14 @@ export const portalNav: NavItem[] = [
   { key: 'company', href: '/portal/company', icon: Building2 },
 ];
 
+/**
+ * A read-only executive (FR7): opens the Executive Center and holds no write permission, so the navigation is reduced
+ * to reports and read views. Admins with `executive:view` keep the full navigation.
+ */
+export function isExecutiveFocus(perms: PermissionSet | readonly string[]): boolean {
+  return can(perms, 'executive:view') && !can(perms, 'tasks:update') && !can(perms, 'clients:update') && !can(perms, 'deals:manage');
+}
+
 export function isNavItemVisible(
   item: NavItem,
   perms: PermissionSet | readonly string[],
@@ -174,6 +211,7 @@ export function isNavItemVisible(
   superAdmin = false,
 ): boolean {
   if (item.superAdminOnly && !superAdmin) return false;
+  if (!item.executive && !superAdmin && isExecutiveFocus(perms)) return false;
   if (item.flag && !flags[item.flag]) return false;
   if (item.anyOf && item.anyOf.length > 0 && !item.anyOf.some((p) => can(perms, p))) return false;
   return true;

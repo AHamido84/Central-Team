@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { scheduleEventDispatch } from '@/lib/events/schedule';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { logExecutiveEvent } from '@/modules/executive/server/audit';
 
 const allowedTypes: EmailOtpType[] = ['magiclink', 'recovery', 'email_change', 'email', 'signup'];
 
@@ -35,7 +36,10 @@ export async function GET(request: NextRequest) {
       scheduleEventDispatch();
       return to('/email-change?status=done');
     }
-    if (!error) return to(next);
+    if (!error) {
+      if (type === 'magiclink') await logExecutiveEvent('executive_login', { method: 'magic_link' });
+      return to(next);
+    }
   } else if (code) {
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);

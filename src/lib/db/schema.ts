@@ -19,3 +19,4 @@ export * from '@/modules/automations/db/schema';
 export * from '@/modules/ai/db/schema';
 export * from '@/modules/data/db/schema';
 export * from '@/modules/mail/db/schema';
+export * from '@/modules/executive/db/schema';

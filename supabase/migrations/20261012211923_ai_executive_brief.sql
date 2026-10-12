@@ -1,0 +1,2 @@
+ALTER TABLE "ai_usage" DROP CONSTRAINT "ai_usage_purpose_check";--> statement-breakpoint
+ALTER TABLE "ai_usage" ADD CONSTRAINT "ai_usage_purpose_check" CHECK ("ai_usage"."purpose" in ('assistant','report_draft','insight_explain','executive_brief','embedding'));

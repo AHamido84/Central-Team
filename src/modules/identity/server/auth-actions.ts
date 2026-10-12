@@ -12,6 +12,7 @@ import { LOCALE_COOKIE, TIMEZONE_COOKIE } from '@/i18n/request';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { password as passwordSchema } from '@/lib/validation';
+import { logExecutiveEvent } from '@/modules/executive/server/audit';
 import { sendAuthLinkEmail } from '@/modules/mail/server/auth-emails';
 
 async function clientIp(): Promise<string> {
@@ -61,6 +62,8 @@ export async function signInWithPasswordAction(input: z.input<typeof loginSchema
     store.set(LOCALE_COOKIE, profile.locale, { path: '/', maxAge: 31536000, sameSite: 'lax' });
     store.set(TIMEZONE_COOKIE, profile.timezone, { path: '/', maxAge: 31536000, sameSite: 'lax' });
   }
+  // Executives' sign-ins are audited (FR7); the function ignores everyone else.
+  if (app.user_type === 'agency') await logExecutiveEvent('executive_login', { method: 'password' }, session);
   const home = app.user_type === 'client' ? '/portal' : '/dashboard';
   const next = safeNext(parsed.data.next);
   const nextMatchesSide = next && (app.user_type === 'client') === next.startsWith('/portal');

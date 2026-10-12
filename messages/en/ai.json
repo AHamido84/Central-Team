@@ -5,7 +5,8 @@
     "commentaryIntro": "Summary of the period:",
     "nextStepsIntro": "Suggested next steps:",
     "insightIntro": "What the numbers say:",
-    "assistantNone": "I couldn't find records you can open about this."
+    "assistantNone": "I couldn't find records you can open about this.",
+    "briefIntro": "Here is the period at a glance:"
   },
   "kind": {
     "spike": "Unusual jump",
@@ -234,6 +235,7 @@
       "assistant": "Assistant",
       "report_draft": "Report drafts",
       "insight_explain": "Explanations",
+      "executive_brief": "Executive briefs",
       "embedding": "Indexing & search"
     },
     "noUsage": "No AI calls this month.",

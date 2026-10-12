@@ -50,7 +50,7 @@ type Person = {
   locale: 'ar' | 'en';
 };
 
-const staff: (Person & { role: string; department: string; lead?: boolean; title: string })[] = [
+const staff: (Person & { role: string; department?: string; lead?: boolean; title: string })[] = [
   {
     key: 'sara',
     email: 'sara@ofoq.test',
@@ -176,6 +176,25 @@ const staff: (Person & { role: string; department: string; lead?: boolean; title
     role: 'sales_rep',
     department: 'sales',
     title: 'Account Executive',
+  },
+  // Feedback Round 7: top management. No department, so they never count as delivery capacity.
+  {
+    key: 'chairman',
+    email: 'chairman@ofoq.test',
+    name: 'عبدالله الفيصل',
+    phone: '+966501110013',
+    locale: 'ar',
+    role: 'executive_board',
+    title: 'رئيس مجلس الإدارة',
+  },
+  {
+    key: 'board',
+    email: 'board@ofoq.test',
+    name: 'Lina Al-Saud',
+    phone: '+966501110014',
+    locale: 'en',
+    role: 'executive_viewer',
+    title: 'Board Member',
   },
 ];
 
@@ -478,12 +497,14 @@ async function main() {
       joinedAt: daysAgo(400 - i * 30),
     });
     await db.insert(schema.userRoles).values({ organizationId: ORG_ID, userId: id, roleId: roleId(s.role) });
-    await db.insert(schema.departmentMembers).values({
-      departmentId: deptId(s.department),
-      userId: id,
-      organizationId: ORG_ID,
-      isLead: Boolean(s.lead),
-    });
+    if (s.department) {
+      await db.insert(schema.departmentMembers).values({
+        departmentId: deptId(s.department),
+        userId: id,
+        organizationId: ORG_ID,
+        isLead: Boolean(s.lead),
+      });
+    }
   }
   // A per-user override example: Turki (specialist) may also see all clients.
   await db.insert(schema.userPermissionOverrides).values({
