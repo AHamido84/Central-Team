@@ -962,3 +962,97 @@ Owner's report: after importing a Meta file, the daily grid stays empty. Root ca
 - [x] FR6.3 Jump to imported week; Show / Undo import in the history
 - [x] FR6.4 Tests (4 unit, 3 DB, 4 e2e) and docs
 - [x] FR6.4 Deployed 2026-10-08 (`358fa42`); migrations applied, health checked on production, signed-in flows verified locally
+
+## Feedback Round 7 (Executive / Board role and the Executive Intelligence Center)
+
+Focused round, no new phase. Everything is computed by the functions the other screens already use:
+`clientHealth` (operations), `compliance` (SLA), `analyzeCampaign` / `budgetPacing` (campaigns),
+`winRate` / `averageCycleDays` / `forecastByMonth` / `stageConversion` (CRM), `capacityGrid` / `memberLoad`
+(capacity), `getPackageUsage` (clients) and the stored AI insights. A new pure module adds only what's missing:
+periods and comparisons, median/P90, moving averages, small-sample flags and pro-rating.
+
+### FR7.1 Roles, permissions, RLS (ADR-096)
+- System roles **Executive / Board** (رئيس مجلس الإدارة / الإدارة العليا) and **Executive Viewer**. Both are seeded,
+  localized and editable in the matrix.
+- Executive / Board permissions:
+  - every read permission across modules and clients (`clients:read_all`, `requests:read`, `tasks:read`,
+    `time:read_all`, `campaigns:read`, `operations:read`, `leads:read`, `deals:read`, `capacity:read`,
+    `integrations:read`, `automations:read`, `audit_log:read`, `ai:use`, …);
+  - the new `executive:view`, `executive:export` and `executive:schedule`;
+  - no write permission.
+- Executive Viewer gets `executive:view` and the reads, but no export or schedule.
+- `app.is_executive(org)` in Postgres grants SELECT where reads were tied to a manage right (AI usage/budget, sales
+  targets, integration health) and guards the new executive tables.
+- Writes stay denied because every write policy needs a write permission these roles don't have. DB tests check
+  insert/update/delete on each operational table.
+- Logins and exports by these roles are written to `activity_log`. Portal users never reach `/executive`; neither
+  do agency roles without `executive:view` (proxy + layout guard + RLS).
+- After login they land on `/executive`, with a navigation reduced to reports. Records open read-only, since no
+  write control renders without the permission.
+
+### FR7.2 Executive Intelligence Center (`/executive`)
+- **Global controls:**
+  - presets: this month, last month, QTD, YTD, last 12 months, custom;
+  - comparison with the previous equal-length period or the same period last year;
+  - filters: client, department, account manager, platform;
+  - language from the existing toggle.
+- **KPI tile:** value, ▲▼ % (coloured good/bad per KPI), sparkline, target progress, an ⓘ definition, the denominator
+  on hover, a "based on N" small-sample flag, an "incomplete period" mark with a pro-rated projection, and a click
+  through to the filtered list.
+- **Tabs:**
+  1. Overview: top-line KPIs, "Needs your attention" ranked by impact, and the AI executive brief with citations
+     (rules-based summary when AI is off).
+  2. Clients & Revenue
+  3. Operations & Delivery
+  4. Team & Capacity
+  5. Marketing Performance
+  6. Sales & Growth
+  7. Risks & Alerts
+- **Targets admin** (`/executive/targets`, `executive:schedule` or Admin): yearly and quarterly targets for
+  revenue, new clients, on-time %, SLA %, utilization, win rate and ROAS.
+
+### FR7.3 Reports, exports, schedules, views, notes
+- **Board report** (AR/EN, agency branding):
+  - **PDF** server-generated with headless Chromium, which shapes Arabic correctly (local Chromium in dev,
+    `@sparticuz/chromium` on Vercel);
+  - **PPTX** with `pptxgenjs` (native charts, RTL text);
+  - **Excel** with `exceljs`.
+  - Every export is audited.
+- **Scheduled delivery:** weekly or monthly, to chosen recipients, through the Settings → Mail sender, with the PDF
+  attached and a link back. The email outbox gains attachments.
+- **Saved views** (filters + tab, pinned).
+- **Notes** on a KPI or chart: they notify the chosen owner (notification, optional task). This is the role's only
+  write, and it never touches operational data.
+
+### FR7.4 Executive assistant
+- The existing assistant opens in `/executive` with an executive scope: read-only tools over the whole organization,
+  as the user, plus a `executive_kpis` tool that returns the Center's numbers. Answers carry citations and,
+  where useful, a small table or chart. Suggested question chips.
+
+### FR7.5 Performance & UX
+- `kpi_snapshots`: daily, organization-wide current-state metrics (health distribution, backlog and aging,
+  utilization, pipeline, open risks). Written by the existing cron and by "Refresh now", so trends exist for
+  metrics that are otherwise only current-state.
+- One RLS-scoped load per request feeds all tabs; target under ~2 s with the 12-month seed.
+- Tablet layout, **presentation mode** (full screen, one tab per slide, auto-refresh), skeletons, empty states, RTL
+  charts.
+
+### FR7.6 Seed, tests, docs, deploy
+- **Seed:** `chairman@ofoq.test` (Executive / Board) and `board@ofoq.test` (Executive Viewer), password
+  `Passw0rd!`, plus 12 months of history (packages, requests, deliverables, deals, leads, metrics, time entries,
+  snapshots).
+- **Tests:**
+  - RLS: read-all, no writes, no access for portal and other roles;
+  - unit tests for every KPI formula and the period logic;
+  - "numbers match" against the operational, campaign and sales screens;
+  - e2e: login → Center → period → drill-down → PDF + PPTX → schedule → Mailpit attachment.
+- **Docs:** `docs/KPIS.md`, ADR-096…, HANDOFF.
+- **Deploy** and verify on production.
+
+**Status**
+- [ ] FR7.1 Roles, permissions, `app.is_executive`, audit of logins/exports, landing + nav
+- [ ] FR7.2 Executive Center: controls, KPI engine, 7 tabs, attention panel, AI brief, targets
+- [ ] FR7.3 Board report PDF / PPTX / Excel, schedules with attachment, saved views, notes
+- [ ] FR7.4 Executive assistant scope and chips
+- [ ] FR7.5 Snapshots + cron, presentation mode, tablet polish
+- [ ] FR7.6 Seed (chairman, viewer, 12 months), tests, KPIS.md, docs, deploy
