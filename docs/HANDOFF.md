@@ -20,6 +20,7 @@ Last updated: 2026-10-13 (Feedback Round 7) · Branch: `claude/blissful-hawking-
 | Feedback Round 2 | **Built and deployed (2026-10-01).** Settings → Mail (Gmail / Workspace / Outlook / Zoho / Resend / SMTP) with tests, one outbox for app and auth emails (retries, fallback, daily limit, 90-day log at `/admin/mail/log`), email change through the configured sender (ADR-088) |
 | Feedback Round 7 | **Built, not deployed yet.** Executive / Board + Executive Viewer roles (read-only, audited), `/executive` with 41 KPIs (`docs/KPIS.md`), seven tabs, attention panel, AI brief, targets (`/executive/targets`), board report PDF/PPTX/Excel and scheduled emails with the PDF attached (`/executive/reports`), saved views, notes, snapshots, presentation mode, assistant `executive_kpis` tool; RLS per-row functions removed (ADR-096…098) |
 
+**Feedback Round 7, verified on a fresh seed**: 313 unit, 309 DB, 69 Playwright e2e tests, `pnpm build` (2026-10-13, not deployed).
 **Feedback Round 4, verified on a fresh seed**: 277 unit, 262 DB, 57 Playwright e2e tests, `pnpm build` deployed 2026-10-02.
 **Feedback Round 2, verified on a fresh seed**: `pnpm check` (243 unit tests), 239 DB tests, `pnpm build`. Feedback Round 1: 229 unit tests, 231 DB tests, 46 Playwright e2e tests,
 `pnpm build`. Earlier (Phase 8): `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check`, 220 unit tests, 187 DB tests

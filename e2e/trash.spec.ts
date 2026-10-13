@@ -65,7 +65,8 @@ test('data management: lock, unlock with the password, and the typed phrase', as
   await login(page, 'sara@ofoq.test');
   await page.goto('/admin/data');
   await expect(page.getByTestId('reset-counts')).toBeVisible();
-  await expect(page.getByTestId('reset-count-clients')).toHaveText('5');
+  // Five current clients and two former ones (executive history seed, FR7).
+  await expect(page.getByTestId('reset-count-clients')).toHaveText('7');
 
   // The run button stays disabled until the password and the exact phrase are entered.
   await page.getByTestId('reset-start').click();
