@@ -267,7 +267,8 @@ describe('data reset', () => {
         values (${org}, '{"ar":"عميل حقيقي","en":"Real client"}', 'real-client-kept', 'active') returning id`;
       const [preview] = await tx<{ counts: Record<string, number> }[]>`
         select app.data_reset_preview(${org}::uuid, 'demo', ${sara}::uuid) as counts`;
-      expect(preview!.counts.clients).toBe(5);
+      // Five current clients and two former ones (executive history seed, FR7).
+      expect(preview!.counts.clients).toBe(7);
       await tx`select app.data_reset_run(${org}::uuid, 'demo', ${sara}::uuid)`;
       expect(await count(tx, 'select count(*)::int as n from public.clients where organization_id = $1', org)).toBe(1);
       expect(await count(tx, 'select count(*)::int as n from public.clients where id = $1', kept!.id)).toBe(1);

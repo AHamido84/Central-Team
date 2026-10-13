@@ -58,6 +58,8 @@ type Name = { ar: string; en?: string } | Record<string, string>;
 
 export type ExecutiveInputs = {
   today: string;
+  /** The organization's time zone (days and months follow its calendar); Asia/Riyadh when absent. */
+  timeZone?: string;
   period: Period;
   comparison: Period | null;
   clients: { id: string; name: Name; accountManagerId: string | null; status: string }[];
@@ -188,7 +190,23 @@ export type ExecutiveReport = ReturnType<typeof buildExecutiveReport>;
 // Helpers
 // ---------------------------------------------------------------------------
 
-const day = (iso: string | null) => (iso ? iso.slice(0, 10) : null);
+/** The agency's calendar day of an instant (a request at 01:00 Riyadh belongs to that Riyadh day, not the UTC one). */
+function zoneDay(timeZone: string) {
+  const fmt = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' });
+  const cache = new Map<string, string>();
+  return (iso: string) => {
+    let d = cache.get(iso);
+    if (d === undefined) {
+      // Plain dates (YYYY-MM-DD) are already days.
+      d = iso.length <= 10 ? iso : fmt.format(new Date(iso));
+      cache.set(iso, d);
+    }
+    return d;
+  };
+}
+// Set at the start of each (synchronous) build to the organization's zone.
+let toDay = zoneDay('Asia/Riyadh');
+const day = (iso: string | null) => (iso ? toDay(iso) : null);
 const inRange = (iso: string | null, from: string, to: string) => {
   const d = day(iso);
   return d !== null && d >= from && d <= to;
@@ -228,6 +246,7 @@ const activeOn = (packages: ExecutiveInputs['packages'], d: string) =>
 
 export function buildExecutiveReport(input: ExecutiveInputs) {
   const { today, period, comparison, config } = input;
+  toDay = zoneDay(input.timeZone ?? 'Asia/Riyadh');
   const f = config.filters;
 
   // Filters: client / account manager narrow everything client-scoped; department the team; platform the marketing.
@@ -252,6 +271,7 @@ export function buildExecutiveReport(input: ExecutiveInputs) {
   const campaigns = input.campaigns.filter((c) => clientIds.has(c.clientId));
   const health = input.ops.clients.filter((c) => clientIds.has(c.id));
   const cal = { holidays: new Set(input.holidays) };
+  const nameOf = (id: string) => input.clients.find((c) => c.id === id)?.name ?? { ar: '' };
   const spans = clientSpans(packages);
 
   // --- Flow and rate metrics for any range -------------------------------------------------------------------------
@@ -421,7 +441,6 @@ export function buildExecutiveReport(input: ExecutiveInputs) {
   }
 
   // --- Tabs ---------------------------------------------------------------------------------------------------
-  const nameOf = (id: string) => input.clients.find((c) => c.id === id)?.name ?? { ar: '' };
   const hoursByClient = new Map<string, number>();
   for (const t of time)
     if (t.clientId && t.day >= range.from && t.day <= range.to)

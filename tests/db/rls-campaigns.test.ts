@@ -176,7 +176,11 @@ describe('agency permissions', () => {
 
   it('numbers campaigns per organization and records who created them', async () => {
     const res = await as(AM, async (tx) => {
-      const [{ max }] = (await tx`select coalesce(max(number), 0)::int as max from public.campaigns`) as unknown as [{ max: number }];
+      // The organization's highest number, not just the ones this user can see.
+      const [{ max }] =
+        (await sql`select coalesce(max(number), 0)::int as max from public.campaigns where organization_id = ${org}`) as unknown as [
+          { max: number },
+        ];
       const [row] = await tx`insert into public.campaigns (organization_id, client_id, name, start_date, end_date, created_by)
         values (${org}, ${najd}, 'جديدة', current_date, current_date + 10, ${await userId(SPECIALIST)}) returning number, created_by, health`;
       return { max, row: row! };

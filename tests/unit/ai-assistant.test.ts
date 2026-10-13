@@ -150,7 +150,12 @@ describe('tools and the mock plan (ADR-090)', () => {
 
   it('the tool-mode prompt declares the tools and keeps the citation rules', () => {
     const p = assistantToolsPrompt('ar', 'سؤال', [{ role: 'user', content: 'سابق' }], '2026-10-01');
-    expect(p.tools?.length).toBe(toolSpecs.length);
+    // The Executive Center's tool is offered to executives only (FR7).
+    expect(p.tools?.map((t) => t.name)).toEqual(toolSpecs.map((t) => t.name).filter((n) => n !== 'executive_kpis'));
+    const exec = assistantToolsPrompt('ar', 'سؤال', [], '2026-10-01', { executive: true });
+    expect(exec.tools?.length).toBe(toolSpecs.length);
+    expect(exec.system).toMatch(/executive_kpis/);
+    expect(p.system).not.toMatch(/executive_kpis/);
     expect(p.system).toMatch(/Only cite numbers that appear in tool results/);
     expect(p.system).toMatch(/Modern Standard Arabic/);
     expect(p.messages.at(-1)).toEqual({ role: 'user', content: 'سؤال' });

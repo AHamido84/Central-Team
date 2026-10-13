@@ -310,6 +310,7 @@ export async function loadExecutiveInputs(ctx: AgencyContext, config: ExecutiveV
 
   return {
     today,
+    timeZone: ctx.organization.defaultTimezone,
     period,
     comparison,
     config,

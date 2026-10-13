@@ -88,9 +88,10 @@ export function resolvePeriod(preset: PeriodPreset, today: string, custom?: { fr
     case 'last_12m':
       return period(addDays(addMonths(today, -12), 1), today, today);
     case 'custom': {
-      const from = custom?.from && custom.from <= (custom.to ?? today) ? custom.from : addDays(today, -29);
-      const to = custom?.to && custom.to >= from ? custom.to : today;
-      return period(from, to, today);
+      // A reversed or half-empty range falls back to the last 30 days as a whole, never to a mix of the two.
+      const from = custom?.from ?? null;
+      const to = custom?.to ?? today;
+      return from && from <= to ? period(from, to, today) : period(addDays(today, -29), today, today);
     }
   }
 }

@@ -257,7 +257,8 @@ describe('Client Viewer is read-only', () => {
 describe('agency access scoping', () => {
   it('an Account Manager (read_assigned) only sees assigned clients', async () => {
     const rows = await as('abdulrahman@ofoq.test', (tx) => tx`select slug from public.clients order by slug`);
-    expect(rows.map((r) => r.slug)).toEqual(['future-smile', 'gulf-vision']);
+    // riyadh-motors: a former (archived) client of his from the executive history seed (FR7).
+    expect(rows.map((r) => r.slug)).toEqual(['future-smile', 'gulf-vision', 'riyadh-motors']);
   });
 
   it('a per-user deny override removes access', async () => {
@@ -274,6 +275,7 @@ describe('agency access scoping', () => {
 
   it('a per-user grant override extends access (seeded: Turki sees all clients)', async () => {
     const { n } = (await as('turki@ofoq.test', (tx) => tx`select count(*)::int as n from public.clients`))[0]!;
-    expect(n).toBe(5);
+    // Five current clients and the two former ones of the executive history seed (FR7).
+    expect(n).toBe(7);
   });
 });
