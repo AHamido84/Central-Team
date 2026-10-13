@@ -1061,6 +1061,89 @@ before the campaign's start week, where the grid can't show it.
 *Rejected*: spreading period totals evenly over the days (looks like real data, isn't); letting the grid browse
 outside the campaign's dates (the numbers would still be outside every analysis).
 
+
+### ADR-096 — Executive / Board roles and the Executive Intelligence Center
+2026-10-13 · Accepted
+
+The chairman and the board need one place that shows the whole agency, with the same numbers the teams see, and no
+way to change operational data.
+
+- **Roles**: *Executive / Board* (`executive_board`) and *Executive Viewer* (`executive_viewer`), system roles seeded in
+  every organization (`app.seed_executive_roles`, called from `app.bootstrap_organization`). Both hold every read
+  permission (`clients:read_all`, `requests:read`, `tasks:read`, `time:read_all`, `campaigns:read`, `operations:read`,
+  `leads:read`, `deals:read`, `capacity:read`, …) and **no write permission**. Board adds `executive:export` and
+  `executive:schedule`; Viewer has `executive:view` only. Admins (who get every agency permission) and Super Admins
+  can open the Center too.
+- **Read-only by construction**: every write policy needs a write permission these roles don't hold. Their only writes
+  are their own rows: saved views (private), notes (author = self), schedules and targets (`executive:schedule`, or
+  `organization:update` for targets) and the assistant. `tests/db/rls-executive.test.ts` checks updates/deletes on the
+  operational tables.
+- `app.is_executive(org)` = agency member with `executive:view`; guards `kpi_snapshots`, notes and AI usage reads.
+- **Audit**: `app.log_executive_event` writes `activity_log` rows for sign-ins (password and magic link), exports and
+  scheduled sends, only for callers with `executive:view`.
+- **Landing**: "focus" executives (executive:view without operational write rights) are redirected from `/dashboard` to
+  `/executive` and get a shorter navigation (items flagged `executive`).
+- **Numbers**: one loader reads as the executive (RLS) and calls the owning screens' own loaders (`getOpsOverview`,
+  `getSalesData`, `getCapacity` + `capacityGrid`, `listCampaigns`, `getCurrentPackageUsage`); a pure
+  `buildExecutiveReport` applies the owning modules' functions (`compliance`, `winRate`, `averageCycleDays`,
+  `forecastByMonth`, `stageConversion`, `memberWeekCapacity`, …). `src/modules/executive/kpi.ts` adds only periods,
+  equal-length comparisons, rates with parts, median/P90, moving averages, concentration, targets and projections.
+  Definitions: `docs/KPIS.md`; a DB test checks the numbers match the other screens.
+- **Revenue** is recurring package revenue (monthly price × 12 ÷ 365 per covered day). Won deals are *bookings*, kept
+  apart so nothing is counted twice. Days follow the organization's time zone.
+- **History** for current-state metrics (health, backlog, pipeline, open risks…) comes from `kpi_snapshots`, written
+  daily by the cron and by "Refresh now" (service path, no user write access).
+- **AI brief**: numbered fact lines computed by code; with AI on, the model restates them and cites `[n]` (validated);
+  with AI off the lines themselves are the brief. The assistant gets an `executive_kpis` tool for executives only,
+  whose results cite the Center's view (`kpi` citation type, never indexed).
+
+*Rejected*: a separate read-only database role (two permission systems); computing KPIs in SQL views (they would
+diverge from the screens' TypeScript functions); counting won deals as revenue.
+
+### ADR-097 — Board report: server PDF through headless Chromium, PowerPoint and Excel from one model; scheduled emails run as their owner
+2026-10-13 · Accepted
+
+ADR-049 kept client reports on browser printing because server PDF engines shape Arabic badly. A scheduled email needs
+a file without a browser, so the board report prints **server-rendered HTML with headless Chromium** — the same engine
+as the browser, so Arabic shaping and RTL layout are right.
+
+- `puppeteer-core` + `@sparticuz/chromium` on Vercel (Chromium binary traced only into the export, cron and reports
+  routes), a local Chromium elsewhere (`PDF_CHROMIUM_PATH`, else Playwright's). The HTML is self-contained: IBM Plex
+  Sans Arabic embedded from `@fontsource` (the Lambda Chromium has no Arabic fonts), charts as inline SVG, network
+  requests blocked while rendering.
+- One `boardModel` feeds PDF, PowerPoint (`pptxgenjs`, native editable charts, RTL text, Arial for Arabic in Office) and
+  Excel (`exceljs`, numbers kept as numbers, right-to-left sheets in Arabic).
+- `GET /api/executive/export?format=pdf|pptx|xlsx&<view>` needs `executive:export`, is rate limited and audited.
+- **Schedules** (weekly on Sunday = this month so far; monthly on the 1st = last month) are claimed by moving
+  `next_run_on` first (no double sends). The PDF goes to the private `exports` bucket; one outbox email per recipient
+  carries it as an **attachment** (`email_outbox.attachments`, read back by the outbox at send time, removed with the
+  90-day log). Mail goes through Settings → Mail like every other email (ADR-088).
+- A scheduled report runs **as the schedule's creator**: a service-path lookup confirms they are still an active member
+  with `executive:schedule`, then `loadAppContext` builds their context and `runWithSession` makes every `withRls`
+  inside read as them. If they no longer qualify the run is skipped. The daily KPI snapshot runs the same way as one
+  of the organization's executives (or a Super Admin).
+- Notes on a KPI notify the chosen owner (`executive_note` notification). "Create a task" is done by the event
+  consumer with the service connection (executives can't create tasks), for an active agency member, once per note.
+
+*Rejected*: React-PDF / pdfmake (Arabic shaping), a headless browser for every user download in the client (no file
+for emails), running scheduled reports as a service role (it would read more than the owner can).
+
+### ADR-098 — RLS: no per-row access functions left
+2026-10-13 · Accepted
+
+Twelve months of daily metrics made the campaign list — and the Executive Center, which reuses it — take ~18 s, a
+year of time entries ~1 s. ADR-082 had fixed tasks; policies elsewhere still called
+`(select app.agency_can_task(x.client_id, '…'))`, `(select app.client_can_see_campaign(x.campaign_id))` and
+`(select app.has_permission(x.organization_id, '…'))`, which Postgres runs once per row.
+
+- New array functions with the same logic: `app.agency_permission_client_ids(permission)`,
+  `app.client_visible_campaign_ids()`, `app.permission_org_ids(permission)`. Migration
+  `20261012213000_rls_initplan_campaigns.sql` rewrites every matching policy (~140) to `x = any ((select …)::uuid[])`,
+  an InitPlan computed once per statement.
+- Result: the metrics aggregate 4.7 s → 27 ms; the 12-month Executive Center ~25 s → < 2 s in dev with concurrent loads.
+- Equivalence is tested: for five personas and a portal user the visible rows equal what the old functions allow.
+- New policies must use the array form (CLAUDE.md §8.1).
+
 ---
 
 ## Open questions (still open — defaults in use shown in brackets)

@@ -981,6 +981,22 @@ per organization of the user) next to the existing `profiles.email` sync.
 | `mail_settings` | One per organization (ADR-088): `preset` (gmail · google_workspace · microsoft365 · zoho · resend · smtp), `host`, `port`, `security` (starttls · ssl · none), `username`, `from_name` `{ar,en}`, `from_email`, `reply_to`, `daily_limit`, `is_active`, `secret_id` (Vault, no user column privilege), `secret_hint`, last test, `last_success_at`, `fallback_since`, `limit_warned_on`. RLS: `mail:manage`. Audited. `app.mail_put_secret` (write-only) / `app.mail_get_secret` (service only). |
 | `email_outbox` | Queue and log: `kind` (magic_link · recovery · email_change · invitation · notification · security_notice · report · test · other), `to_email`, `user_id`, `locale`, `subject`, `html` / `text` (no user column privilege; cleared after sending when `sensitive`), `status` (queued · sending · sent · failed), `attempts`, `next_attempt_at`, `error_code` / `error_message`, `provider`, `sender` (configured · environment · fallback · dev), `provider_message_id`, `sent_at`, `resent_from`. RLS: read metadata with `mail:manage`; writes only on the service path. Kept 90 days. |
 
+## 3m. Feedback Round 7 — Executive Center (ADR-096…098)
+
+| Table | Purpose | RLS |
+|---|---|---|
+| `kpi_targets` | Yearly (`quarter` null) or quarterly target per metric (`revenue`, `new_clients`, `on_time_rate`, `sla_compliance`, `utilization`, `win_rate`, `roas`), in KPI units (halalas, fractions); unique per org/metric/year/quarter | read: executives or `organization:update`; write: `executive:schedule` or `organization:update` |
+| `kpi_snapshots` | Daily value + `details` of current-state metrics (health, backlog, pipeline, open risks…); PK (org, day, metric) | read: `app.is_executive`; written only by the service (cron, Refresh now) |
+| `executive_views` | Saved view (`config` = tab, preset, from/to, compare, filters), `pinned` | own rows only, executives |
+| `executive_notes` | Note on a KPI with its view `context`, optional `owner_id` and the `task_id` the consumer created | read: executives and the owner; insert: executive as author; update: author or owner; delete: author |
+| `executive_schedules` | Weekly/monthly board report, `locale`, `recipients` (1–20), `next_run_on`, `last_run_at`, `is_active` | `executive:schedule` |
+
+Also: `email_outbox.attachments` (jsonb `[{filename, contentType, storagePath}]`, files in the private `exports`
+bucket); `ai_usage.purpose` gains `executive_brief`; `app.log_executive_event` audit rows (`executive_login`,
+`executive_export`, `executive_schedule_sent`); roles `executive_board` and `executive_viewer`; permissions
+`executive:view|export|schedule`. Array functions for policies: `app.permission_org_ids`,
+`app.agency_permission_client_ids`, `app.client_visible_campaign_ids`.
+
 ## 4. Forward-looking sketch (all phases — not built in Phase 0)
 
 ```mermaid

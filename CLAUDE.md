@@ -40,6 +40,7 @@ Built single-agency first, but **multi-tenant ready**: every tenant-scoped row c
 | FR4 — Feedback Round 4 | Portal users: admins change a portal user's email (pending invite, direct, or ask to confirm), existing portal users added to more clients with a per-client role, portal user drawer, the selected client enforced in RLS (`app.active_client`) with a choose-account screen and switcher, notifications labelled and opened per client with per-client preferences (ADR-091…093) | **Done** (deployed; signed-in flows verified locally) |
 | FR5 — Feedback Round 5 | Delete leads: leads and their activities go to the Trash (restore / delete forever), `leads:delete` / `leads:purge`, delete from the leads list (row + bulk) and the lead page with Undo (ADR-094) | **Done** (deployed; signed-in flows verified locally) |
 | FR6 — Feedback Round 6 | CSV import: period-total exports (no daily breakdown) explained and refused with per-platform export steps, days outside the campaign extend the dates or are skipped, the grid jumps to the imported week, "Show" / "Undo import" in the import history (ADR-095) | **Done** (deployed; signed-in flows verified locally) |
+| FR7 — Feedback Round 7 | Executive / Board and Executive Viewer roles (read-only, `app.is_executive`, audited sign-ins and exports), `/executive` Intelligence Center (periods, comparisons, filters, 41 KPIs defined in `docs/KPIS.md`, seven tabs, attention panel, AI brief with a rules fallback, targets), board report PDF (headless Chromium) / PowerPoint / Excel, scheduled emails with the PDF attached, saved views, notes, KPI snapshots, presentation mode, `executive_kpis` assistant tool; RLS per-row functions removed (ADR-096…098) | **Done** (local; deploy waits for the owner) |
 | FR2 — Feedback Round 2 | Settings → Mail (Gmail App Password, Workspace, Outlook, Zoho, Resend, SMTP) with tests and status, one outbox for app and auth emails (retries, fallback, daily limit, 90-day log), email change through the configured sender (ADR-088) | **Done** |
 
 Current state & gotchas: `docs/HANDOFF.md` (read first in a new session). Details: `docs/ROADMAP.md`. Architecture: `docs/ARCHITECTURE.md`. Data: `docs/DATA_MODEL.md`.
@@ -139,7 +140,7 @@ Rules:
   assistant indexer, scheduled-report auto-drafts, index status — ADR-073/075), Storage cleanup after a Trash purge, the
   data reset job and the Super Admin backup export (ADR-080/081), decrypting AI provider keys in `getAIClient` (ADR-085),
   an admin setting a member's login email through GoTrue's admin API after an RLS-checked lookup (ADR-087), the email outbox
-  (queueing, the worker, the sender's Vault secret, auth links from `generateLink` after an active-member lookup — ADR-088), the portal email change (GoTrue admin update, session sign-out, the confirm-token table, the address lookup that tells whether an email already has an account — ADR-092/093), and the seed. Every use needs a comment why.
+  (queueing, the worker, the sender's Vault secret, auth links from `generateLink` after an active-member lookup — ADR-088), the portal email change (GoTrue admin update, session sign-out, the confirm-token table, the address lookup that tells whether an email already has an account — ADR-092/093), the Executive Center's background work (the member lookup behind `agencyContextFor` that lets a scheduled board report run as its owner and the daily KPI snapshot as an executive, writing `kpi_snapshots`, the board-report PDF in the private `exports` bucket and its read-back as an email attachment, and the note consumer's task for the note's owner — ADR-097), and the seed. Every use needs a comment why.
 - **Errors**: actions return `{ ok: true, data } | { ok: false, error: { code, message?, fieldErrors? } }`;
   error `code`s are translated in the UI. Never leak DB error text to users.
 - **Commits**: Conventional Commits (`feat(auth): …`, `fix(rbac): …`, `docs: …`). One logical change per commit.
@@ -167,7 +168,8 @@ Rules:
 
 1. **RLS enabled on every table**, including lookup tables. A migration that creates a table without
    RLS + policies fails CI (`test:db` asserts it). Policies test access with the array functions
-   (`client_id = any ((select app.agency_client_ids())::uuid[])`), never a per-row access function (ADR-082).
+   (`client_id = any ((select app.agency_client_ids())::uuid[])`, `organization_id = any ((select app.permission_org_ids('x:y'))::uuid[])`),
+   never a per-row access function such as `(select app.has_permission(t.organization_id, …))` (ADR-082/098).
 2. **The database is the source of truth for authorization.** `app.has_permission()` in Postgres decides;
    the TS `can()` mirrors it for UI and early rejection only, and is computed from the same DB data.
 3. App DB queries run as role `authenticated` with the user's JWT claims (`withRls`). Service role is the

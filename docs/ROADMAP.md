@@ -1050,9 +1050,9 @@ periods and comparisons, median/P90, moving averages, small-sample flags and pro
 - **Deploy** and verify on production.
 
 **Status**
-- [ ] FR7.1 Roles, permissions, `app.is_executive`, audit of logins/exports, landing + nav
-- [ ] FR7.2 Executive Center: controls, KPI engine, 7 tabs, attention panel, AI brief, targets
-- [ ] FR7.3 Board report PDF / PPTX / Excel, schedules with attachment, saved views, notes
-- [ ] FR7.4 Executive assistant scope and chips
-- [ ] FR7.5 Snapshots + cron, presentation mode, tablet polish
-- [ ] FR7.6 Seed (chairman, viewer, 12 months), tests, KPIS.md, docs, deploy
+- [x] FR7.1 Roles, permissions, `app.is_executive`, audit of logins/exports, landing + nav (ADR-096)
+- [x] FR7.2 Executive Center: controls, KPI engine, 7 tabs, attention panel, AI brief, targets
+- [x] FR7.3 Board report PDF / PPTX / Excel, schedules with attachment, saved views, notes (ADR-097)
+- [x] FR7.4 Executive assistant scope and chips (in `/assistant`, `executive_kpis` tool for executives)
+- [x] FR7.5 Snapshots + cron, presentation mode, tablet polish; RLS per-statement checks for speed (ADR-098)
+- [ ] FR7.6 Seed (chairman, viewer, 12 months), tests, KPIS.md, docs — done; **deploy** waits for the owner's go

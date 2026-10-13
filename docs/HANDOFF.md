@@ -1,6 +1,6 @@
 # Handoff — state of the project
 
-Last updated: 2026-10-01 (Feedback Round 3) · Branch: `claude/sharp-euler-zr273f` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
+Last updated: 2026-10-13 (Feedback Round 7) · Branch: `claude/blissful-hawking-7crr14` · Read with `CLAUDE.md` (rules) and `docs/ROADMAP.md` (next work).
 
 ## Where we are
 
@@ -18,6 +18,7 @@ Last updated: 2026-10-01 (Feedback Round 3) · Branch: `claude/sharp-euler-zr273
 | Feedback Round 1 | **Built and deployed.** Also: people pickers above drawers, done tasks shown by default. Soft delete + Trash + bulk delete + data reset (ADR-080/081); tasks performance (1,000 tasks interactive < 1 s) and a History-API drawer (ADR-082); reviewed conversion plan + ad-hoc tasks (ADR-083); per-field task permissions enforced by the DB (ADR-084); AI keys in Vault from `/admin/ai` (ADR-085); personal connected accounts incl. X / LinkedIn (ADR-086); email change fixed (ADR-087) |
 | Feedback Round 3 | **Built and deployed (2026-10-01).** Assistant crash fixed (an effect returned Chrome's scroll Promise — ADR-089), every AI failure is an inline reason with "Fix in AI settings", the assistant answers with only an Anthropic key through read-only tools that run as the user (ADR-090), index health + background re-index, "Test assistant" in `/admin/ai`, model check on key save |
 | Feedback Round 2 | **Built and deployed (2026-10-01).** Settings → Mail (Gmail / Workspace / Outlook / Zoho / Resend / SMTP) with tests, one outbox for app and auth emails (retries, fallback, daily limit, 90-day log at `/admin/mail/log`), email change through the configured sender (ADR-088) |
+| Feedback Round 7 | **Built, not deployed yet.** Executive / Board + Executive Viewer roles (read-only, audited), `/executive` with 41 KPIs (`docs/KPIS.md`), seven tabs, attention panel, AI brief, targets (`/executive/targets`), board report PDF/PPTX/Excel and scheduled emails with the PDF attached (`/executive/reports`), saved views, notes, snapshots, presentation mode, assistant `executive_kpis` tool; RLS per-row functions removed (ADR-096…098) |
 
 **Feedback Round 4, verified on a fresh seed**: 277 unit, 262 DB, 57 Playwright e2e tests, `pnpm build` deployed 2026-10-02.
 **Feedback Round 2, verified on a fresh seed**: `pnpm check` (243 unit tests), 239 DB tests, `pnpm build`. Feedback Round 1: 229 unit tests, 231 DB tests, 46 Playwright e2e tests,
@@ -137,6 +138,18 @@ Key accounts: `sara@ofoq.test` (Super Admin), `faisal@ofoq.test` (Admin), `noura
 44. **Names inside insight / recommendation sentences are wrapped in U+2068/U+2069**; tests compare with `plain()`.
 45. **The profile language wins over the `NEXT_LOCALE` cookie**: e2e personas with an Arabic profile (Noura) render Arabic
     even in an `en-US` browser context — assert the Arabic UI or use Sara.
+46. **Never call an access function on a row's column in a policy** (`(select app.has_permission(t.organization_id, …))`):
+    Postgres runs it per row. Use the array functions (`app.permission_org_ids`, `app.agency_permission_client_ids`,
+    `app.client_visible_campaign_ids`, ADR-098). A 12-month seed turned one such policy into 18 s.
+47. **Background work as a person**: `agencyContextFor(userId, org, permission)` + `runWithSession(ctx.session, fn)` make
+    every `withRls()` inside read as that member (scheduled board reports, KPI snapshots). Module loaders that call
+    `withRls()` without a session rely on it.
+48. **A page with `loading.tsx` streams 200 before `forbidden()` renders**: e2e checks the forbidden text, not the status.
+49. **Board PDFs need a Chromium**: `PDF_CHROMIUM_PATH` (else `PW_CHROMIUM_PATH`, else `/opt/pw-browsers/chromium`)
+    locally; `@sparticuz/chromium` on Vercel, traced only into `/api/executive/export`, `/api/cron/dispatch-events` and
+    `/executive/reports` (`next.config.ts`). LibreOffice in the sandbox can't open .pptx/.xlsx (no Impress/Calc).
+50. **Seed counts changed in FR7**: 7 clients (two archived former clients), 12 campaigns + 3 completed always-on ones;
+    tests that count clients or campaigns account for them.
 
 ## Production (live demo)
 
@@ -389,6 +402,33 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
    background; Test assistant's embedder step passes.
 8. Repeat the screens in AR / EN × light / dark × mobile / desktop.
 
+## Feedback Round 7 — manual test checklist (local: `pnpm db:reset`, password `Passw0rd!`; Mailpit at http://localhost:54324)
+
+Built on `claude/blissful-hawking-7crr14` (ADR-096…098); migrations `20261012205636_executive`, `…205700_executive_security`,
+`…211923_ai_executive_brief`, `…212000_executive_data_reset`, `…213000_rls_initplan_campaigns`. **Not deployed yet.**
+Production has the owner's real data: invite the chairman there with the *Executive / Board* role (Team → Invite), no
+demo account is created on production.
+
+1. Sign in as `chairman@ofoq.test` → lands on **/executive** (Arabic, RTL) with a short navigation and a "read-only" badge.
+2. Period → Year to date, Compare → Same period last year: the range line, tiles, ▲▼ and sparklines change; the URL keeps
+   the view. Hover a rate for "x of y"; ⓘ shows definition, formula and source; small samples say "based on N".
+3. Filters → a client: tiles, tabs and risks narrow to that client. Clear filters.
+4. Each tab: Clients & revenue (by client, 3-month average, health, package use), Operations (turnaround median/P90,
+   compliance by client/type, slowest steps, aging), Team (utilization, people, 8-week forecast, hiring signal),
+   Marketing, Sales, Risks.
+5. Overview → "Needs attention" ranked by severity; "Executive brief" lists computed lines; "Write with AI" (mock
+   provider locally) rewrites them with numbered citations.
+6. A tile → note button → write a note for Noura → Noura gets a notification (and, with "Create a task", a task on the
+   chosen client). The note appears in Notes; Noura can mark it resolved.
+7. Saved views → Save this view (pinned) → the pinned button appears; reopen it from the menu.
+8. Export → PDF (Arabic, branded, one tab per page), PowerPoint, Excel. Switch to English and export again (LTR).
+9. Present → full screen, one tab per slide, ← → / Esc, refreshes every 5 minutes.
+10. Board reports → New schedule → your address → Send now → Mailpit shows the email with `board-report-….pdf` attached
+    and a link back. Targets → set a quarterly on-time target → the tile shows progress.
+11. `board@ofoq.test` (Viewer): sees the Center, no Export, no Board reports / Targets in the menu, export URL → 403.
+12. `khalid@ofoq.test` → /executive shows "You don't have access"; a portal user is sent to the portal.
+13. Assistant as the chairman: board-level chips; "كيف الإيرادات هذا الربع؟" answers from the Center with citations that open it.
+
 ## Feedback Round 6 — manual test checklist (local: `pnpm db:reset`, password `Passw0rd!`)
 
 Built on `claude/blissful-hawking-7crr14` (ADR-095); migrations `20261008123900_metric_import_undo` and
@@ -464,8 +504,8 @@ Gotchas:
 
 ## Starting a new session
 
-1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md` (latest: "Feedback Round 6"), and `docs/DECISIONS.md` (next ADR:
-   **096**). Work on the branch the session names (Round 4: `claude/blissful-hawking-7crr14`); Conventional Commits with a
+1. Read `CLAUDE.md`, this file, `docs/ROADMAP.md` (latest: "Feedback Round 7"), and `docs/DECISIONS.md` (next ADR:
+   **099**). Work on the branch the session names (Round 4: `claude/blissful-hawking-7crr14`); Conventional Commits with a
    lowercase subject (commitlint); push after each logical step.
 2. Local stack (cloud sandboxes lose it on every container restart):
    - `rm -f /var/run/docker.pid; dockerd > /tmp/dockerd.log 2>&1 &` (wait for `docker info`).
