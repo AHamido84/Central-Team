@@ -18,7 +18,7 @@ Last updated: 2026-10-13 (Feedback Round 7) · Branch: `claude/blissful-hawking-
 | Feedback Round 1 | **Built and deployed.** Also: people pickers above drawers, done tasks shown by default. Soft delete + Trash + bulk delete + data reset (ADR-080/081); tasks performance (1,000 tasks interactive < 1 s) and a History-API drawer (ADR-082); reviewed conversion plan + ad-hoc tasks (ADR-083); per-field task permissions enforced by the DB (ADR-084); AI keys in Vault from `/admin/ai` (ADR-085); personal connected accounts incl. X / LinkedIn (ADR-086); email change fixed (ADR-087) |
 | Feedback Round 3 | **Built and deployed (2026-10-01).** Assistant crash fixed (an effect returned Chrome's scroll Promise — ADR-089), every AI failure is an inline reason with "Fix in AI settings", the assistant answers with only an Anthropic key through read-only tools that run as the user (ADR-090), index health + background re-index, "Test assistant" in `/admin/ai`, model check on key save |
 | Feedback Round 2 | **Built and deployed (2026-10-01).** Settings → Mail (Gmail / Workspace / Outlook / Zoho / Resend / SMTP) with tests, one outbox for app and auth emails (retries, fallback, daily limit, 90-day log at `/admin/mail/log`), email change through the configured sender (ADR-088) |
-| Feedback Round 7 | **Built, not deployed yet.** Executive / Board + Executive Viewer roles (read-only, audited), `/executive` with 41 KPIs (`docs/KPIS.md`), seven tabs, attention panel, AI brief, targets (`/executive/targets`), board report PDF/PPTX/Excel and scheduled emails with the PDF attached (`/executive/reports`), saved views, notes, snapshots, presentation mode, assistant `executive_kpis` tool; RLS per-row functions removed (ADR-096…098) |
+| Feedback Round 7 | **Built and deployed (2026-10-13).** Executive / Board + Executive Viewer roles (read-only, audited), `/executive` with 41 KPIs (`docs/KPIS.md`), seven tabs, attention panel, AI brief, targets (`/executive/targets`), board report PDF/PPTX/Excel and scheduled emails with the PDF attached (`/executive/reports`), saved views, notes, snapshots, presentation mode, assistant `executive_kpis` tool; RLS per-row functions removed (ADR-096…098) |
 
 **Feedback Round 7, verified on a fresh seed**: 313 unit, 309 DB, 69 Playwright e2e tests, `pnpm build` (2026-10-13, not deployed).
 **Feedback Round 4, verified on a fresh seed**: 277 unit, 262 DB, 57 Playwright e2e tests, `pnpm build` deployed 2026-10-02.
@@ -406,7 +406,7 @@ Sign in as `sara@ofoq.test` (password `Passw0rd!`).
 ## Feedback Round 7 — manual test checklist (local: `pnpm db:reset`, password `Passw0rd!`; Mailpit at http://localhost:54324)
 
 Built on `claude/blissful-hawking-7crr14` (ADR-096…098); migrations `20261012205636_executive`, `…205700_executive_security`,
-`…211923_ai_executive_brief`, `…212000_executive_data_reset`, `…213000_rls_initplan_campaigns`. **Not deployed yet.**
+`…211923_ai_executive_brief`, `…212000_executive_data_reset`, `…213000_rls_initplan_campaigns`. **Deployed** 2026-10-13 (`b675aef`, `dpl_9gRUuL6sVCJdvJGg7RnmqGD5VZ6h`): all five migrations applied; on production only health, sign-in and the `/executive` sign-in guard were checked (the PDF export on Vercel waits for an executive account).
 Production has the owner's real data: invite the chairman there with the *Executive / Board* role (Team → Invite), no
 demo account is created on production.
 
